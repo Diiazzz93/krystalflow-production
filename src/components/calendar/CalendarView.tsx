@@ -149,7 +149,7 @@ function MonthGrid({
   for (let i = 0; i < days.length; i += 7) weeks.push(days.slice(i, i + 7));
 
   const dragRef = useRef<{
-    mode: "move" | "resize";
+    mode: "move" | "resize-end" | "resize-start";
     jobId: string;
     origIdx: number;
     origStart: Date;
@@ -160,7 +160,7 @@ function MonthGrid({
   const [dragState, setDragState] = useState<{
     id: string;
     delta: number;
-    mode: "move" | "resize";
+    mode: "move" | "resize-end" | "resize-start";
   } | null>(null);
 
   function cellIdxAt(x: number, y: number): number | null {
@@ -175,13 +175,13 @@ function MonthGrid({
   function startDrag(
     e: React.PointerEvent,
     job: Job,
-    mode: "move" | "resize",
+    mode: "move" | "resize-end" | "resize-start",
     barStartIdx: number,
     barEndIdx: number,
   ) {
     e.stopPropagation();
     e.preventDefault();
-    const origIdx = mode === "move" ? barStartIdx : barEndIdx;
+    const origIdx = mode === "resize-end" ? barEndIdx : barStartIdx;
     dragRef.current = {
       mode,
       jobId: job.id,
@@ -212,10 +212,15 @@ function MonthGrid({
           const ns = new Date(d.origStart); ns.setDate(ns.getDate() + days);
           const ne = new Date(d.origEnd); ne.setDate(ne.getDate() + days);
           onUpdateJob(d.jobId, { scheduledStart: ns.toISOString(), scheduledEnd: ne.toISOString() });
-        } else {
+        } else if (d.mode === "resize-end") {
           const ne = new Date(d.origEnd); ne.setDate(ne.getDate() + days);
           if (ne > d.origStart) {
             onUpdateJob(d.jobId, { scheduledEnd: ne.toISOString() });
+          }
+        } else {
+          const ns = new Date(d.origStart); ns.setDate(ns.getDate() + days);
+          if (ns < d.origEnd) {
+            onUpdateJob(d.jobId, { scheduledStart: ns.toISOString() });
           }
         }
       }
@@ -352,12 +357,23 @@ function MonthGrid({
                       {fmtTime(job.scheduledStart)} {job.customer}
                       {continuesAfter && " →"}
                     </div>
+                    {!continuesBefore && (
+                      <div
+                        onPointerDown={(e) => startDrag(e, job, "resize-start", absStartIdx, absEndIdx)}
+                        className="absolute top-0 left-0 h-full w-2.5 cursor-ew-resize bg-black/30 hover:bg-black/50 rounded-l touch-none flex items-center justify-center"
+                        title="Drag to change start date"
+                      >
+                        <div className="h-2/3 w-0.5 bg-white/70 rounded" />
+                      </div>
+                    )}
                     {!continuesAfter && (
                       <div
-                        onPointerDown={(e) => startDrag(e, job, "resize", absStartIdx, absEndIdx)}
-                        className="absolute top-0 right-0 h-full w-2 cursor-ew-resize bg-black/20 opacity-0 group-hover:opacity-100 rounded-r touch-none"
-                        title="Drag to extend"
-                      />
+                        onPointerDown={(e) => startDrag(e, job, "resize-end", absStartIdx, absEndIdx)}
+                        className="absolute top-0 right-0 h-full w-2.5 cursor-ew-resize bg-black/30 hover:bg-black/50 rounded-r touch-none flex items-center justify-center"
+                        title="Drag to change end date"
+                      >
+                        <div className="h-2/3 w-0.5 bg-white/70 rounded" />
+                      </div>
                     )}
                   </div>
                 );
@@ -368,7 +384,7 @@ function MonthGrid({
       })}
       {dragState && (
         <div className="pointer-events-none fixed bottom-4 left-1/2 -translate-x-1/2 bg-foreground text-background text-xs px-3 py-1.5 rounded-full shadow-lg z-50">
-          {dragState.mode === "move" ? "Move" : "Extend"} by {dragState.delta > 0 ? "+" : ""}{dragState.delta} day{Math.abs(dragState.delta) === 1 ? "" : "s"}
+          {dragState.mode === "move" ? "Move" : dragState.mode === "resize-end" ? "End date" : "Start date"} {dragState.delta > 0 ? "+" : ""}{dragState.delta} day{Math.abs(dragState.delta) === 1 ? "" : "s"}
         </div>
       )}
     </div>
