@@ -135,11 +135,13 @@ function MonthGrid({
   jobs,
   onCreate,
   onSelectJob,
+  onUpdateJob,
 }: {
   days: Date[];
   jobs: Job[];
   onCreate: (s: string) => void;
   onSelectJob: (id: string) => void;
+  onUpdateJob: (id: string, patch: Partial<Job>) => void;
 }) {
   const month = days[15].getMonth();
   const today = new Date();
