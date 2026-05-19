@@ -149,7 +149,7 @@ function MonthGrid({
   for (let i = 0; i < days.length; i += 7) weeks.push(days.slice(i, i + 7));
 
   const dragRef = useRef<{
-    mode: "move" | "resize";
+    mode: "move" | "resize-end" | "resize-start";
     jobId: string;
     origIdx: number;
     origStart: Date;
@@ -160,7 +160,7 @@ function MonthGrid({
   const [dragState, setDragState] = useState<{
     id: string;
     delta: number;
-    mode: "move" | "resize";
+    mode: "move" | "resize-end" | "resize-start";
   } | null>(null);
 
   function cellIdxAt(x: number, y: number): number | null {
@@ -175,13 +175,13 @@ function MonthGrid({
   function startDrag(
     e: React.PointerEvent,
     job: Job,
-    mode: "move" | "resize",
+    mode: "move" | "resize-end" | "resize-start",
     barStartIdx: number,
     barEndIdx: number,
   ) {
     e.stopPropagation();
     e.preventDefault();
-    const origIdx = mode === "move" ? barStartIdx : barEndIdx;
+    const origIdx = mode === "resize-end" ? barEndIdx : barStartIdx;
     dragRef.current = {
       mode,
       jobId: job.id,
@@ -212,10 +212,15 @@ function MonthGrid({
           const ns = new Date(d.origStart); ns.setDate(ns.getDate() + days);
           const ne = new Date(d.origEnd); ne.setDate(ne.getDate() + days);
           onUpdateJob(d.jobId, { scheduledStart: ns.toISOString(), scheduledEnd: ne.toISOString() });
-        } else {
+        } else if (d.mode === "resize-end") {
           const ne = new Date(d.origEnd); ne.setDate(ne.getDate() + days);
           if (ne > d.origStart) {
             onUpdateJob(d.jobId, { scheduledEnd: ne.toISOString() });
+          }
+        } else {
+          const ns = new Date(d.origStart); ns.setDate(ns.getDate() + days);
+          if (ns < d.origEnd) {
+            onUpdateJob(d.jobId, { scheduledStart: ns.toISOString() });
           }
         }
       }
