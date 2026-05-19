@@ -201,6 +201,18 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
               onChange={(e) => set("scheduledStart", new Date(e.target.value).toISOString())}
             />
           </Field>
+          <Field label="Scheduled end (optional)">
+            <Input
+              type="datetime-local"
+              value={form.scheduledEnd ? toLocalInput(form.scheduledEnd) : ""}
+              onChange={(e) =>
+                set(
+                  "scheduledEnd",
+                  e.target.value ? new Date(e.target.value).toISOString() : undefined,
+                )
+              }
+            />
+          </Field>
           <Field label="Status">
             <Select value={form.status} onValueChange={(v) => set("status", v as Job["status"]) }>
               <SelectTrigger><SelectValue /></SelectTrigger>
