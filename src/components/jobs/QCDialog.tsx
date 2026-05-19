@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { useStore } from "@/lib/store";
 import type { QCEntry } from "@/lib/types";
 import { fmtDateTime, uid } from "@/lib/utils-domain";
-import { CheckCircle2, XCircle, Upload } from "lucide-react";
+import { CheckCircle2, XCircle, Upload, Plus, Trash2 } from "lucide-react";
 import { SignaturePad } from "./SignaturePad";
 
 const CHECKS = [
@@ -76,7 +76,9 @@ export function QCDialog({ jobId, open, onOpenChange }: Props) {
   const [capWeight, setCapWeight] = useState<number | "">("");
   const [liquidWeightPer100ml, setLiquidWeightPer100ml] = useState<number | "">("");
   const [totalWeightGrams, setTotalWeightGrams] = useState<number | "">("");
-  const [palletRowVolumes, setPalletRowVolumes] = useState("");
+  const [palletRowVolumes, setPalletRowVolumes] = useState<
+    { row: string; pump1: string; pump2: string }[]
+  >([{ row: "", pump1: "", pump2: "" }]);
   const [startTime, setStartTime] = useState(nowHHMM());
   const [finishTime, setFinishTime] = useState("");
   const [minimumVolume, setMinimumVolume] = useState<number | "">("");
@@ -118,7 +120,7 @@ export function QCDialog({ jobId, open, onOpenChange }: Props) {
       capWeight: numOrUndef(capWeight),
       liquidWeightPer100ml: numOrUndef(liquidWeightPer100ml),
       totalWeightGrams: numOrUndef(totalWeightGrams),
-      palletRowVolumes: palletRowVolumes || undefined,
+      palletRowVolumes: palletRowVolumes.filter((r) => r.row || r.pump1 || r.pump2),
       startTime,
       finishTime: finishTime || undefined,
       minimumVolume: numOrUndef(minimumVolume),
@@ -134,6 +136,7 @@ export function QCDialog({ jobId, open, onOpenChange }: Props) {
     setNotes("");
     setSupervisorSignatureDataUrl(undefined);
     setFinishTime(nowHHMM());
+    setPalletRowVolumes([{ row: "", pump1: "", pump2: "" }]);
     setChecks({
       fillLevel: "Pass",
       capTightness: "Pass",
@@ -201,9 +204,65 @@ export function QCDialog({ jobId, open, onOpenChange }: Props) {
               </h3>
 
               <Field label="Pallet row volumes">
-                <Textarea rows={2} value={palletRowVolumes}
-                  onChange={(e) => setPalletRowVolumes(e.target.value)}
-                  placeholder="e.g. 500, 501, 499, 502, 500 …" />
+                <div className="space-y-2">
+                  <div className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 text-xs uppercase text-muted-foreground px-1">
+                    <span>Row</span>
+                    <span>Pump 1</span>
+                    <span>Pump 2</span>
+                    <span className="w-9" />
+                  </div>
+                  {palletRowVolumes.map((r, i) => (
+                    <div key={i} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2">
+                      <Input
+                        value={r.row}
+                        onChange={(e) =>
+                          setPalletRowVolumes((rows) =>
+                            rows.map((x, j) => (j === i ? { ...x, row: e.target.value } : x)),
+                          )
+                        }
+                      />
+                      <Input
+                        value={r.pump1}
+                        onChange={(e) =>
+                          setPalletRowVolumes((rows) =>
+                            rows.map((x, j) => (j === i ? { ...x, pump1: e.target.value } : x)),
+                          )
+                        }
+                      />
+                      <Input
+                        value={r.pump2}
+                        onChange={(e) =>
+                          setPalletRowVolumes((rows) =>
+                            rows.map((x, j) => (j === i ? { ...x, pump2: e.target.value } : x)),
+                          )
+                        }
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="size-9"
+                        disabled={palletRowVolumes.length === 1}
+                        onClick={() =>
+                          setPalletRowVolumes((rows) => rows.filter((_, j) => j !== i))
+                        }
+                        aria-label="Remove row"
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setPalletRowVolumes((rows) => [...rows, { row: "", pump1: "", pump2: "" }])
+                    }
+                  >
+                    <Plus className="size-4 mr-1" /> Add row
+                  </Button>
+                </div>
               </Field>
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

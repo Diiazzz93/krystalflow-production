@@ -39,7 +39,7 @@ export interface QCEntry {
   capWeight?: number; // grams
   liquidWeightPer100ml?: number; // grams / 100ml
   totalWeightGrams?: number; // grams
-  palletRowVolumes?: string; // free text list e.g. "500, 502, 499..."
+  palletRowVolumes?: { row: string; pump1: string; pump2: string }[];
   startTime?: string; // HH:MM
   finishTime?: string; // HH:MM
   minimumVolume?: number;
