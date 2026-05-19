@@ -105,7 +105,7 @@ function QCPage() {
               </SelectTrigger>
               <SelectContent>
                 {jobs
-                  .filter((j) => j.status === "In Progress" || j.status === "Requires Review")
+                  .filter((j) => j.status !== "Complete")
                   .map((j) => (
                     <SelectItem key={j.id} value={j.id}>
                       {j.customer} — {j.product}
@@ -117,9 +117,7 @@ function QCPage() {
               variant="default"
               onClick={() => {
                 if (!jobId) {
-                  const first = jobs.find(
-                    (j) => j.status === "In Progress" || j.status === "Requires Review",
-                  );
+                  const first = jobs.find((j) => j.status !== "Complete");
                   if (first) setJobId(first.id);
                 }
               }}
