@@ -143,6 +143,10 @@ function MonthGrid({
 }) {
   const month = days[15].getMonth();
   const today = new Date();
+  // Split into 6 weeks of 7 days
+  const weeks: Date[][] = [];
+  for (let i = 0; i < days.length; i += 7) weeks.push(days.slice(i, i + 7));
+
   return (
     <div className="rounded-lg border border-border bg-card overflow-hidden">
       <div className="grid grid-cols-7 text-xs font-medium border-b border-border bg-muted/40">
@@ -150,64 +154,113 @@ function MonthGrid({
           <div key={d} className="px-2 py-2 text-muted-foreground">{d}</div>
         ))}
       </div>
-      <div className="grid grid-cols-7">
-        {days.map((d, i) => {
-          const dayStart = new Date(d); dayStart.setHours(0,0,0,0);
-          const dayEnd = new Date(d); dayEnd.setHours(23,59,59,999);
-          const dayJobs = jobs.filter((j) => {
+      {weeks.map((week, wi) => {
+        const weekStart = new Date(week[0]); weekStart.setHours(0,0,0,0);
+        const weekEnd = new Date(week[6]); weekEnd.setHours(23,59,59,999);
+
+        // Jobs that overlap this week — laid out as spanning bars
+        const weekJobs = jobs
+          .filter((j) => {
             const s = new Date(j.scheduledStart);
             const e = jobEnd(j);
-            return s <= dayEnd && e >= dayStart;
-          });
-          const out = d.getMonth() !== month;
-          const isToday = sameDay(d, today);
-          return (
-            <div
-              key={i}
-              onDoubleClick={() => {
-                const s = new Date(d);
-                s.setHours(8, 0, 0, 0);
-                onCreate(s.toISOString());
-              }}
-              className={cn(
-                "min-h-28 border-b border-r border-border p-1.5 flex flex-col gap-1 cursor-pointer hover:bg-accent/30 transition-colors",
-                out && "bg-muted/20 text-muted-foreground",
-              )}
-            >
-              <div
-                className={cn(
-                  "text-xs font-medium",
-                  isToday &&
-                    "inline-flex items-center justify-center size-6 rounded-full bg-primary text-primary-foreground self-start",
-                )}
-              >
-                {d.getDate()}
-              </div>
-              <div className="space-y-1 overflow-hidden">
-                {dayJobs.slice(0, 3).map((j) => (
-                  <button
-                    key={j.id}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onSelectJob(j.id);
-                    }}
-                    className="w-full text-left text-[11px] truncate rounded px-1.5 py-0.5 text-white font-medium"
-                    style={{ backgroundColor: j.customerColor }}
-                    title={`${j.customer} — ${j.product}`}
+            return s <= weekEnd && e >= weekStart;
+          })
+          .map((j) => {
+            const s = new Date(j.scheduledStart);
+            const e = jobEnd(j);
+            const startCol = s < weekStart ? 0 : s.getDay();
+            const endCol = e > weekEnd ? 6 : e.getDay();
+            const span = endCol - startCol + 1;
+            return { job: j, startCol, span, continuesBefore: s < weekStart, continuesAfter: e > weekEnd };
+          })
+          // Multi-day first (top), longer spans first
+          .sort((a, b) => b.span - a.span);
+
+        // Assign each job a row to avoid overlap
+        const rows: { startCol: number; endCol: number }[][] = [];
+        const placed = weekJobs.map((wj) => {
+          let rowIdx = 0;
+          while (true) {
+            const row = rows[rowIdx] ?? [];
+            const conflict = row.some(
+              (r) => !(wj.startCol + wj.span - 1 < r.startCol || wj.startCol > r.endCol),
+            );
+            if (!conflict) {
+              row.push({ startCol: wj.startCol, endCol: wj.startCol + wj.span - 1 });
+              rows[rowIdx] = row;
+              return { ...wj, row: rowIdx };
+            }
+            rowIdx++;
+          }
+        });
+
+        const BAR_H = 20;
+        const BAR_GAP = 2;
+        const barsHeight = rows.length * (BAR_H + BAR_GAP);
+
+        return (
+          <div key={wi} className="relative grid grid-cols-7 border-b border-border last:border-b-0">
+            {week.map((d, di) => {
+              const out = d.getMonth() !== month;
+              const isToday = sameDay(d, today);
+              return (
+                <div
+                  key={di}
+                  onDoubleClick={() => {
+                    const s = new Date(d);
+                    s.setHours(8, 0, 0, 0);
+                    onCreate(s.toISOString());
+                  }}
+                  className={cn(
+                    "min-h-28 border-r border-border last:border-r-0 p-1.5 flex flex-col gap-1 cursor-pointer hover:bg-accent/30 transition-colors",
+                    out && "bg-muted/20 text-muted-foreground",
+                  )}
+                >
+                  <div
+                    className={cn(
+                      "text-xs font-medium",
+                      isToday &&
+                        "inline-flex items-center justify-center size-6 rounded-full bg-primary text-primary-foreground self-start",
+                    )}
                   >
-                    {fmtTime(j.scheduledStart)} {j.customer}
-                  </button>
-                ))}
-                {dayJobs.length > 3 && (
-                  <div className="text-[10px] text-muted-foreground px-1">
-                    +{dayJobs.length - 3} more
+                    {d.getDate()}
                   </div>
-                )}
-              </div>
+                  {/* Reserve space for spanning bars */}
+                  <div style={{ height: barsHeight }} />
+                </div>
+              );
+            })}
+            {/* Absolute layer for spanning job bars */}
+            <div
+              className="pointer-events-none absolute inset-x-0"
+              style={{ top: 28 }}
+            >
+              {placed.map(({ job, startCol, span, row, continuesBefore, continuesAfter }) => (
+                <button
+                  key={job.id + "-" + wi}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelectJob(job.id);
+                  }}
+                  className="pointer-events-auto absolute text-left text-[11px] truncate rounded px-1.5 py-0.5 text-white font-medium shadow-sm hover:ring-2 hover:ring-ring"
+                  style={{
+                    top: row * (BAR_H + BAR_GAP),
+                    height: BAR_H,
+                    left: `calc(${(startCol / 7) * 100}% + 4px)`,
+                    width: `calc(${(span / 7) * 100}% - 8px)`,
+                    backgroundColor: job.customerColor,
+                  }}
+                  title={`${job.customer} — ${job.product}`}
+                >
+                  {continuesBefore && "← "}
+                  {fmtTime(job.scheduledStart)} {job.customer}
+                  {continuesAfter && " →"}
+                </button>
+              ))}
             </div>
-          );
-        })}
-      </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
