@@ -15,8 +15,18 @@ import { Badge } from "@/components/ui/badge";
 import { useStore } from "@/lib/store";
 import type { QCEntry } from "@/lib/types";
 import { fmtDateTime, uid } from "@/lib/utils-domain";
-import { CheckCircle2, XCircle, Upload, Plus, Trash2 } from "lucide-react";
+import { CheckCircle2, XCircle, Upload, Plus, Trash2, Sparkles, ChevronDown } from "lucide-react";
 import { SignaturePad } from "./SignaturePad";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { QC_PRESETS, type QCPreset } from "@/lib/qc-presets";
+import { toast } from "sonner";
 
 const CHECKS = [
   ["fillLevel", "Fill level"],
@@ -95,6 +105,22 @@ export function QCDialog({ jobId, open, onOpenChange }: Props) {
     setChecks((c) => ({ ...c, [k]: c[k] === "Pass" ? "Fail" : "Pass" }));
   }
 
+  function applyPreset(preset: QCPreset) {
+    const v = preset.values;
+    if (v.mNumber !== undefined) setMNumber(v.mNumber);
+    if (v.bottleWeight !== undefined) setBottleWeight(v.bottleWeight);
+    if (v.capWeight !== undefined) setCapWeight(v.capWeight);
+    if (v.liquidWeightPer100ml !== undefined) setLiquidWeightPer100ml(v.liquidWeightPer100ml);
+    if (v.totalWeightGrams !== undefined) setTotalWeightGrams(v.totalWeightGrams);
+    if (v.minimumVolume !== undefined) setMinimumVolume(v.minimumVolume);
+    if (v.maximumVolume !== undefined) setMaximumVolume(v.maximumVolume);
+    if (v.boxesPerPallet !== undefined) setBoxesPerPallet(v.boxesPerPallet);
+    if (v.bottleCount !== undefined) setBottleCount(v.bottleCount);
+    if (v.palletRowVolumes) setPalletRowVolumes(v.palletRowVolumes.map((r) => ({ ...r })));
+    if (v.notes !== undefined) setNotes(v.notes);
+    toast.success(`Applied preset: ${preset.name}`);
+  }
+
   function numOrUndef(v: number | "") {
     return v === "" ? undefined : Number(v);
   }
@@ -156,6 +182,35 @@ export function QCDialog({ jobId, open, onOpenChange }: Props) {
             {job.customer} · SKU {job.sku} · {job.bottleSize}
           </DialogDescription>
         </DialogHeader>
+
+        <div className="flex items-center justify-between gap-3 rounded-md border border-dashed border-border bg-muted/30 px-3 py-2">
+          <div className="text-xs text-muted-foreground">
+            Save time — load a preset to pre-fill common fields.
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Sparkles className="size-4" /> Load preset
+                <ChevronDown className="size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-72">
+              <DropdownMenuLabel>Preset forms</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {QC_PRESETS.map((p) => (
+                <DropdownMenuItem
+                  key={p.id}
+                  onClick={() => applyPreset(p)}
+                  className="flex flex-col items-start gap-0.5"
+                >
+                  <span className="font-medium">{p.name}</span>
+                  <span className="text-xs text-muted-foreground">{p.description}</span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
 
         <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-6">
           <div className="space-y-6">
