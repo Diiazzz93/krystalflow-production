@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { useStore } from "@/lib/store";
 import type { Job } from "@/lib/types";
-import { STATUS_DOT, fmtTime, runtimeMinutes } from "@/lib/utils-domain";
+import { STATUS_DOT, fmtTime, jobEnd } from "@/lib/utils-domain";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
