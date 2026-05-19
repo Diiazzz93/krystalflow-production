@@ -15,7 +15,7 @@ interface Props {
 }
 
 export function CalendarView({ onSelectJob, onCreate }: Props) {
-  const { jobs, lines } = useStore();
+  const { jobs, lines, updateJob } = useStore();
   const [view, setView] = useState<View>("week");
   const [cursor, setCursor] = useState(() => startOfDay(new Date()));
 
