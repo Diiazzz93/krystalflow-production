@@ -63,7 +63,7 @@ export function CalendarView({ onSelectJob, onCreate }: Props) {
       </div>
 
       {view === "month" ? (
-        <MonthGrid days={range} jobs={jobs} onCreate={onCreate} onSelectJob={onSelectJob} />
+        <MonthGrid days={range} jobs={jobs} onCreate={onCreate} onSelectJob={onSelectJob} onUpdateJob={updateJob} />
       ) : (
         <LineSchedule
           days={range}
