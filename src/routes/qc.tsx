@@ -82,17 +82,51 @@ function QCPage() {
           </Card>
         )}
 
-        <div className="flex items-center gap-2">
-          <Select value={filter} onValueChange={(v) => setFilter(v as typeof filter)}>
-            <SelectTrigger className="w-40">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All results</SelectItem>
-              <SelectItem value="Pass">Pass only</SelectItem>
-              <SelectItem value="Fail">Fail only</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
+            <Select value={filter} onValueChange={(v) => setFilter(v as typeof filter)}>
+              <SelectTrigger className="w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All results</SelectItem>
+                <SelectItem value="Pass">Pass only</SelectItem>
+                <SelectItem value="Fail">Fail only</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-2">
+            <Select
+              value={jobId ?? ""}
+              onValueChange={(v) => setJobId(v || null)}
+            >
+              <SelectTrigger className="w-56">
+                <SelectValue placeholder="Choose a job…" />
+              </SelectTrigger>
+              <SelectContent>
+                {jobs
+                  .filter((j) => j.status === "In Progress" || j.status === "Requires Review")
+                  .map((j) => (
+                    <SelectItem key={j.id} value={j.id}>
+                      {j.customer} — {j.product}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+            <Button
+              variant="default"
+              onClick={() => {
+                if (!jobId) {
+                  const first = jobs.find(
+                    (j) => j.status === "In Progress" || j.status === "Requires Review",
+                  );
+                  if (first) setJobId(first.id);
+                }
+              }}
+            >
+              <CheckCircle2 className="size-4 mr-1" /> New QC check
+            </Button>
+          </div>
         </div>
 
         <Card>
