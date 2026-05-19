@@ -152,7 +152,13 @@ function MonthGrid({
       </div>
       <div className="grid grid-cols-7">
         {days.map((d, i) => {
-          const dayJobs = jobs.filter((j) => sameDay(new Date(j.scheduledStart), d));
+          const dayStart = new Date(d); dayStart.setHours(0,0,0,0);
+          const dayEnd = new Date(d); dayEnd.setHours(23,59,59,999);
+          const dayJobs = jobs.filter((j) => {
+            const s = new Date(j.scheduledStart);
+            const e = jobEnd(j);
+            return s <= dayEnd && e >= dayStart;
+          });
           const out = d.getMonth() !== month;
           const isToday = sameDay(d, today);
           return (
