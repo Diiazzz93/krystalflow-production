@@ -183,37 +183,36 @@ export function QCDialog({ jobId, open, onOpenChange }: Props) {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex items-center justify-between gap-3 rounded-md border border-dashed border-border bg-muted/30 px-3 py-2">
-          <div className="text-xs text-muted-foreground">
-            Save time — load a preset to pre-fill common fields.
-          </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
-                <Sparkles className="size-4" /> Load preset
-                <ChevronDown className="size-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-72">
-              <DropdownMenuLabel>Preset forms</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {QC_PRESETS.map((p) => (
-                <DropdownMenuItem
-                  key={p.id}
-                  onClick={() => applyPreset(p)}
-                  className="flex flex-col items-start gap-0.5"
-                >
-                  <span className="font-medium">{p.name}</span>
-                  <span className="text-xs text-muted-foreground">{p.description}</span>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-
-
         <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-6">
           <div className="space-y-6">
+            <div className="flex items-center justify-between gap-3 rounded-md border border-dashed border-border bg-muted/30 px-3 py-2">
+              <div className="text-xs text-muted-foreground">
+                Save time — load a preset to pre-fill common fields.
+              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Sparkles className="size-4" /> Load preset
+                    <ChevronDown className="size-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-72">
+                  <DropdownMenuLabel>Preset forms</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {QC_PRESETS.map((p) => (
+                    <DropdownMenuItem
+                      key={p.id}
+                      onClick={() => applyPreset(p)}
+                      className="flex flex-col items-start gap-0.5"
+                    >
+                      <span className="font-medium">{p.name}</span>
+                      <span className="text-xs text-muted-foreground">{p.description}</span>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
             {/* Filling Line Log Sheet */}
             <section className="space-y-3">
               <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
