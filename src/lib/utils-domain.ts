@@ -14,6 +14,11 @@ export function estimatedFinish(job: Job): Date {
   return new Date(start.getTime() + runtimeMinutes(job) * 60_000);
 }
 
+export function jobEnd(job: Job): Date {
+  if (job.scheduledEnd) return new Date(job.scheduledEnd);
+  return estimatedFinish(job);
+}
+
 export function progressPct(job: Job) {
   if (!job.quantity) return 0;
   return Math.min(100, Math.round((job.bottlesCompleted / job.quantity) * 100));
