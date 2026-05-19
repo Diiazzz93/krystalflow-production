@@ -1,0 +1,325 @@
+import { useEffect, useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { useStore } from "@/lib/store";
+import {
+  ALL_STATUSES,
+  PRIORITIES,
+  STATUS_COLORS,
+  estimatedFinish,
+  fmtDateTime,
+  progressPct,
+  runtimeMinutes,
+  uid,
+} from "@/lib/utils-domain";
+import type { Job, ReadyState } from "@/lib/types";
+import { Progress } from "@/components/ui/progress";
+
+const READY_STATES: ReadyState[] = ["Pending", "Ready", "Issue"];
+const COLORS = ["#0ea5e9", "#22c55e", "#f97316", "#a855f7", "#ec4899", "#14b8a6", "#eab308"];
+
+function emptyJob(): Job {
+  const start = new Date();
+  start.setMinutes(0, 0, 0);
+  start.setHours(start.getHours() + 1);
+  return {
+    id: uid(),
+    customer: "",
+    product: "",
+    sku: "",
+    bottleSize: "500ml",
+    quantity: 1000,
+    pallets: 1,
+    dueDate: new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10),
+    priority: "Normal",
+    line: "L1",
+    operator: "",
+    bottlesPerHour: 3000,
+    setupMinutes: 30,
+    notes: "",
+    rawMaterial: "Pending",
+    labels: "Pending",
+    packaging: "Pending",
+    status: "Scheduled",
+    scheduledStart: start.toISOString(),
+    bottlesCompleted: 0,
+    palletsCompleted: 0,
+    downtimeMinutes: 0,
+    actualRuntimeMinutes: 0,
+    customerColor: COLORS[0],
+    createdAt: new Date().toISOString(),
+  };
+}
+
+interface Props {
+  jobId?: string | null;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  defaultStart?: string;
+  defaultLine?: string;
+}
+
+function toLocalInput(iso: string) {
+  const d = new Date(iso);
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine }: Props) {
+  const { jobs, lines, addJob, updateJob, deleteJob } = useStore();
+  const existing = useMemo(() => jobs.find((j) => j.id === jobId) ?? null, [jobs, jobId]);
+  const [form, setForm] = useState<Job>(() => existing ?? emptyJob());
+
+  useEffect(() => {
+    if (open) {
+      const base = existing ?? emptyJob();
+      setForm({
+        ...base,
+        scheduledStart: defaultStart ?? base.scheduledStart,
+        line: defaultLine ?? base.line,
+      });
+    }
+  }, [open, existing, defaultStart, defaultLine]);
+
+  const isEdit = !!existing;
+  const set = <K extends keyof Job>(k: K, v: Job[K]) => setForm((f) => ({ ...f, [k]: v }));
+
+  const finishEta = estimatedFinish(form);
+  const runtime = runtimeMinutes(form);
+
+  function save() {
+    if (!form.customer || !form.product) return;
+    if (isEdit) updateJob(form.id, form);
+    else addJob(form);
+    onOpenChange(false);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            {isEdit ? "Edit Production Job" : "New Production Job"}
+            {isEdit && (
+              <Badge className={STATUS_COLORS[form.status]}>{form.status}</Badge>
+            )}
+          </DialogTitle>
+          <DialogDescription>
+            Configure the run, line, and readiness checks for this filling job.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Field label="Customer">
+            <Input value={form.customer} onChange={(e) => set("customer", e.target.value)} />
+          </Field>
+          <Field label="Product">
+            <Input value={form.product} onChange={(e) => set("product", e.target.value)} />
+          </Field>
+          <Field label="SKU">
+            <Input value={form.sku} onChange={(e) => set("sku", e.target.value)} />
+          </Field>
+          <Field label="Bottle size">
+            <Input value={form.bottleSize} onChange={(e) => set("bottleSize", e.target.value)} />
+          </Field>
+          <Field label="Quantity (bottles)">
+            <Input
+              type="number"
+              value={form.quantity}
+              onChange={(e) => set("quantity", Number(e.target.value))}
+            />
+          </Field>
+          <Field label="Pallets">
+            <Input
+              type="number"
+              value={form.pallets}
+              onChange={(e) => set("pallets", Number(e.target.value))}
+            />
+          </Field>
+          <Field label="Due date">
+            <Input
+              type="date"
+              value={form.dueDate.slice(0, 10)}
+              onChange={(e) => set("dueDate", e.target.value)}
+            />
+          </Field>
+          <Field label="Priority">
+            <Select value={form.priority} onValueChange={(v) => set("priority", v as Job["priority"]) }>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {PRIORITIES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field label="Production line">
+            <Select value={form.line} onValueChange={(v) => set("line", v)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {lines.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field label="Operator">
+            <Input value={form.operator} onChange={(e) => set("operator", e.target.value)} />
+          </Field>
+          <Field label="Bottles / hour">
+            <Input
+              type="number"
+              value={form.bottlesPerHour}
+              onChange={(e) => set("bottlesPerHour", Number(e.target.value))}
+            />
+          </Field>
+          <Field label="Setup / changeover (min)">
+            <Input
+              type="number"
+              value={form.setupMinutes}
+              onChange={(e) => set("setupMinutes", Number(e.target.value))}
+            />
+          </Field>
+          <Field label="Scheduled start">
+            <Input
+              type="datetime-local"
+              value={toLocalInput(form.scheduledStart)}
+              onChange={(e) => set("scheduledStart", new Date(e.target.value).toISOString())}
+            />
+          </Field>
+          <Field label="Status">
+            <Select value={form.status} onValueChange={(v) => set("status", v as Job["status"]) }>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {ALL_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field label="Raw material">
+            <ReadySel value={form.rawMaterial} onChange={(v) => set("rawMaterial", v)} />
+          </Field>
+          <Field label="Labels">
+            <ReadySel value={form.labels} onChange={(v) => set("labels", v)} />
+          </Field>
+          <Field label="Packaging">
+            <ReadySel value={form.packaging} onChange={(v) => set("packaging", v)} />
+          </Field>
+          <Field label="Customer colour">
+            <div className="flex flex-wrap gap-2 pt-1">
+              {COLORS.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => set("customerColor", c)}
+                  className={`size-6 rounded-full border-2 ${form.customerColor === c ? "border-foreground" : "border-transparent"}`}
+                  style={{ backgroundColor: c }}
+                />
+              ))}
+            </div>
+          </Field>
+        </div>
+
+        <Field label="Notes">
+          <Textarea
+            rows={2}
+            value={form.notes}
+            onChange={(e) => set("notes", e.target.value)}
+          />
+        </Field>
+
+        {isEdit && (
+          <div className="rounded-lg border border-border p-3 bg-muted/30 space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="font-medium">Live progress</span>
+              <span className="text-muted-foreground">
+                {form.bottlesCompleted.toLocaleString()} / {form.quantity.toLocaleString()} bottles
+              </span>
+            </div>
+            <Progress value={progressPct(form)} />
+            <div className="grid grid-cols-3 gap-3 pt-1">
+              <Field label="Bottles done">
+                <Input
+                  type="number"
+                  value={form.bottlesCompleted}
+                  onChange={(e) => set("bottlesCompleted", Number(e.target.value))}
+                />
+              </Field>
+              <Field label="Pallets done">
+                <Input
+                  type="number"
+                  value={form.palletsCompleted}
+                  onChange={(e) => set("palletsCompleted", Number(e.target.value))}
+                />
+              </Field>
+              <Field label="Downtime (min)">
+                <Input
+                  type="number"
+                  value={form.downtimeMinutes}
+                  onChange={(e) => set("downtimeMinutes", Number(e.target.value))}
+                />
+              </Field>
+            </div>
+          </div>
+        )}
+
+        <div className="text-xs text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
+          <span>Est. runtime: <span className="font-medium text-foreground">{Math.floor(runtime / 60)}h {runtime % 60}m</span></span>
+          <span>Est. finish: <span className="font-medium text-foreground">{fmtDateTime(finishEta)}</span></span>
+        </div>
+
+        <DialogFooter className="gap-2 sm:gap-2">
+          {isEdit && (
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (confirm("Delete this job?")) {
+                  deleteJob(form.id);
+                  onOpenChange(false);
+                }
+              }}
+              className="mr-auto"
+            >
+              Delete
+            </Button>
+          )}
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={save}>{isEdit ? "Save changes" : "Create job"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs uppercase tracking-wide text-muted-foreground">{label}</Label>
+      {children}
+    </div>
+  );
+}
+
+function ReadySel({ value, onChange }: { value: ReadyState; onChange: (v: ReadyState) => void }) {
+  return (
+    <Select value={value} onValueChange={(v) => onChange(v as ReadyState)}>
+      <SelectTrigger><SelectValue /></SelectTrigger>
+      <SelectContent>
+        {READY_STATES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+      </SelectContent>
+    </Select>
+  );
+}
