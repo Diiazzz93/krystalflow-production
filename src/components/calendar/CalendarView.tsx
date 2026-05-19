@@ -145,9 +145,86 @@ function MonthGrid({
 }) {
   const month = days[15].getMonth();
   const today = new Date();
-  // Split into 6 weeks of 7 days
   const weeks: Date[][] = [];
   for (let i = 0; i < days.length; i += 7) weeks.push(days.slice(i, i + 7));
+
+  const dragRef = useRef<{
+    mode: "move" | "resize";
+    jobId: string;
+    origIdx: number;
+    origStart: Date;
+    origEnd: Date;
+    moved: boolean;
+    currentIdx: number;
+  } | null>(null);
+  const [dragState, setDragState] = useState<{
+    id: string;
+    delta: number;
+    mode: "move" | "resize";
+  } | null>(null);
+
+  function cellIdxAt(x: number, y: number): number | null {
+    const el = document.elementFromPoint(x, y);
+    if (!el) return null;
+    const cell = (el as HTMLElement).closest("[data-day-idx]") as HTMLElement | null;
+    if (!cell) return null;
+    const v = cell.getAttribute("data-day-idx");
+    return v ? Number(v) : null;
+  }
+
+  function startDrag(
+    e: React.PointerEvent,
+    job: Job,
+    mode: "move" | "resize",
+    barStartIdx: number,
+    barEndIdx: number,
+  ) {
+    e.stopPropagation();
+    e.preventDefault();
+    const origIdx = mode === "move" ? barStartIdx : barEndIdx;
+    dragRef.current = {
+      mode,
+      jobId: job.id,
+      origIdx,
+      origStart: new Date(job.scheduledStart),
+      origEnd: jobEnd(job),
+      moved: false,
+      currentIdx: origIdx,
+    };
+
+    const onMove = (ev: PointerEvent) => {
+      const d = dragRef.current;
+      if (!d) return;
+      const idx = cellIdxAt(ev.clientX, ev.clientY);
+      if (idx == null) return;
+      if (idx !== d.origIdx) d.moved = true;
+      d.currentIdx = idx;
+      setDragState({ id: d.jobId, delta: idx - d.origIdx, mode: d.mode });
+    };
+    const onUp = () => {
+      const d = dragRef.current;
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      if (!d) return;
+      const days = d.currentIdx - d.origIdx;
+      if (d.moved && days !== 0) {
+        if (d.mode === "move") {
+          const ns = new Date(d.origStart); ns.setDate(ns.getDate() + days);
+          const ne = new Date(d.origEnd); ne.setDate(ne.getDate() + days);
+          onUpdateJob(d.jobId, { scheduledStart: ns.toISOString(), scheduledEnd: ne.toISOString() });
+        } else {
+          const ne = new Date(d.origEnd); ne.setDate(ne.getDate() + days);
+          if (ne > d.origStart) {
+            onUpdateJob(d.jobId, { scheduledEnd: ne.toISOString() });
+          }
+        }
+      }
+      dragRef.current = null;
+      setDragState(null);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  }
 
   return (
     <div className="rounded-lg border border-border bg-card overflow-hidden">
@@ -160,7 +237,6 @@ function MonthGrid({
         const weekStart = new Date(week[0]); weekStart.setHours(0,0,0,0);
         const weekEnd = new Date(week[6]); weekEnd.setHours(23,59,59,999);
 
-        // Jobs that overlap this week — laid out as spanning bars
         const weekJobs = jobs
           .filter((j) => {
             const s = new Date(j.scheduledStart);
@@ -173,12 +249,18 @@ function MonthGrid({
             const startCol = s < weekStart ? 0 : s.getDay();
             const endCol = e > weekEnd ? 6 : e.getDay();
             const span = endCol - startCol + 1;
-            return { job: j, startCol, span, continuesBefore: s < weekStart, continuesAfter: e > weekEnd };
+            return {
+              job: j,
+              startCol,
+              span,
+              continuesBefore: s < weekStart,
+              continuesAfter: e > weekEnd,
+              absStartIdx: wi * 7 + (s < weekStart ? 0 : s.getDay()),
+              absEndIdx: wi * 7 + (e > weekEnd ? 6 : e.getDay()),
+            };
           })
-          // Multi-day first (top), longer spans first
           .sort((a, b) => b.span - a.span);
 
-        // Assign each job a row to avoid overlap
         const rows: { startCol: number; endCol: number }[][] = [];
         const placed = weekJobs.map((wj) => {
           let rowIdx = 0;
@@ -201,206 +283,94 @@ function MonthGrid({
         const barsHeight = rows.length * (BAR_H + BAR_GAP);
 
         return (
-          <WeekRow
-            key={wi}
-            week={week}
-            month={month}
-            today={today}
-            placed={placed}
-            barsHeight={barsHeight}
-            BAR_H={BAR_H}
-            BAR_GAP={BAR_GAP}
-            onCreate={onCreate}
-            onSelectJob={onSelectJob}
-            onUpdateJob={onUpdateJob}
-          />
-        );
-      })}
-    </div>
-  );
-}
-
-interface PlacedBar {
-  job: Job;
-  startCol: number;
-  span: number;
-  row: number;
-  continuesBefore: boolean;
-  continuesAfter: boolean;
-}
-
-function WeekRow({
-  week,
-  month,
-  today,
-  placed,
-  barsHeight,
-  BAR_H,
-  BAR_GAP,
-  onCreate,
-  onSelectJob,
-  onUpdateJob,
-}: {
-  week: Date[];
-  month: number;
-  today: Date;
-  placed: PlacedBar[];
-  barsHeight: number;
-  BAR_H: number;
-  BAR_GAP: number;
-  onCreate: (s: string) => void;
-  onSelectJob: (id: string) => void;
-  onUpdateJob: (id: string, patch: Partial<Job>) => void;
-}) {
-  const rowRef = useRef<HTMLDivElement>(null);
-  const dragRef = useRef<{
-    mode: "move" | "resize";
-    jobId: string;
-    startX: number;
-    colWidth: number;
-    origStart: Date;
-    origEnd: Date;
-    moved: boolean;
-  } | null>(null);
-  const [dragDelta, setDragDelta] = useState<{ id: string; days: number; mode: "move" | "resize" } | null>(null);
-
-  function startDrag(
-    e: React.PointerEvent,
-    job: Job,
-    mode: "move" | "resize",
-  ) {
-    e.stopPropagation();
-    e.preventDefault();
-    if (!rowRef.current) return;
-    const rect = rowRef.current.getBoundingClientRect();
-    const colWidth = rect.width / 7;
-    dragRef.current = {
-      mode,
-      jobId: job.id,
-      startX: e.clientX,
-      colWidth,
-      origStart: new Date(job.scheduledStart),
-      origEnd: jobEnd(job),
-      moved: false,
-    };
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-
-    const onMove = (ev: PointerEvent) => {
-      const d = dragRef.current;
-      if (!d) return;
-      const dx = ev.clientX - d.startX;
-      const days = Math.round(dx / d.colWidth);
-      if (Math.abs(dx) > 3) d.moved = true;
-      setDragDelta({ id: d.jobId, days, mode: d.mode });
-    };
-    const onUp = (ev: PointerEvent) => {
-      const d = dragRef.current;
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-      if (!d) return;
-      const dx = ev.clientX - d.startX;
-      const days = Math.round(dx / d.colWidth);
-      if (d.moved && days !== 0) {
-        if (d.mode === "move") {
-          const ns = new Date(d.origStart); ns.setDate(ns.getDate() + days);
-          const ne = new Date(d.origEnd); ne.setDate(ne.getDate() + days);
-          onUpdateJob(d.jobId, { scheduledStart: ns.toISOString(), scheduledEnd: ne.toISOString() });
-        } else {
-          const ne = new Date(d.origEnd); ne.setDate(ne.getDate() + days);
-          if (ne > d.origStart) {
-            onUpdateJob(d.jobId, { scheduledEnd: ne.toISOString() });
-          }
-        }
-      }
-      dragRef.current = null;
-      setDragDelta(null);
-    };
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
-  }
-
-  return (
-    <div
-      ref={rowRef}
-      className="relative grid grid-cols-7 border-b border-border last:border-b-0"
-    >
-      {week.map((d, di) => {
-        const out = d.getMonth() !== month;
-        const isToday = sameDay(d, today);
-        return (
           <div
-            key={di}
-            onDoubleClick={() => {
-              const s = new Date(d);
-              s.setHours(8, 0, 0, 0);
-              onCreate(s.toISOString());
-            }}
-            className={cn(
-              "min-h-28 border-r border-border last:border-r-0 p-1.5 flex flex-col gap-1 cursor-pointer hover:bg-accent/30 transition-colors",
-              out && "bg-muted/20 text-muted-foreground",
-            )}
+            key={wi}
+            className="relative grid grid-cols-7 border-b border-border last:border-b-0"
           >
-            <div
-              className={cn(
-                "text-xs font-medium",
-                isToday &&
-                  "inline-flex items-center justify-center size-6 rounded-full bg-primary text-primary-foreground self-start",
-              )}
-            >
-              {d.getDate()}
+            {week.map((d, di) => {
+              const out = d.getMonth() !== month;
+              const isToday = sameDay(d, today);
+              const absIdx = wi * 7 + di;
+              return (
+                <div
+                  key={di}
+                  data-day-idx={absIdx}
+                  onDoubleClick={() => {
+                    const s = new Date(d);
+                    s.setHours(8, 0, 0, 0);
+                    onCreate(s.toISOString());
+                  }}
+                  className={cn(
+                    "min-h-28 border-r border-border last:border-r-0 p-1.5 flex flex-col gap-1 cursor-pointer hover:bg-accent/30 transition-colors",
+                    out && "bg-muted/20 text-muted-foreground",
+                    dragState && "hover:bg-primary/10",
+                  )}
+                >
+                  <div
+                    className={cn(
+                      "text-xs font-medium",
+                      isToday &&
+                        "inline-flex items-center justify-center size-6 rounded-full bg-primary text-primary-foreground self-start",
+                    )}
+                  >
+                    {d.getDate()}
+                  </div>
+                  <div style={{ height: barsHeight }} />
+                </div>
+              );
+            })}
+            <div className="pointer-events-none absolute inset-x-0" style={{ top: 28 }}>
+              {placed.map(({ job, startCol, span, row, continuesBefore, continuesAfter, absStartIdx, absEndIdx }) => {
+                const isDragging = dragState?.id === job.id;
+                return (
+                  <div
+                    key={job.id + "-" + wi}
+                    className="pointer-events-auto absolute group"
+                    style={{
+                      top: row * (BAR_H + BAR_GAP),
+                      height: BAR_H,
+                      left: `calc(${(startCol / 7) * 100}% + 4px)`,
+                      width: `calc(${(span / 7) * 100}% - 8px)`,
+                    }}
+                  >
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onPointerDown={(e) => startDrag(e, job, "move", absStartIdx, absEndIdx)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!dragRef.current?.moved) onSelectJob(job.id);
+                      }}
+                      className={cn(
+                        "h-full w-full text-left text-[11px] truncate rounded px-1.5 py-0.5 text-white font-medium shadow-sm cursor-grab active:cursor-grabbing select-none touch-none",
+                        isDragging && "ring-2 ring-ring opacity-70",
+                      )}
+                      style={{ backgroundColor: job.customerColor }}
+                      title={`${job.customer} — ${job.product} (drag to move, drag right edge to extend)`}
+                    >
+                      {continuesBefore && "← "}
+                      {fmtTime(job.scheduledStart)} {job.customer}
+                      {continuesAfter && " →"}
+                    </div>
+                    {!continuesAfter && (
+                      <div
+                        onPointerDown={(e) => startDrag(e, job, "resize", absStartIdx, absEndIdx)}
+                        className="absolute top-0 right-0 h-full w-2 cursor-ew-resize bg-black/20 opacity-0 group-hover:opacity-100 rounded-r touch-none"
+                        title="Drag to extend"
+                      />
+                    )}
+                  </div>
+                );
+              })}
             </div>
-            <div style={{ height: barsHeight }} />
           </div>
         );
       })}
-      <div className="pointer-events-none absolute inset-x-0" style={{ top: 28 }}>
-        {placed.map(({ job, startCol, span, row, continuesBefore, continuesAfter }) => {
-          const delta = dragDelta?.id === job.id ? dragDelta : null;
-          const offsetCols = delta?.mode === "move" ? delta.days : 0;
-          const extraSpan = delta?.mode === "resize" ? delta.days : 0;
-          const liveStart = Math.max(0, Math.min(6, startCol + offsetCols));
-          const liveSpan = Math.max(1, span + extraSpan);
-          return (
-            <div
-              key={job.id + "-" + week[0].toISOString()}
-              className="pointer-events-auto absolute group"
-              style={{
-                top: row * (BAR_H + BAR_GAP),
-                height: BAR_H,
-                left: `calc(${(liveStart / 7) * 100}% + 4px)`,
-                width: `calc(${(liveSpan / 7) * 100}% - 8px)`,
-              }}
-            >
-              <div
-                role="button"
-                tabIndex={0}
-                onPointerDown={(e) => startDrag(e, job, "move")}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (!dragRef.current?.moved) onSelectJob(job.id);
-                }}
-                className={cn(
-                  "h-full w-full text-left text-[11px] truncate rounded px-1.5 py-0.5 text-white font-medium shadow-sm cursor-grab active:cursor-grabbing select-none touch-none",
-                  delta && "ring-2 ring-ring opacity-90",
-                )}
-                style={{ backgroundColor: job.customerColor }}
-                title={`${job.customer} — ${job.product} (drag to move, drag right edge to extend)`}
-              >
-                {continuesBefore && "← "}
-                {fmtTime(job.scheduledStart)} {job.customer}
-                {continuesAfter && " →"}
-              </div>
-              {!continuesAfter && (
-                <div
-                  onPointerDown={(e) => startDrag(e, job, "resize")}
-                  className="absolute top-0 right-0 h-full w-2 cursor-ew-resize bg-black/20 opacity-0 group-hover:opacity-100 rounded-r touch-none"
-                  title="Drag to extend"
-                />
-              )}
-            </div>
-          );
-        })}
-      </div>
+      {dragState && (
+        <div className="pointer-events-none fixed bottom-4 left-1/2 -translate-x-1/2 bg-foreground text-background text-xs px-3 py-1.5 rounded-full shadow-lg z-50">
+          {dragState.mode === "move" ? "Move" : "Extend"} by {dragState.delta > 0 ? "+" : ""}{dragState.delta} day{Math.abs(dragState.delta) === 1 ? "" : "s"}
+        </div>
+      )}
     </div>
   );
 }
