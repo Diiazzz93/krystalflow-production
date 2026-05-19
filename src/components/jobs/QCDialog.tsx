@@ -136,6 +136,7 @@ export function QCDialog({ jobId, open, onOpenChange }: Props) {
     setNotes("");
     setSupervisorSignatureDataUrl(undefined);
     setFinishTime(nowHHMM());
+    setPalletRowVolumes([{ row: "", pump1: "", pump2: "" }]);
     setChecks({
       fillLevel: "Pass",
       capTightness: "Pass",
