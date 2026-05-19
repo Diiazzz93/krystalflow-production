@@ -6,6 +6,7 @@ import {
   Factory,
   LayoutDashboard,
   Moon,
+  Settings,
   ShieldCheck,
   Sun,
   TrendingUp,
@@ -22,6 +23,7 @@ const NAV = [
   { to: "/live", label: "Live Board", icon: Factory },
   { to: "/qc", label: "Quality", icon: ShieldCheck },
   { to: "/analytics", label: "Analytics", icon: TrendingUp },
+  { to: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
 export function AppShell({ children }: { children: ReactNode }) {
