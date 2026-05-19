@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { useStore } from "@/lib/store";
 import type { QCEntry } from "@/lib/types";
 import { fmtDateTime, uid } from "@/lib/utils-domain";
-import { CheckCircle2, XCircle, Upload } from "lucide-react";
+import { CheckCircle2, XCircle, Upload, Plus, Trash2 } from "lucide-react";
 import { SignaturePad } from "./SignaturePad";
 
 const CHECKS = [
