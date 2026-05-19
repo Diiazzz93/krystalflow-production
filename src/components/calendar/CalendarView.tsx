@@ -268,9 +268,14 @@ function LineSchedule({
               ))}
             </div>
             {lines.map((line) => {
-              const lineJobs = jobs.filter(
-                (j) => j.line === line.id && sameDay(new Date(j.scheduledStart), d),
-              );
+              const dayStart = new Date(d); dayStart.setHours(0,0,0,0);
+              const dayEnd = new Date(d); dayEnd.setHours(23,59,59,999);
+              const lineJobs = jobs.filter((j) => {
+                if (j.line !== line.id) return false;
+                const s = new Date(j.scheduledStart);
+                const e = jobEnd(j);
+                return s <= dayEnd && e >= dayStart;
+              });
               return (
                 <div key={line.id} className="border-r border-border relative">
                   <div className="h-8 border-b border-border px-2 flex items-center text-xs font-medium truncate">
@@ -296,19 +301,30 @@ function LineSchedule({
                       />
                     ))}
                     {lineJobs.map((j) => {
-                      const start = new Date(j.scheduledStart);
-                      const startH = start.getHours() + start.getMinutes() / 60;
-                      const top = Math.max(0, (startH - START_HOUR) * HOUR_PX);
-                      const height = Math.max(
-                        24,
-                        (runtimeMinutes(j) / 60) * HOUR_PX,
+                      const jobStart = new Date(j.scheduledStart);
+                      const jobFinish = jobEnd(j);
+                      // Clip to this day's visible window
+                      const visibleStart = jobStart < dayStart ? dayStart : jobStart;
+                      const visibleEnd = jobFinish > dayEnd ? dayEnd : jobFinish;
+                      const startH = Math.max(
+                        START_HOUR,
+                        visibleStart.getHours() + visibleStart.getMinutes() / 60,
                       );
+                      const endH = Math.min(
+                        END_HOUR,
+                        visibleEnd.getHours() + visibleEnd.getMinutes() / 60 +
+                          (visibleEnd.getDate() !== d.getDate() ? 24 : 0),
+                      );
+                      const top = (startH - START_HOUR) * HOUR_PX;
+                      const height = Math.max(24, (endH - startH) * HOUR_PX);
+                      const continuesBefore = jobStart < dayStart;
+                      const continuesAfter = jobFinish > dayEnd;
                       return (
                         <motion.button
                           key={j.id}
                           initial={{ opacity: 0, scale: 0.95 }}
                           animate={{ opacity: 1, scale: 1 }}
-                          onClick={() => onSelectJob(j.id)}
+                          onClick={(ev) => { ev.stopPropagation(); onSelectJob(j.id); }}
                           className="absolute left-1 right-1 rounded-md text-left p-1.5 text-white text-[11px] shadow-sm hover:ring-2 hover:ring-ring overflow-hidden"
                           style={{
                             top,
@@ -318,11 +334,11 @@ function LineSchedule({
                         >
                           <div className="flex items-center gap-1.5 font-semibold truncate">
                             <span className={cn("size-1.5 rounded-full", STATUS_DOT[j.status])} />
-                            {j.customer}
+                            {continuesBefore && "← "}{j.customer}{continuesAfter && " →"}
                           </div>
                           <div className="truncate opacity-90">{j.product}</div>
                           <div className="opacity-75 text-[10px]">
-                            {fmtTime(start)} · {j.quantity.toLocaleString()} btl
+                            {fmtTime(jobStart)} – {fmtTime(jobFinish)}
                           </div>
                         </motion.button>
                       );
