@@ -32,6 +32,23 @@ export interface QCEntry {
   photoPlaceholder?: string;
   timestamp: string; // ISO
   result: "Pass" | "Fail";
+  // Filling Line Log Sheet (JotForm parity)
+  mNumber?: string;
+  logDate?: string; // YYYY-MM-DD
+  bottleWeight?: number; // grams
+  capWeight?: number; // grams
+  liquidWeightPer100ml?: number; // grams / 100ml
+  totalWeightGrams?: number; // grams
+  palletRowVolumes?: string; // free text list e.g. "500, 502, 499..."
+  startTime?: string; // HH:MM
+  finishTime?: string; // HH:MM
+  minimumVolume?: number;
+  maximumVolume?: number;
+  boxesPerPallet?: number;
+  finishedProductFileName?: string; // placeholder
+  finalProductPhotoName?: string; // placeholder
+  supervisorName?: string;
+  supervisorSignatureDataUrl?: string; // base64 PNG from canvas
 }
 
 export interface Job {
