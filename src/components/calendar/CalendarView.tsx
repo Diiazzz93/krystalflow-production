@@ -404,10 +404,6 @@ function WeekRow({
     </div>
   );
 }
-      })}
-    </div>
-  );
-}
 
 const HOUR_PX = 36;
 const START_HOUR = 6;
