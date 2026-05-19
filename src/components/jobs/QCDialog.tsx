@@ -98,6 +98,15 @@ export function QCDialog({ jobId, open, onOpenChange }: Props) {
   const [finalProductPhotoName, setFinalProductPhotoName] = useState("");
   const [supervisorName, setSupervisorName] = useState("");
   const [supervisorSignatureDataUrl, setSupervisorSignatureDataUrl] = useState<string | undefined>();
+  const [lastSubmittedId, setLastSubmittedId] = useState<string | null>(null);
+  const historyListRef = useRef<HTMLOListElement>(null);
+
+  // Clear highlight after 2.5s
+  useEffect(() => {
+    if (!lastSubmittedId) return;
+    const t = setTimeout(() => setLastSubmittedId(null), 2500);
+    return () => clearTimeout(t);
+  }, [lastSubmittedId]);
 
   if (!job) return null;
 
