@@ -23,74 +23,7 @@ export interface QCPreset {
   };
 }
 
-export const DEFAULT_QC_PRESETS: QCPreset[] = [
-  {
-    id: "500ml-standard",
-    name: "500ml standard fill",
-    description: "Common 500ml bottle run defaults",
-    builtIn: true,
-    values: {
-      bottleWeight: 22,
-      capWeight: 3,
-      liquidWeightPer100ml: 100,
-      totalWeightGrams: 525,
-      minimumVolume: 498,
-      maximumVolume: 505,
-      boxesPerPallet: 60,
-      bottleCount: 1200,
-      palletRowVolumes: [
-        { row: "1", pump1: "", pump2: "" },
-        { row: "2", pump1: "", pump2: "" },
-        { row: "3", pump1: "", pump2: "" },
-        { row: "4", pump1: "", pump2: "" },
-        { row: "5", pump1: "", pump2: "" },
-      ],
-    },
-  },
-  {
-    id: "1l-standard",
-    name: "1L standard fill",
-    description: "Common 1L bottle run defaults",
-    builtIn: true,
-    values: {
-      bottleWeight: 38,
-      capWeight: 4,
-      liquidWeightPer100ml: 100,
-      totalWeightGrams: 1042,
-      minimumVolume: 998,
-      maximumVolume: 1006,
-      boxesPerPallet: 48,
-      bottleCount: 720,
-      palletRowVolumes: [
-        { row: "1", pump1: "", pump2: "" },
-        { row: "2", pump1: "", pump2: "" },
-        { row: "3", pump1: "", pump2: "" },
-        { row: "4", pump1: "", pump2: "" },
-      ],
-    },
-  },
-  {
-    id: "5l-standard",
-    name: "5L standard fill",
-    description: "Common 5L bottle run defaults",
-    builtIn: true,
-    values: {
-      bottleWeight: 145,
-      capWeight: 8,
-      liquidWeightPer100ml: 100,
-      totalWeightGrams: 5153,
-      minimumVolume: 4990,
-      maximumVolume: 5020,
-      boxesPerPallet: 24,
-      bottleCount: 240,
-      palletRowVolumes: [
-        { row: "1", pump1: "", pump2: "" },
-        { row: "2", pump1: "", pump2: "" },
-        { row: "3", pump1: "", pump2: "" },
-      ],
-    },
-  },
-];
+export const DEFAULT_QC_PRESETS: QCPreset[] = [];
 
 // Back-compat export — some files may still reference QC_PRESETS directly.
 export const QC_PRESETS = DEFAULT_QC_PRESETS;
