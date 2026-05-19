@@ -186,7 +186,7 @@ export function QCDialog({ jobId, open, onOpenChange }: Props) {
                   <Input type="number" step="0.01" value={capWeight}
                     onChange={(e) => setCapWeight(e.target.value === "" ? "" : Number(e.target.value))} />
                 </Field>
-                <Field label="Liquid weight /100ml">
+                <Field label="Liquid weight">
                   <Input type="number" step="0.01" value={liquidWeightPer100ml}
                     onChange={(e) => setLiquidWeightPer100ml(e.target.value === "" ? "" : Number(e.target.value))} />
                 </Field>
