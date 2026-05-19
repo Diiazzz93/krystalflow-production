@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -98,6 +98,15 @@ export function QCDialog({ jobId, open, onOpenChange }: Props) {
   const [finalProductPhotoName, setFinalProductPhotoName] = useState("");
   const [supervisorName, setSupervisorName] = useState("");
   const [supervisorSignatureDataUrl, setSupervisorSignatureDataUrl] = useState<string | undefined>();
+  const [lastSubmittedId, setLastSubmittedId] = useState<string | null>(null);
+  const historyListRef = useRef<HTMLOListElement>(null);
+
+  // Clear highlight after 2.5s
+  useEffect(() => {
+    if (!lastSubmittedId) return;
+    const t = setTimeout(() => setLastSubmittedId(null), 2500);
+    return () => clearTimeout(t);
+  }, [lastSubmittedId]);
 
   if (!job) return null;
 
@@ -158,6 +167,15 @@ export function QCDialog({ jobId, open, onOpenChange }: Props) {
       supervisorSignatureDataUrl,
     };
     addQC(entry);
+    setLastSubmittedId(entry.id);
+    toast.success(
+      `Pallet #${entry.palletNumber} logged · ${entry.result}`,
+      { description: `Added to QC history at ${fmtDateTime(entry.timestamp)}` },
+    );
+    // Scroll history to top so the new entry is visible
+    requestAnimationFrame(() => {
+      historyListRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+    });
     setPalletNumber((n) => n + 1);
     setNotes("");
     setSupervisorSignatureDataUrl(undefined);
@@ -172,6 +190,7 @@ export function QCDialog({ jobId, open, onOpenChange }: Props) {
       bottleCondition: "Pass",
     });
   }
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -412,16 +431,38 @@ export function QCDialog({ jobId, open, onOpenChange }: Props) {
             </Button>
           </div>
 
-          <section className="space-y-3">
-            <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              QC history
-            </h3>
+          <section className="space-y-3 lg:sticky lg:top-0 lg:self-start lg:max-h-[80vh] lg:flex lg:flex-col">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                QC history
+              </h3>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  {history.length} {history.length === 1 ? "entry" : "entries"}
+                </span>
+                <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
+                  <span className="relative flex size-2">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75" />
+                    <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
+                  </span>
+                  Live
+                </span>
+              </div>
+            </div>
             {history.length === 0 ? (
               <p className="text-sm text-muted-foreground">No QC checks recorded yet.</p>
             ) : (
-              <ol className="relative border-s border-border ms-3 space-y-3">
+              <ol ref={historyListRef} className="relative border-s border-border ms-3 space-y-3 lg:overflow-y-auto lg:pr-2 lg:flex-1">
                 {history.map((h) => (
-                  <li key={h.id} className="ms-4">
+                  <li
+                    key={h.id}
+                    className={`ms-4 rounded-md transition-all duration-500 ${
+                      h.id === lastSubmittedId
+                        ? "bg-emerald-500/10 ring-1 ring-emerald-500/40 p-2 -m-2"
+                        : ""
+                    }`}
+                  >
+
                     <span
                       className={`absolute -start-1.5 mt-1.5 size-3 rounded-full ${
                         h.result === "Pass" ? "bg-emerald-500" : "bg-red-500"
