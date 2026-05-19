@@ -71,6 +71,7 @@ export interface Job {
   packaging: ReadyState;
   status: JobStatus;
   scheduledStart: string; // ISO datetime
+  scheduledEnd?: string; // ISO datetime - optional explicit end (for multi-day jobs)
   bottlesCompleted: number;
   palletsCompleted: number;
   downtimeMinutes: number;
