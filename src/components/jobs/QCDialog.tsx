@@ -66,6 +66,13 @@ export function QCDialog({ jobId, open, onOpenChange }: Props) {
 
   const nextPallet = (job?.palletsCompleted ?? 0) + 1;
 
+  const [presets, setPresets] = useState<QCPreset[]>(() => getAllPresets());
+  useEffect(() => {
+    if (!open) return;
+    setPresets(getAllPresets());
+    return subscribeToPresets(() => setPresets(getAllPresets()));
+  }, [open]);
+
   const [palletNumber, setPalletNumber] = useState(nextPallet);
   const [checks, setChecks] = useState<Record<CheckKey, "Pass" | "Fail">>({
     fillLevel: "Pass",
