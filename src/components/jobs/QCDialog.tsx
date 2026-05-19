@@ -120,7 +120,7 @@ export function QCDialog({ jobId, open, onOpenChange }: Props) {
       capWeight: numOrUndef(capWeight),
       liquidWeightPer100ml: numOrUndef(liquidWeightPer100ml),
       totalWeightGrams: numOrUndef(totalWeightGrams),
-      palletRowVolumes: palletRowVolumes || undefined,
+      palletRowVolumes: palletRowVolumes.filter((r) => r.row || r.pump1 || r.pump2),
       startTime,
       finishTime: finishTime || undefined,
       minimumVolume: numOrUndef(minimumVolume),
