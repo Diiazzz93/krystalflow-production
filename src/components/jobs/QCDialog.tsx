@@ -105,6 +105,22 @@ export function QCDialog({ jobId, open, onOpenChange }: Props) {
     setChecks((c) => ({ ...c, [k]: c[k] === "Pass" ? "Fail" : "Pass" }));
   }
 
+  function applyPreset(preset: QCPreset) {
+    const v = preset.values;
+    if (v.mNumber !== undefined) setMNumber(v.mNumber);
+    if (v.bottleWeight !== undefined) setBottleWeight(v.bottleWeight);
+    if (v.capWeight !== undefined) setCapWeight(v.capWeight);
+    if (v.liquidWeightPer100ml !== undefined) setLiquidWeightPer100ml(v.liquidWeightPer100ml);
+    if (v.totalWeightGrams !== undefined) setTotalWeightGrams(v.totalWeightGrams);
+    if (v.minimumVolume !== undefined) setMinimumVolume(v.minimumVolume);
+    if (v.maximumVolume !== undefined) setMaximumVolume(v.maximumVolume);
+    if (v.boxesPerPallet !== undefined) setBoxesPerPallet(v.boxesPerPallet);
+    if (v.bottleCount !== undefined) setBottleCount(v.bottleCount);
+    if (v.palletRowVolumes) setPalletRowVolumes(v.palletRowVolumes.map((r) => ({ ...r })));
+    if (v.notes !== undefined) setNotes(v.notes);
+    toast.success(`Applied preset: ${preset.name}`);
+  }
+
   function numOrUndef(v: number | "") {
     return v === "" ? undefined : Number(v);
   }
