@@ -158,6 +158,15 @@ export function QCDialog({ jobId, open, onOpenChange }: Props) {
       supervisorSignatureDataUrl,
     };
     addQC(entry);
+    setLastSubmittedId(entry.id);
+    toast.success(
+      `Pallet #${entry.palletNumber} logged · ${entry.result}`,
+      { description: `Added to QC history at ${fmtDateTime(entry.timestamp)}` },
+    );
+    // Scroll history to top so the new entry is visible
+    requestAnimationFrame(() => {
+      historyListRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+    });
     setPalletNumber((n) => n + 1);
     setNotes("");
     setSupervisorSignatureDataUrl(undefined);
@@ -172,6 +181,7 @@ export function QCDialog({ jobId, open, onOpenChange }: Props) {
       bottleCondition: "Pass",
     });
   }
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
