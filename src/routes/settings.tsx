@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Pencil, Trash2, Save, X } from "lucide-react";
 import { toast } from "sonner";
 import {
-  DEFAULT_QC_PRESETS,
+  
   deleteCustomPreset,
   getCustomPresets,
   subscribeToPresets,
