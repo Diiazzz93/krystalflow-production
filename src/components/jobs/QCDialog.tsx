@@ -76,7 +76,9 @@ export function QCDialog({ jobId, open, onOpenChange }: Props) {
   const [capWeight, setCapWeight] = useState<number | "">("");
   const [liquidWeightPer100ml, setLiquidWeightPer100ml] = useState<number | "">("");
   const [totalWeightGrams, setTotalWeightGrams] = useState<number | "">("");
-  const [palletRowVolumes, setPalletRowVolumes] = useState("");
+  const [palletRowVolumes, setPalletRowVolumes] = useState<
+    { row: string; pump1: string; pump2: string }[]
+  >([{ row: "", pump1: "", pump2: "" }]);
   const [startTime, setStartTime] = useState(nowHHMM());
   const [finishTime, setFinishTime] = useState("");
   const [minimumVolume, setMinimumVolume] = useState<number | "">("");
