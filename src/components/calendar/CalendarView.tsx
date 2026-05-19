@@ -357,12 +357,23 @@ function MonthGrid({
                       {fmtTime(job.scheduledStart)} {job.customer}
                       {continuesAfter && " →"}
                     </div>
+                    {!continuesBefore && (
+                      <div
+                        onPointerDown={(e) => startDrag(e, job, "resize-start", absStartIdx, absEndIdx)}
+                        className="absolute top-0 left-0 h-full w-2.5 cursor-ew-resize bg-black/30 hover:bg-black/50 rounded-l touch-none flex items-center justify-center"
+                        title="Drag to change start date"
+                      >
+                        <div className="h-2/3 w-0.5 bg-white/70 rounded" />
+                      </div>
+                    )}
                     {!continuesAfter && (
                       <div
-                        onPointerDown={(e) => startDrag(e, job, "resize", absStartIdx, absEndIdx)}
-                        className="absolute top-0 right-0 h-full w-2 cursor-ew-resize bg-black/20 opacity-0 group-hover:opacity-100 rounded-r touch-none"
-                        title="Drag to extend"
-                      />
+                        onPointerDown={(e) => startDrag(e, job, "resize-end", absStartIdx, absEndIdx)}
+                        className="absolute top-0 right-0 h-full w-2.5 cursor-ew-resize bg-black/30 hover:bg-black/50 rounded-r touch-none flex items-center justify-center"
+                        title="Drag to change end date"
+                      >
+                        <div className="h-2/3 w-0.5 bg-white/70 rounded" />
+                      </div>
                     )}
                   </div>
                 );
