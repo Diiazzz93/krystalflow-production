@@ -25,7 +25,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { QC_PRESETS, type QCPreset } from "@/lib/qc-presets";
+import { getAllPresets, subscribeToPresets, type QCPreset } from "@/lib/qc-presets";
 import { toast } from "sonner";
 
 const CHECKS = [
@@ -65,6 +65,13 @@ export function QCDialog({ jobId, open, onOpenChange }: Props) {
   );
 
   const nextPallet = (job?.palletsCompleted ?? 0) + 1;
+
+  const [presets, setPresets] = useState<QCPreset[]>(() => getAllPresets());
+  useEffect(() => {
+    if (!open) return;
+    setPresets(getAllPresets());
+    return subscribeToPresets(() => setPresets(getAllPresets()));
+  }, [open]);
 
   const [palletNumber, setPalletNumber] = useState(nextPallet);
   const [checks, setChecks] = useState<Record<CheckKey, "Pass" | "Fail">>({
@@ -218,7 +225,12 @@ export function QCDialog({ jobId, open, onOpenChange }: Props) {
                 <DropdownMenuContent align="end" className="w-72">
                   <DropdownMenuLabel>Preset forms</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  {QC_PRESETS.map((p) => (
+                  {presets.length === 0 && (
+                    <div className="px-2 py-3 text-xs text-muted-foreground">
+                      No presets yet. Create some under Settings → QC presets.
+                    </div>
+                  )}
+                  {presets.map((p) => (
                     <DropdownMenuItem
                       key={p.id}
                       onClick={() => applyPreset(p)}

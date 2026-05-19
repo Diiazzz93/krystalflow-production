@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as QcRouteImport } from './routes/qc'
 import { Route as LiveRouteImport } from './routes/live'
 import { Route as JobsRouteImport } from './routes/jobs'
@@ -16,6 +17,11 @@ import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as IndexRouteImport } from './routes/index'
 
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const QcRoute = QcRouteImport.update({
   id: '/qc',
   path: '/qc',
@@ -54,6 +60,7 @@ export interface FileRoutesByFullPath {
   '/jobs': typeof JobsRoute
   '/live': typeof LiveRoute
   '/qc': typeof QcRoute
+  '/settings': typeof SettingsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -62,6 +69,7 @@ export interface FileRoutesByTo {
   '/jobs': typeof JobsRoute
   '/live': typeof LiveRoute
   '/qc': typeof QcRoute
+  '/settings': typeof SettingsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -71,13 +79,29 @@ export interface FileRoutesById {
   '/jobs': typeof JobsRoute
   '/live': typeof LiveRoute
   '/qc': typeof QcRoute
+  '/settings': typeof SettingsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/analytics' | '/calendar' | '/jobs' | '/live' | '/qc'
+  fullPaths:
+    | '/'
+    | '/analytics'
+    | '/calendar'
+    | '/jobs'
+    | '/live'
+    | '/qc'
+    | '/settings'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/analytics' | '/calendar' | '/jobs' | '/live' | '/qc'
-  id: '__root__' | '/' | '/analytics' | '/calendar' | '/jobs' | '/live' | '/qc'
+  to: '/' | '/analytics' | '/calendar' | '/jobs' | '/live' | '/qc' | '/settings'
+  id:
+    | '__root__'
+    | '/'
+    | '/analytics'
+    | '/calendar'
+    | '/jobs'
+    | '/live'
+    | '/qc'
+    | '/settings'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -87,10 +111,18 @@ export interface RootRouteChildren {
   JobsRoute: typeof JobsRoute
   LiveRoute: typeof LiveRoute
   QcRoute: typeof QcRoute
+  SettingsRoute: typeof SettingsRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/qc': {
       id: '/qc'
       path: '/qc'
@@ -143,6 +175,7 @@ const rootRouteChildren: RootRouteChildren = {
   JobsRoute: JobsRoute,
   LiveRoute: LiveRoute,
   QcRoute: QcRoute,
+  SettingsRoute: SettingsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
