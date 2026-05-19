@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Pencil, Trash2, Save, X } from "lucide-react";
 import { toast } from "sonner";
 import {
-  DEFAULT_QC_PRESETS,
+  
   deleteCustomPreset,
   getCustomPresets,
   subscribeToPresets,
@@ -92,7 +92,6 @@ function SettingsPage() {
               <CardTitle>Quality control presets</CardTitle>
               <CardDescription>
                 Create reusable templates that pre-fill the QC / Filling Line Log Sheet.
-                Built-in presets cannot be edited, but you can add as many of your own as you need.
               </CardDescription>
             </div>
             <Button onClick={startNew}>
@@ -102,18 +101,7 @@ function SettingsPage() {
           <CardContent className="space-y-6">
             <section className="space-y-2">
               <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Built-in
-              </h3>
-              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                {DEFAULT_QC_PRESETS.map((p) => (
-                  <PresetCard key={p.id} preset={p} readOnly />
-                ))}
-              </div>
-            </section>
-
-            <section className="space-y-2">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Your custom presets ({custom.length})
+                Custom presets ({custom.length})
               </h3>
               {custom.length === 0 ? (
                 <div className="rounded-md border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
