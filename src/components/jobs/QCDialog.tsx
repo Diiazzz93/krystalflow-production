@@ -15,7 +15,8 @@ import { Badge } from "@/components/ui/badge";
 import { useStore } from "@/lib/store";
 import type { QCEntry } from "@/lib/types";
 import { fmtDateTime, uid } from "@/lib/utils-domain";
-import { CheckCircle2, XCircle, Image as ImageIcon } from "lucide-react";
+import { CheckCircle2, XCircle, Upload } from "lucide-react";
+import { SignaturePad } from "./SignaturePad";
 
 const CHECKS = [
   ["fillLevel", "Fill level"],
@@ -32,6 +33,14 @@ interface Props {
   jobId: string;
   open: boolean;
   onOpenChange: (v: boolean) => void;
+}
+
+function todayISO() {
+  return new Date().toISOString().slice(0, 10);
+}
+function nowHHMM() {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
 export function QCDialog({ jobId, open, onOpenChange }: Props) {
@@ -58,13 +67,34 @@ export function QCDialog({ jobId, open, onOpenChange }: Props) {
   });
   const [bottleCount, setBottleCount] = useState(1200);
   const [operatorName, setOperatorName] = useState(job?.operator ?? "");
-  const [supervisorSignoff, setSupervisorSignoff] = useState("");
   const [notes, setNotes] = useState("");
+
+  // Log Sheet (JotForm parity)
+  const [mNumber, setMNumber] = useState("");
+  const [logDate, setLogDate] = useState(todayISO());
+  const [bottleWeight, setBottleWeight] = useState<number | "">("");
+  const [capWeight, setCapWeight] = useState<number | "">("");
+  const [liquidWeightPer100ml, setLiquidWeightPer100ml] = useState<number | "">("");
+  const [totalWeightGrams, setTotalWeightGrams] = useState<number | "">("");
+  const [palletRowVolumes, setPalletRowVolumes] = useState("");
+  const [startTime, setStartTime] = useState(nowHHMM());
+  const [finishTime, setFinishTime] = useState("");
+  const [minimumVolume, setMinimumVolume] = useState<number | "">("");
+  const [maximumVolume, setMaximumVolume] = useState<number | "">("");
+  const [boxesPerPallet, setBoxesPerPallet] = useState<number | "">("");
+  const [finishedProductFileName, setFinishedProductFileName] = useState("");
+  const [finalProductPhotoName, setFinalProductPhotoName] = useState("");
+  const [supervisorName, setSupervisorName] = useState("");
+  const [supervisorSignatureDataUrl, setSupervisorSignatureDataUrl] = useState<string | undefined>();
 
   if (!job) return null;
 
   function toggle(k: CheckKey) {
     setChecks((c) => ({ ...c, [k]: c[k] === "Pass" ? "Fail" : "Pass" }));
+  }
+
+  function numOrUndef(v: number | "") {
+    return v === "" ? undefined : Number(v);
   }
 
   function submit() {
@@ -78,14 +108,32 @@ export function QCDialog({ jobId, open, onOpenChange }: Props) {
       ...checks,
       bottleCount,
       operatorName,
-      supervisorSignoff,
+      supervisorSignoff: supervisorName,
       notes,
       timestamp: new Date().toISOString(),
       result,
+      mNumber: mNumber || undefined,
+      logDate,
+      bottleWeight: numOrUndef(bottleWeight),
+      capWeight: numOrUndef(capWeight),
+      liquidWeightPer100ml: numOrUndef(liquidWeightPer100ml),
+      totalWeightGrams: numOrUndef(totalWeightGrams),
+      palletRowVolumes: palletRowVolumes || undefined,
+      startTime,
+      finishTime: finishTime || undefined,
+      minimumVolume: numOrUndef(minimumVolume),
+      maximumVolume: numOrUndef(maximumVolume),
+      boxesPerPallet: numOrUndef(boxesPerPallet),
+      finishedProductFileName: finishedProductFileName || undefined,
+      finalProductPhotoName: finalProductPhotoName || undefined,
+      supervisorName: supervisorName || undefined,
+      supervisorSignatureDataUrl,
     };
     addQC(entry);
     setPalletNumber((n) => n + 1);
     setNotes("");
+    setSupervisorSignatureDataUrl(undefined);
+    setFinishTime(nowHHMM());
     setChecks({
       fillLevel: "Pass",
       capTightness: "Pass",
@@ -98,7 +146,7 @@ export function QCDialog({ jobId, open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl max-h-[92vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Quality Control — {job.product}</DialogTitle>
           <DialogDescription>
@@ -106,85 +154,155 @@ export function QCDialog({ jobId, open, onOpenChange }: Props) {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr] gap-6">
-          <section className="space-y-4">
-            <h3 className="text-sm font-semibold">New QC check</h3>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs uppercase text-muted-foreground">Pallet #</Label>
-                <Input
-                  type="number"
-                  value={palletNumber}
-                  onChange={(e) => setPalletNumber(Number(e.target.value))}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs uppercase text-muted-foreground">Bottle count</Label>
-                <Input
-                  type="number"
-                  value={bottleCount}
-                  onChange={(e) => setBottleCount(Number(e.target.value))}
-                />
-              </div>
-            </div>
+        <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-6">
+          <div className="space-y-6">
+            {/* Filling Line Log Sheet */}
+            <section className="space-y-3">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                Filling line log sheet
+              </h3>
 
-            <div className="space-y-2">
-              {CHECKS.map(([key, label]) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => toggle(key)}
-                  className={`w-full flex items-center justify-between rounded-md border px-3 py-2 text-sm transition-colors ${
-                    checks[key] === "Pass"
-                      ? "border-emerald-500/40 bg-emerald-500/10"
-                      : "border-red-500/40 bg-red-500/10"
-                  }`}
-                >
-                  <span className="font-medium">{label}</span>
-                  {checks[key] === "Pass" ? (
-                    <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
-                      <CheckCircle2 className="size-4" /> Pass
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1 text-red-600 dark:text-red-400 text-xs font-semibold">
-                      <XCircle className="size-4" /> Fail
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs uppercase text-muted-foreground">Operator</Label>
-                <Input value={operatorName} onChange={(e) => setOperatorName(e.target.value)} />
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <Field label="M Number">
+                  <Input value={mNumber} onChange={(e) => setMNumber(e.target.value)} placeholder="M-…" />
+                </Field>
+                <Field label="Date">
+                  <Input type="date" value={logDate} onChange={(e) => setLogDate(e.target.value)} />
+                </Field>
+                <Field label="Operator">
+                  <Input value={operatorName} onChange={(e) => setOperatorName(e.target.value)} />
+                </Field>
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs uppercase text-muted-foreground">Supervisor sign-off</Label>
-                <Input
-                  value={supervisorSignoff}
-                  onChange={(e) => setSupervisorSignoff(e.target.value)}
-                />
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <Field label="Bottle weight (g)">
+                  <Input type="number" step="0.01" value={bottleWeight}
+                    onChange={(e) => setBottleWeight(e.target.value === "" ? "" : Number(e.target.value))} />
+                </Field>
+                <Field label="Cap weight (g)">
+                  <Input type="number" step="0.01" value={capWeight}
+                    onChange={(e) => setCapWeight(e.target.value === "" ? "" : Number(e.target.value))} />
+                </Field>
+                <Field label="Liquid weight /100ml">
+                  <Input type="number" step="0.01" value={liquidWeightPer100ml}
+                    onChange={(e) => setLiquidWeightPer100ml(e.target.value === "" ? "" : Number(e.target.value))} />
+                </Field>
+                <Field label="Total weight (g)">
+                  <Input type="number" step="0.01" value={totalWeightGrams}
+                    onChange={(e) => setTotalWeightGrams(e.target.value === "" ? "" : Number(e.target.value))} />
+                </Field>
               </div>
-            </div>
+            </section>
 
-            <div className="space-y-1.5">
-              <Label className="text-xs uppercase text-muted-foreground">Notes / issues</Label>
-              <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
-            </div>
+            {/* Pallet details */}
+            <section className="space-y-3">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                Pallet details
+              </h3>
 
-            <div className="flex items-center gap-2 text-xs text-muted-foreground border border-dashed rounded-md px-3 py-2">
-              <ImageIcon className="size-4" />
-              Photo upload (placeholder — coming soon)
-            </div>
+              <Field label="Pallet row volumes">
+                <Textarea rows={2} value={palletRowVolumes}
+                  onChange={(e) => setPalletRowVolumes(e.target.value)}
+                  placeholder="e.g. 500, 501, 499, 502, 500 …" />
+              </Field>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <Field label="Start time">
+                  <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+                </Field>
+                <Field label="Finish time">
+                  <Input type="time" value={finishTime} onChange={(e) => setFinishTime(e.target.value)} />
+                </Field>
+                <Field label="Minimum volume">
+                  <Input type="number" step="0.01" value={minimumVolume}
+                    onChange={(e) => setMinimumVolume(e.target.value === "" ? "" : Number(e.target.value))} />
+                </Field>
+                <Field label="Maximum volume">
+                  <Input type="number" step="0.01" value={maximumVolume}
+                    onChange={(e) => setMaximumVolume(e.target.value === "" ? "" : Number(e.target.value))} />
+                </Field>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <Field label="Pallet #">
+                  <Input type="number" value={palletNumber}
+                    onChange={(e) => setPalletNumber(Number(e.target.value))} />
+                </Field>
+                <Field label="Boxes per pallet">
+                  <Input type="number" value={boxesPerPallet}
+                    onChange={(e) => setBoxesPerPallet(e.target.value === "" ? "" : Number(e.target.value))} />
+                </Field>
+                <Field label="Bottle count">
+                  <Input type="number" value={bottleCount}
+                    onChange={(e) => setBottleCount(Number(e.target.value))} />
+                </Field>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <FileField label="Finished product file" value={finishedProductFileName}
+                  onChange={setFinishedProductFileName} />
+                <FileField label="Final product photo" value={finalProductPhotoName}
+                  onChange={setFinalProductPhotoName} accept="image/*" />
+              </div>
+            </section>
+
+            {/* Pass / fail checks */}
+            <section className="space-y-3">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                Inspection checks
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {CHECKS.map(([key, label]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => toggle(key)}
+                    className={`flex items-center justify-between rounded-md border px-3 py-2 text-sm transition-colors ${
+                      checks[key] === "Pass"
+                        ? "border-emerald-500/40 bg-emerald-500/10"
+                        : "border-red-500/40 bg-red-500/10"
+                    }`}
+                  >
+                    <span className="font-medium">{label}</span>
+                    {checks[key] === "Pass" ? (
+                      <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
+                        <CheckCircle2 className="size-4" /> Pass
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1 text-red-600 dark:text-red-400 text-xs font-semibold">
+                        <XCircle className="size-4" /> Fail
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            {/* Sign off */}
+            <section className="space-y-3">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                Sign off
+              </h3>
+              <Field label="Supervisor">
+                <Input value={supervisorName} onChange={(e) => setSupervisorName(e.target.value)} />
+              </Field>
+              <Field label="Signature">
+                <SignaturePad value={supervisorSignatureDataUrl} onChange={setSupervisorSignatureDataUrl} />
+              </Field>
+              <Field label="Notes">
+                <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
+              </Field>
+            </section>
 
             <Button className="w-full" onClick={submit}>
-              Submit QC check
+              Submit QC log
             </Button>
-          </section>
+          </div>
 
           <section className="space-y-3">
-            <h3 className="text-sm font-semibold">QC history</h3>
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              QC history
+            </h3>
             {history.length === 0 ? (
               <p className="text-sm text-muted-foreground">No QC checks recorded yet.</p>
             ) : (
@@ -197,22 +315,35 @@ export function QCDialog({ jobId, open, onOpenChange }: Props) {
                       }`}
                     />
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Pallet #{h.palletNumber}</span>
-                      <Badge
-                        className={
-                          h.result === "Pass"
-                            ? "bg-emerald-600 text-white"
-                            : "bg-red-600 text-white"
-                        }
-                      >
+                      <span className="text-sm font-medium">
+                        Pallet #{h.palletNumber}
+                        {h.mNumber && <span className="text-muted-foreground"> · {h.mNumber}</span>}
+                      </span>
+                      <Badge className={h.result === "Pass" ? "bg-emerald-600 text-white" : "bg-red-600 text-white"}>
                         {h.result}
                       </Badge>
                     </div>
                     <p className="text-xs text-muted-foreground">{fmtDateTime(h.timestamp)}</p>
                     <p className="text-xs text-muted-foreground">
                       {h.operatorName} · {h.bottleCount} bottles
-                      {h.supervisorSignoff && ` · sign-off ${h.supervisorSignoff}`}
+                      {h.startTime && ` · ${h.startTime}${h.finishTime ? `–${h.finishTime}` : ""}`}
                     </p>
+                    {(h.minimumVolume !== undefined || h.maximumVolume !== undefined) && (
+                      <p className="text-xs text-muted-foreground">
+                        Volume {h.minimumVolume ?? "?"}–{h.maximumVolume ?? "?"}
+                        {h.totalWeightGrams !== undefined && ` · ${h.totalWeightGrams}g`}
+                      </p>
+                    )}
+                    {h.supervisorName && (
+                      <p className="text-xs text-muted-foreground">Sign-off: {h.supervisorName}</p>
+                    )}
+                    {h.supervisorSignatureDataUrl && (
+                      <img
+                        src={h.supervisorSignatureDataUrl}
+                        alt="Signature"
+                        className="mt-1 h-10 rounded border border-border bg-background"
+                      />
+                    )}
                     {h.notes && <p className="text-xs mt-1">{h.notes}</p>}
                   </li>
                 ))}
@@ -226,5 +357,47 @@ export function QCDialog({ jobId, open, onOpenChange }: Props) {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs uppercase text-muted-foreground">{label}</Label>
+      {children}
+    </div>
+  );
+}
+
+function FileField({
+  label,
+  value,
+  onChange,
+  accept,
+}: {
+  label: string;
+  value: string;
+  onChange: (name: string) => void;
+  accept?: string;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs uppercase text-muted-foreground">{label}</Label>
+      <label className="flex items-center gap-2 rounded-md border border-dashed border-input bg-background px-3 py-2 text-sm cursor-pointer hover:bg-accent/40">
+        <Upload className="size-4 text-muted-foreground" />
+        <span className="truncate text-muted-foreground">
+          {value || "Choose a file"}
+        </span>
+        <input
+          type="file"
+          accept={accept}
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) onChange(f.name);
+          }}
+        />
+      </label>
+    </div>
   );
 }
