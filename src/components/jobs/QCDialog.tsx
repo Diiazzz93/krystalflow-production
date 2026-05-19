@@ -15,8 +15,18 @@ import { Badge } from "@/components/ui/badge";
 import { useStore } from "@/lib/store";
 import type { QCEntry } from "@/lib/types";
 import { fmtDateTime, uid } from "@/lib/utils-domain";
-import { CheckCircle2, XCircle, Upload, Plus, Trash2 } from "lucide-react";
+import { CheckCircle2, XCircle, Upload, Plus, Trash2, Sparkles, ChevronDown } from "lucide-react";
 import { SignaturePad } from "./SignaturePad";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { QC_PRESETS, type QCPreset } from "@/lib/qc-presets";
+import { toast } from "sonner";
 
 const CHECKS = [
   ["fillLevel", "Fill level"],
