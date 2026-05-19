@@ -189,43 +189,33 @@ function JobsPage() {
                 No jobs match your filters.
               </div>
             )}
-            <Accordion
-              type="multiple"
-              defaultValue={grouped.map((g) => g.name)}
-              className="space-y-3"
-            >
-              {grouped.map((g) => {
-                const upcoming = g.jobs.filter(
-                  (j) => j.status !== "Complete" && new Date(j.scheduledStart) >= new Date(Date.now() - 86400000),
-                ).length;
-                return (
-                  <AccordionItem
-                    key={g.name}
-                    value={g.name}
-                    className="rounded-lg border border-border bg-card border-b"
-                  >
-                    <AccordionTrigger className="px-4 hover:no-underline">
-                      <div className="flex items-center gap-3">
-                        <span
-                          className="size-3 rounded-full"
-                          style={{ backgroundColor: g.color }}
-                        />
-                        <span className="font-semibold">{g.name}</span>
-                        <Badge variant="secondary">{g.jobs.length} jobs</Badge>
-                        {upcoming > 0 && (
-                          <Badge variant="outline">{upcoming} upcoming</Badge>
-                        )}
-                      </div>
-                    </AccordionTrigger>
-                    <AccordionContent className="px-0 pb-0">
-                      <div className="border-t border-border overflow-x-auto">
-                        <JobsTable jobs={g.jobs} onEdit={openEdit} onQC={setQcId} hideCustomer />
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                );
-              })}
-            </Accordion>
+            {grouped.map((g) => {
+              const upcoming = g.jobs.filter(
+                (j) =>
+                  j.status !== "Complete" &&
+                  new Date(j.scheduledStart) >= new Date(Date.now() - 86400000),
+              ).length;
+              return (
+                <section
+                  key={g.name}
+                  className="rounded-lg border border-border bg-card overflow-hidden"
+                  style={{ borderLeft: `4px solid ${g.color}` }}
+                >
+                  <header className="flex flex-wrap items-center gap-3 px-4 py-3 border-b border-border bg-muted/30">
+                    <span
+                      className="size-3 rounded-full"
+                      style={{ backgroundColor: g.color }}
+                    />
+                    <h2 className="font-semibold text-base">{g.name}</h2>
+                    <Badge variant="secondary">{g.jobs.length} jobs</Badge>
+                    {upcoming > 0 && <Badge variant="outline">{upcoming} upcoming</Badge>}
+                  </header>
+                  <div className="overflow-x-auto">
+                    <JobsTable jobs={g.jobs} onEdit={openEdit} onQC={setQcId} hideCustomer />
+                  </div>
+                </section>
+              );
+            })}
           </div>
         )}
       </div>
