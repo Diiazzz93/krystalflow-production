@@ -22,6 +22,7 @@ import {
   Clock,
   Factory,
   Gauge,
+  Layers,
   Package,
   Plus,
 } from "lucide-react";
