@@ -25,6 +25,8 @@ export const Route = createFileRoute("/qc")({
 function QCPage() {
   const { jobs, qc } = useStore();
   const [filter, setFilter] = useState<"all" | "Pass" | "Fail">("all");
+  const [customerFilter, setCustomerFilter] = useState<string>("all");
+  const [productFilter, setProductFilter] = useState<string>("all");
   const [jobId, setJobId] = useState<string | null>(null);
   const [prefillEntryId, setPrefillEntryId] = useState<string | null>(null);
   const [lookup, setLookup] = useState("");
@@ -52,14 +54,42 @@ function QCPage() {
   const failCount = qc.filter((q) => q.result === "Fail").length;
   const reviewJobs = jobs.filter((j) => j.status === "Requires Review");
 
+  const customers = useMemo(() => {
+    const set = new Set<string>();
+    qc.forEach((e) => {
+      const job = jobs.find((j) => j.id === e.jobId);
+      if (job) set.add(job.customer);
+    });
+    return Array.from(set).sort();
+  }, [qc, jobs]);
+
+  const products = useMemo(() => {
+    const set = new Set<string>();
+    qc.forEach((e) => {
+      const job = jobs.find((j) => j.id === e.jobId);
+      if (job) set.add(job.product);
+    });
+    return Array.from(set).sort();
+  }, [qc, jobs]);
+
   const entries = useMemo(
     () =>
       qc
         .filter((q) => filter === "all" || q.result === filter)
+        .filter((q) => {
+          if (customerFilter === "all") return true;
+          const job = jobs.find((j) => j.id === q.jobId);
+          return job?.customer === customerFilter;
+        })
+        .filter((q) => {
+          if (productFilter === "all") return true;
+          const job = jobs.find((j) => j.id === q.jobId);
+          return job?.product === productFilter;
+        })
         .sort(
           (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
         ),
-    [qc, filter],
+    [qc, filter, customerFilter, productFilter, jobs],
   );
 
   return (
