@@ -44,6 +44,8 @@ interface Props {
   jobId: string;
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  /** When provided, pre-fills the form with the data from this QC entry (view/edit existing pallet). */
+  prefillEntryId?: string | null;
 }
 
 function todayISO() {
@@ -62,7 +64,7 @@ function generatePalletCode(sku: string, pallet: number) {
   return `KS-${skuPart}-${datePart}-P${pallet}-${rand}`;
 }
 
-export function QCDialog({ jobId, open, onOpenChange }: Props) {
+export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
   const { jobs, qc, addQC } = useStore();
   const job = jobs.find((j) => j.id === jobId);
   const history = useMemo(
@@ -128,6 +130,52 @@ export function QCDialog({ jobId, open, onOpenChange }: Props) {
     const t = setTimeout(() => setLastSubmittedId(null), 2500);
     return () => clearTimeout(t);
   }, [lastSubmittedId]);
+
+  // Prefill form from an existing entry (look-up by pallet code flow)
+  useEffect(() => {
+    if (!open || !prefillEntryId) return;
+    const e = qc.find((q) => q.id === prefillEntryId);
+    if (!e) return;
+    setPalletNumber(e.palletNumber);
+    setChecks({
+      fillLevel: e.fillLevel,
+      capTightness: e.capTightness,
+      labelAlignment: e.labelAlignment,
+      batchCode: e.batchCode,
+      leakCheck: e.leakCheck,
+      bottleCondition: e.bottleCondition,
+    });
+    setBottleCount(e.bottleCount);
+    setOperatorName(e.operatorName ?? "");
+    setNotes(e.notes ?? "");
+    setMNumber(e.mNumber ?? "");
+    setLogDate(e.logDate ?? todayISO());
+    setBottleWeight(e.bottleWeight ?? "");
+    setCapWeight(e.capWeight ?? "");
+    setLiquidWeightPer100ml(e.liquidWeightPer100ml ?? "");
+    setTotalWeightGrams(e.totalWeightGrams ?? "");
+    setPalletRowVolumes(
+      e.palletRowVolumes && e.palletRowVolumes.length > 0
+        ? e.palletRowVolumes.map((r) => ({ ...r }))
+        : [{ row: "", pump1: "", pump2: "" }],
+    );
+    setStartTime(e.startTime ?? "");
+    setFinishTime(e.finishTime ?? "");
+    setMinimumVolume(e.minimumVolume ?? "");
+    setMaximumVolume(e.maximumVolume ?? "");
+    setBoxesPerPallet(e.boxesPerPallet ?? "");
+    setFinishedProductFileName(e.finishedProductFileName ?? "");
+    setFinalProductPhotoName(e.finalProductPhotoName ?? "");
+    setSupervisorName(e.supervisorName ?? e.supervisorSignoff ?? "");
+    setSupervisorSignatureDataUrl(e.supervisorSignatureDataUrl);
+    setFillOperator(e.fillOperator ?? "");
+    setBottleQcOperator(e.bottleQcOperator ?? "");
+    setCapperOperator(e.capperOperator ?? "");
+    setPackagingOperator(e.packagingOperator ?? "");
+    toast.info(`Loaded pallet #${e.palletNumber}`, {
+      description: e.palletCode ? `Code ${e.palletCode}` : undefined,
+    });
+  }, [open, prefillEntryId, qc]);
 
   if (!job) return null;
 

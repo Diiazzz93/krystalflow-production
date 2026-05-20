@@ -26,6 +26,7 @@ function QCPage() {
   const { jobs, qc } = useStore();
   const [filter, setFilter] = useState<"all" | "Pass" | "Fail">("all");
   const [jobId, setJobId] = useState<string | null>(null);
+  const [prefillEntryId, setPrefillEntryId] = useState<string | null>(null);
   const [lookup, setLookup] = useState("");
 
   function handleLookup() {
@@ -38,9 +39,10 @@ function QCPage() {
       toast.error("No pallet found", { description: `Code ${q} did not match any QC entry.` });
       return;
     }
+    setPrefillEntryId(match.id);
     setJobId(match.jobId);
     toast.success(`Found pallet #${match.palletNumber}`, {
-      description: `${jobs.find((j) => j.id === match.jobId)?.customer ?? ""} — opening job QC.`,
+      description: `${jobs.find((j) => j.id === match.jobId)?.customer ?? ""} — opening filled form.`,
     });
   }
 
@@ -229,7 +231,17 @@ function QCPage() {
       </div>
 
       {jobId && (
-        <QCDialog jobId={jobId} open={!!jobId} onOpenChange={(v) => !v && setJobId(null)} />
+        <QCDialog
+          jobId={jobId}
+          open={!!jobId}
+          onOpenChange={(v) => {
+            if (!v) {
+              setJobId(null);
+              setPrefillEntryId(null);
+            }
+          }}
+          prefillEntryId={prefillEntryId}
+        />
       )}
     </AppShell>
   );
