@@ -581,6 +581,14 @@ export function QCDialog({ jobId, open, onOpenChange }: Props) {
           <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
         </DialogFooter>
       </DialogContent>
+      {stickerEntry && (
+        <PalletStickerDialog
+          open={!!stickerEntry}
+          onOpenChange={(v) => !v && setStickerEntry(null)}
+          entry={stickerEntry}
+          job={job}
+        />
+      )}
     </Dialog>
   );
 }
