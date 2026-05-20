@@ -26,6 +26,7 @@ function QCPage() {
   const { jobs, qc } = useStore();
   const [filter, setFilter] = useState<"all" | "Pass" | "Fail">("all");
   const [jobId, setJobId] = useState<string | null>(null);
+  const [prefillEntryId, setPrefillEntryId] = useState<string | null>(null);
   const [lookup, setLookup] = useState("");
 
   function handleLookup() {
