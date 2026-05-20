@@ -39,9 +39,10 @@ function QCPage() {
       toast.error("No pallet found", { description: `Code ${q} did not match any QC entry.` });
       return;
     }
+    setPrefillEntryId(match.id);
     setJobId(match.jobId);
     toast.success(`Found pallet #${match.palletNumber}`, {
-      description: `${jobs.find((j) => j.id === match.jobId)?.customer ?? ""} — opening job QC.`,
+      description: `${jobs.find((j) => j.id === match.jobId)?.customer ?? ""} — opening filled form.`,
     });
   }
 
