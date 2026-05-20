@@ -54,6 +54,14 @@ function nowHHMM() {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
+function generatePalletCode(sku: string, pallet: number) {
+  const skuPart = (sku || "JOB").replace(/[^A-Z0-9]/gi, "").toUpperCase().slice(0, 4) || "JOB";
+  const d = new Date();
+  const datePart = `${String(d.getFullYear()).slice(-2)}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
+  const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
+  return `KS-${skuPart}-${datePart}-P${pallet}-${rand}`;
+}
+
 export function QCDialog({ jobId, open, onOpenChange }: Props) {
   const { jobs, qc, addQC } = useStore();
   const job = jobs.find((j) => j.id === jobId);
