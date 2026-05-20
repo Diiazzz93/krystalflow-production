@@ -105,6 +105,10 @@ export function QCDialog({ jobId, open, onOpenChange }: Props) {
   const [finalProductPhotoName, setFinalProductPhotoName] = useState("");
   const [supervisorName, setSupervisorName] = useState("");
   const [supervisorSignatureDataUrl, setSupervisorSignatureDataUrl] = useState<string | undefined>();
+  const [fillOperator, setFillOperator] = useState("");
+  const [bottleQcOperator, setBottleQcOperator] = useState("");
+  const [capperOperator, setCapperOperator] = useState("");
+  const [packagingOperator, setPackagingOperator] = useState("");
   const [lastSubmittedId, setLastSubmittedId] = useState<string | null>(null);
   const historyListRef = useRef<HTMLOListElement>(null);
 
