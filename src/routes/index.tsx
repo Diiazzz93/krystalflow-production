@@ -196,7 +196,7 @@ function Dashboard() {
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium truncate">{j.customer}</div>
                     <div className="text-xs text-muted-foreground truncate">
-                      {fmtTime(j.scheduledStart)} · {j.line} · {j.product}
+                      {fmtDate(j.scheduledStart)} · {fmtTime(j.scheduledStart)} · {j.line} · {j.product}
                     </div>
                   </div>
                   <Badge variant="outline" className={PRIORITY_COLOR[j.priority]}>
