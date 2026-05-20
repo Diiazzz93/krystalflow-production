@@ -54,6 +54,7 @@ function Dashboard() {
     (j) => j.status === "Complete" && isToday(j.scheduledStart),
   );
   const bottlesToday = todays.reduce((sum, j) => sum + j.bottlesCompleted, 0);
+  const palletsToday = qc.filter((q) => isToday(q.timestamp)).length;
 
   function openCreate() {
     setEditing(null);
