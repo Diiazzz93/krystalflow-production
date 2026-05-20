@@ -1,5 +1,4 @@
 import { useRef } from "react";
-import { QRCodeSVG } from "qrcode.react";
 import {
   Dialog,
   DialogContent,
@@ -26,10 +25,6 @@ export function PalletStickerDialog({ open, onOpenChange, entry, job }: Props) {
   const stickerRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
   const code = entry.palletCode ?? entry.id;
-  const lookupUrl =
-    typeof window !== "undefined"
-      ? `${window.location.origin}/qc?code=${encodeURIComponent(code)}`
-      : `/qc?code=${encodeURIComponent(code)}`;
 
   function handlePrint() {
     const node = stickerRef.current;
@@ -52,8 +47,7 @@ export function PalletStickerDialog({ open, onOpenChange, entry, job }: Props) {
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5mm 4mm; font-size: 9pt; margin-top: 2mm; }
   .grid div span { color: #555; display: block; font-size: 7.5pt; text-transform: uppercase; letter-spacing: .04em; }
   .code { margin-top: 3mm; padding: 2mm; border: 1.5px dashed #000; text-align: center; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 700; font-size: 13pt; letter-spacing: .08em; }
-  .qrwrap { display:flex; justify-content:center; margin-top: 3mm; }
-  .foot { margin-top: 2mm; font-size: 7.5pt; text-align: center; color: #333; }
+  .foot { margin-top: 3mm; font-size: 7.5pt; text-align: center; color: #333; }
   .badge { display:inline-block; padding: 1mm 2mm; border-radius: 3px; font-size: 8pt; font-weight: 700; }
   .pass { background:#065f46; color:#fff; }
   .fail { background:#991b1b; color:#fff; }
@@ -158,11 +152,8 @@ export function PalletStickerDialog({ open, onOpenChange, entry, job }: Props) {
             <div className="code mt-3 rounded border border-dashed border-black p-1.5 text-center font-mono text-[13pt] font-bold tracking-widest">
               {code}
             </div>
-            <div className="qrwrap mt-2 flex justify-center">
-              <QRCodeSVG value={lookupUrl} size={120} includeMargin={false} />
-            </div>
-            <div className="foot mt-1 text-center text-[8px] text-neutral-600">
-              Scan or quote this code to trace this pallet.
+            <div className="foot mt-3 text-center text-[8px] text-neutral-600">
+              Quote this code to trace this pallet.
             </div>
           </div>
         </div>
