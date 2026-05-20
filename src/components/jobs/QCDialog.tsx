@@ -176,6 +176,10 @@ export function QCDialog({ jobId, open, onOpenChange }: Props) {
       finalProductPhotoName: finalProductPhotoName || undefined,
       supervisorName: supervisorName || undefined,
       supervisorSignatureDataUrl,
+      fillOperator: fillOperator || undefined,
+      bottleQcOperator: bottleQcOperator || undefined,
+      capperOperator: capperOperator || undefined,
+      packagingOperator: packagingOperator || undefined,
     };
     addQC(entry);
     setLastSubmittedId(entry.id);
