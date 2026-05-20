@@ -539,6 +539,16 @@ export function QCDialog({ jobId, open, onOpenChange }: Props) {
                     {h.supervisorName && (
                       <p className="text-xs text-muted-foreground">Sign-off: {h.supervisorName}</p>
                     )}
+                    {(h.fillOperator || h.bottleQcOperator || h.capperOperator || h.packagingOperator) && (
+                      <p className="text-xs text-muted-foreground">
+                        {[
+                          h.fillOperator && `Fill: ${h.fillOperator}`,
+                          h.bottleQcOperator && `Bottle/QC: ${h.bottleQcOperator}`,
+                          h.capperOperator && `Capper: ${h.capperOperator}`,
+                          h.packagingOperator && `Packaging: ${h.packagingOperator}`,
+                        ].filter(Boolean).join(" · ")}
+                      </p>
+                    )}
                     {h.supervisorSignatureDataUrl && (
                       <img
                         src={h.supervisorSignatureDataUrl}
