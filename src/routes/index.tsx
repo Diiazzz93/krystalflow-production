@@ -177,13 +177,13 @@ function Dashboard() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Upcoming today</CardTitle>
+              <CardTitle>Upcoming this week</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              {todays.length === 0 && (
-                <p className="text-sm text-muted-foreground">No jobs scheduled today.</p>
+              {thisWeek.length === 0 && (
+                <p className="text-sm text-muted-foreground">No jobs scheduled this week.</p>
               )}
-              {todays.map((j) => (
+              {thisWeek.map((j) => (
                 <button
                   key={j.id}
                   onClick={() => openJob(j.id)}
