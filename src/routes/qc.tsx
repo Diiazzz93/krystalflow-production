@@ -63,11 +63,31 @@ function QCPage() {
   return (
     <AppShell>
       <div className="space-y-5">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Quality control</h1>
-          <p className="text-sm text-muted-foreground">
-            Pallet-level checks across every production run.
-          </p>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Quality control</h1>
+            <p className="text-sm text-muted-foreground">
+              Pallet-level checks across every production run.
+            </p>
+          </div>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleLookup();
+            }}
+            className="flex items-center gap-2"
+          >
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={lookup}
+                onChange={(e) => setLookup(e.target.value)}
+                placeholder="Pallet code (e.g. KS-…)"
+                className="w-72 pl-8 font-mono text-xs uppercase"
+              />
+            </div>
+            <Button type="submit" variant="outline">Look up pallet</Button>
+          </form>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
