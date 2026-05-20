@@ -17,6 +17,7 @@ import type { QCEntry } from "@/lib/types";
 import { fmtDateTime, uid } from "@/lib/utils-domain";
 import { CheckCircle2, XCircle, Upload, Plus, Trash2, Sparkles, ChevronDown } from "lucide-react";
 import { SignaturePad } from "./SignaturePad";
+import { PalletStickerDialog } from "./PalletStickerDialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
