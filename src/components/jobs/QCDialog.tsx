@@ -56,12 +56,13 @@ function nowHHMM() {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
-function generatePalletCode(sku: string, pallet: number) {
-  const skuPart = (sku || "JOB").replace(/[^A-Z0-9]/gi, "").toUpperCase().slice(0, 4) || "JOB";
-  const d = new Date();
-  const datePart = `${String(d.getFullYear()).slice(-2)}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
-  const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
-  return `KS-${skuPart}-${datePart}-P${pallet}-${rand}`;
+function generatePalletCode() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let code = "";
+  for (let i = 0; i < 4; i++) {
+    code += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return `KS-${code}`;
 }
 
 export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
@@ -207,7 +208,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
     const result: "Pass" | "Fail" = Object.values(checks).some((v) => v === "Fail")
       ? "Fail"
       : "Pass";
-    const palletCode = generatePalletCode(job!.sku, palletNumber);
+    const palletCode = generatePalletCode();
     const entry: QCEntry = {
       id: uid(),
       jobId,
