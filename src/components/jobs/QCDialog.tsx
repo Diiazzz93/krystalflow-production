@@ -538,6 +538,19 @@ export function QCDialog({ jobId, open, onOpenChange }: Props) {
                         {h.result}
                       </Badge>
                     </div>
+                    {h.palletCode && (
+                      <div className="mt-1 flex items-center justify-between gap-2 rounded border border-dashed border-border bg-muted/40 px-2 py-1">
+                        <code className="text-[10px] font-mono tracking-wide">{h.palletCode}</code>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-2 text-[10px]"
+                          onClick={() => setStickerEntry(h)}
+                        >
+                          Reprint
+                        </Button>
+                      </div>
+                    )}
                     <p className="text-xs text-muted-foreground">{fmtDateTime(h.timestamp)}</p>
                     <p className="text-xs text-muted-foreground">
                       {h.operatorName} · {h.bottleCount} bottles
