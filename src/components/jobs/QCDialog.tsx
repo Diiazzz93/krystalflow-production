@@ -64,7 +64,7 @@ function generatePalletCode(sku: string, pallet: number) {
   return `KS-${skuPart}-${datePart}-P${pallet}-${rand}`;
 }
 
-export function QCDialog({ jobId, open, onOpenChange }: Props) {
+export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
   const { jobs, qc, addQC } = useStore();
   const job = jobs.find((j) => j.id === jobId);
   const history = useMemo(
