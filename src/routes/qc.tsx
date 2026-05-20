@@ -231,7 +231,17 @@ function QCPage() {
       </div>
 
       {jobId && (
-        <QCDialog jobId={jobId} open={!!jobId} onOpenChange={(v) => !v && setJobId(null)} />
+        <QCDialog
+          jobId={jobId}
+          open={!!jobId}
+          onOpenChange={(v) => {
+            if (!v) {
+              setJobId(null);
+              setPrefillEntryId(null);
+            }
+          }}
+          prefillEntryId={prefillEntryId}
+        />
       )}
     </AppShell>
   );
