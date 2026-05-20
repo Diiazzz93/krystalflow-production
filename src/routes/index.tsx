@@ -33,7 +33,7 @@ export const Route = createFileRoute("/")({
 });
 
 function Dashboard() {
-  const { jobs } = useStore();
+  const { jobs, qc } = useStore();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
 
