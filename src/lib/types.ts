@@ -49,6 +49,11 @@ export interface QCEntry {
   finalProductPhotoName?: string; // placeholder
   supervisorName?: string;
   supervisorSignatureDataUrl?: string; // base64 PNG from canvas
+  // Section operators - for narrowing down where an issue occurred
+  fillOperator?: string;
+  bottleQcOperator?: string;
+  capperOperator?: string;
+  packagingOperator?: string;
 }
 
 export interface Job {

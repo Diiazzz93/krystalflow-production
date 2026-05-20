@@ -105,6 +105,10 @@ export function QCDialog({ jobId, open, onOpenChange }: Props) {
   const [finalProductPhotoName, setFinalProductPhotoName] = useState("");
   const [supervisorName, setSupervisorName] = useState("");
   const [supervisorSignatureDataUrl, setSupervisorSignatureDataUrl] = useState<string | undefined>();
+  const [fillOperator, setFillOperator] = useState("");
+  const [bottleQcOperator, setBottleQcOperator] = useState("");
+  const [capperOperator, setCapperOperator] = useState("");
+  const [packagingOperator, setPackagingOperator] = useState("");
   const [lastSubmittedId, setLastSubmittedId] = useState<string | null>(null);
   const historyListRef = useRef<HTMLOListElement>(null);
 
@@ -172,6 +176,10 @@ export function QCDialog({ jobId, open, onOpenChange }: Props) {
       finalProductPhotoName: finalProductPhotoName || undefined,
       supervisorName: supervisorName || undefined,
       supervisorSignatureDataUrl,
+      fillOperator: fillOperator || undefined,
+      bottleQcOperator: bottleQcOperator || undefined,
+      capperOperator: capperOperator || undefined,
+      packagingOperator: packagingOperator || undefined,
     };
     addQC(entry);
     setLastSubmittedId(entry.id);
@@ -188,6 +196,10 @@ export function QCDialog({ jobId, open, onOpenChange }: Props) {
     setSupervisorSignatureDataUrl(undefined);
     setFinishTime(nowHHMM());
     setPalletRowVolumes([{ row: "", pump1: "", pump2: "" }]);
+    setFillOperator("");
+    setBottleQcOperator("");
+    setCapperOperator("");
+    setPackagingOperator("");
     setChecks({
       fillLevel: "Pass",
       capTightness: "Pass",
@@ -390,6 +402,30 @@ export function QCDialog({ jobId, open, onOpenChange }: Props) {
               </div>
             </section>
 
+            {/* Section operators */}
+            <section className="space-y-3">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                Section operators
+              </h3>
+              <p className="text-xs text-muted-foreground -mt-2">
+                Record who was in charge of each line section so issues can be traced quickly.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <Field label="Fill">
+                  <Input value={fillOperator} onChange={(e) => setFillOperator(e.target.value)} placeholder="Name" />
+                </Field>
+                <Field label="Bottle / QC">
+                  <Input value={bottleQcOperator} onChange={(e) => setBottleQcOperator(e.target.value)} placeholder="Name" />
+                </Field>
+                <Field label="Capper">
+                  <Input value={capperOperator} onChange={(e) => setCapperOperator(e.target.value)} placeholder="Name" />
+                </Field>
+                <Field label="Packaging">
+                  <Input value={packagingOperator} onChange={(e) => setPackagingOperator(e.target.value)} placeholder="Name" />
+                </Field>
+              </div>
+            </section>
+
             {/* Pass / fail checks */}
             <section className="space-y-3">
               <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
@@ -502,6 +538,16 @@ export function QCDialog({ jobId, open, onOpenChange }: Props) {
                     )}
                     {h.supervisorName && (
                       <p className="text-xs text-muted-foreground">Sign-off: {h.supervisorName}</p>
+                    )}
+                    {(h.fillOperator || h.bottleQcOperator || h.capperOperator || h.packagingOperator) && (
+                      <p className="text-xs text-muted-foreground">
+                        {[
+                          h.fillOperator && `Fill: ${h.fillOperator}`,
+                          h.bottleQcOperator && `Bottle/QC: ${h.bottleQcOperator}`,
+                          h.capperOperator && `Capper: ${h.capperOperator}`,
+                          h.packagingOperator && `Packaging: ${h.packagingOperator}`,
+                        ].filter(Boolean).join(" · ")}
+                      </p>
                     )}
                     {h.supervisorSignatureDataUrl && (
                       <img
