@@ -244,13 +244,14 @@ function Stat({
   icon: React.ReactNode;
   label: string;
   value: string | number;
-  tone: "sky" | "emerald" | "orange" | "violet";
+  tone: "sky" | "emerald" | "orange" | "violet" | "teal";
 }) {
   const toneMap = {
     sky: "bg-sky-500/10 text-sky-700 dark:text-sky-300",
     emerald: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
     orange: "bg-orange-500/10 text-orange-700 dark:text-orange-300",
     violet: "bg-violet-500/10 text-violet-700 dark:text-violet-300",
+    teal: "bg-teal-500/10 text-teal-700 dark:text-teal-300",
   } as const;
   return (
     <Card>
