@@ -151,6 +151,7 @@ export function QCDialog({ jobId, open, onOpenChange }: Props) {
     const result: "Pass" | "Fail" = Object.values(checks).some((v) => v === "Fail")
       ? "Fail"
       : "Pass";
+    const palletCode = generatePalletCode(job.sku, palletNumber);
     const entry: QCEntry = {
       id: uid(),
       jobId,
@@ -182,12 +183,14 @@ export function QCDialog({ jobId, open, onOpenChange }: Props) {
       bottleQcOperator: bottleQcOperator || undefined,
       capperOperator: capperOperator || undefined,
       packagingOperator: packagingOperator || undefined,
+      palletCode,
     };
     addQC(entry);
     setLastSubmittedId(entry.id);
+    setStickerEntry(entry);
     toast.success(
       `Pallet #${entry.palletNumber} logged · ${entry.result}`,
-      { description: `Added to QC history at ${fmtDateTime(entry.timestamp)}` },
+      { description: `Code ${palletCode} — sticker ready to print.` },
     );
     // Scroll history to top so the new entry is visible
     requestAnimationFrame(() => {
