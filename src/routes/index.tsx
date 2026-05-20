@@ -46,9 +46,16 @@ function Dashboard() {
       d.getDate() === today.getDate()
     );
   };
+  const isThisWeek = (iso: string) => {
+    const d = new Date(iso);
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const endOfWeek = new Date(startOfDay.getTime() + 7 * 24 * 60 * 60 * 1000);
+    return d >= startOfDay && d < endOfWeek;
+  };
 
   const active = jobs.filter((j) => ACTIVE_STATUSES.includes(j.status));
   const todays = jobs.filter((j) => isToday(j.scheduledStart));
+  const thisWeek = jobs.filter((j) => isThisWeek(j.scheduledStart) && j.status !== "Complete");
   const delayed = jobs.filter((j) => j.status === "Delayed" || j.status === "Requires Review");
   const completedToday = jobs.filter(
     (j) => j.status === "Complete" && isToday(j.scheduledStart),
