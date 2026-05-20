@@ -159,7 +159,7 @@ export function QCDialog({ jobId, open, onOpenChange }: Props) {
     const result: "Pass" | "Fail" = Object.values(checks).some((v) => v === "Fail")
       ? "Fail"
       : "Pass";
-    const palletCode = generatePalletCode(job.sku, palletNumber);
+    const palletCode = generatePalletCode(job!.sku, palletNumber);
     const entry: QCEntry = {
       id: uid(),
       jobId,
