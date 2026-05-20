@@ -22,6 +22,7 @@ import {
   Clock,
   Factory,
   Gauge,
+  Layers,
   Package,
   Plus,
 } from "lucide-react";
@@ -32,7 +33,7 @@ export const Route = createFileRoute("/")({
 });
 
 function Dashboard() {
-  const { jobs } = useStore();
+  const { jobs, qc } = useStore();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
 
@@ -53,6 +54,7 @@ function Dashboard() {
     (j) => j.status === "Complete" && isToday(j.scheduledStart),
   );
   const bottlesToday = todays.reduce((sum, j) => sum + j.bottlesCompleted, 0);
+  const palletsToday = qc.filter((q) => isToday(q.timestamp)).length;
 
   function openCreate() {
     setEditing(null);
@@ -84,12 +86,18 @@ function Dashboard() {
           </Button>
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
           <Stat
             icon={<Factory className="size-4" />}
             label="Active runs"
             value={active.length}
             tone="sky"
+          />
+          <Stat
+            icon={<Layers className="size-4" />}
+            label="Pallets ready today"
+            value={palletsToday}
+            tone="teal"
           />
           <Stat
             icon={<Package className="size-4" />}
@@ -236,13 +244,14 @@ function Stat({
   icon: React.ReactNode;
   label: string;
   value: string | number;
-  tone: "sky" | "emerald" | "orange" | "violet";
+  tone: "sky" | "emerald" | "orange" | "violet" | "teal";
 }) {
   const toneMap = {
     sky: "bg-sky-500/10 text-sky-700 dark:text-sky-300",
     emerald: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
     orange: "bg-orange-500/10 text-orange-700 dark:text-orange-300",
     violet: "bg-violet-500/10 text-violet-700 dark:text-violet-300",
+    teal: "bg-teal-500/10 text-teal-700 dark:text-teal-300",
   } as const;
   return (
     <Card>
