@@ -398,6 +398,30 @@ export function QCDialog({ jobId, open, onOpenChange }: Props) {
               </div>
             </section>
 
+            {/* Section operators */}
+            <section className="space-y-3">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                Section operators
+              </h3>
+              <p className="text-xs text-muted-foreground -mt-2">
+                Record who was in charge of each line section so issues can be traced quickly.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <Field label="Fill">
+                  <Input value={fillOperator} onChange={(e) => setFillOperator(e.target.value)} placeholder="Name" />
+                </Field>
+                <Field label="Bottle / QC">
+                  <Input value={bottleQcOperator} onChange={(e) => setBottleQcOperator(e.target.value)} placeholder="Name" />
+                </Field>
+                <Field label="Capper">
+                  <Input value={capperOperator} onChange={(e) => setCapperOperator(e.target.value)} placeholder="Name" />
+                </Field>
+                <Field label="Packaging">
+                  <Input value={packagingOperator} onChange={(e) => setPackagingOperator(e.target.value)} placeholder="Name" />
+                </Field>
+              </div>
+            </section>
+
             {/* Pass / fail checks */}
             <section className="space-y-3">
               <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
