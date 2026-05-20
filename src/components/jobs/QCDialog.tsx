@@ -111,6 +111,7 @@ export function QCDialog({ jobId, open, onOpenChange }: Props) {
   const [capperOperator, setCapperOperator] = useState("");
   const [packagingOperator, setPackagingOperator] = useState("");
   const [lastSubmittedId, setLastSubmittedId] = useState<string | null>(null);
+  const [stickerEntry, setStickerEntry] = useState<QCEntry | null>(null);
   const historyListRef = useRef<HTMLOListElement>(null);
 
   // Clear highlight after 2.5s
