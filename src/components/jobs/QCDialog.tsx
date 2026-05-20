@@ -131,6 +131,52 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
     return () => clearTimeout(t);
   }, [lastSubmittedId]);
 
+  // Prefill form from an existing entry (look-up by pallet code flow)
+  useEffect(() => {
+    if (!open || !prefillEntryId) return;
+    const e = qc.find((q) => q.id === prefillEntryId);
+    if (!e) return;
+    setPalletNumber(e.palletNumber);
+    setChecks({
+      fillLevel: e.fillLevel,
+      capTightness: e.capTightness,
+      labelAlignment: e.labelAlignment,
+      batchCode: e.batchCode,
+      leakCheck: e.leakCheck,
+      bottleCondition: e.bottleCondition,
+    });
+    setBottleCount(e.bottleCount);
+    setOperatorName(e.operatorName ?? "");
+    setNotes(e.notes ?? "");
+    setMNumber(e.mNumber ?? "");
+    setLogDate(e.logDate ?? todayISO());
+    setBottleWeight(e.bottleWeight ?? "");
+    setCapWeight(e.capWeight ?? "");
+    setLiquidWeightPer100ml(e.liquidWeightPer100ml ?? "");
+    setTotalWeightGrams(e.totalWeightGrams ?? "");
+    setPalletRowVolumes(
+      e.palletRowVolumes && e.palletRowVolumes.length > 0
+        ? e.palletRowVolumes.map((r) => ({ ...r }))
+        : [{ row: "", pump1: "", pump2: "" }],
+    );
+    setStartTime(e.startTime ?? "");
+    setFinishTime(e.finishTime ?? "");
+    setMinimumVolume(e.minimumVolume ?? "");
+    setMaximumVolume(e.maximumVolume ?? "");
+    setBoxesPerPallet(e.boxesPerPallet ?? "");
+    setFinishedProductFileName(e.finishedProductFileName ?? "");
+    setFinalProductPhotoName(e.finalProductPhotoName ?? "");
+    setSupervisorName(e.supervisorName ?? e.supervisorSignoff ?? "");
+    setSupervisorSignatureDataUrl(e.supervisorSignatureDataUrl);
+    setFillOperator(e.fillOperator ?? "");
+    setBottleQcOperator(e.bottleQcOperator ?? "");
+    setCapperOperator(e.capperOperator ?? "");
+    setPackagingOperator(e.packagingOperator ?? "");
+    toast.info(`Loaded pallet #${e.palletNumber}`, {
+      description: e.palletCode ? `Code ${e.palletCode}` : undefined,
+    });
+  }, [open, prefillEntryId, qc]);
+
   if (!job) return null;
 
   function toggle(k: CheckKey) {
