@@ -11,10 +11,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { useStore } from "@/lib/store";
 import { fmtDateTime } from "@/lib/utils-domain";
 import { QCDialog } from "@/components/jobs/QCDialog";
-import { CheckCircle2, ShieldAlert, XCircle } from "lucide-react";
+import { CheckCircle2, ShieldAlert, XCircle, Search } from "lucide-react";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/qc")({
   component: QCPage,
@@ -24,6 +26,23 @@ function QCPage() {
   const { jobs, qc } = useStore();
   const [filter, setFilter] = useState<"all" | "Pass" | "Fail">("all");
   const [jobId, setJobId] = useState<string | null>(null);
+  const [lookup, setLookup] = useState("");
+
+  function handleLookup() {
+    const q = lookup.trim().toUpperCase();
+    if (!q) return;
+    const match = qc.find(
+      (e) => (e.palletCode ?? "").toUpperCase() === q || e.id.toUpperCase() === q,
+    );
+    if (!match) {
+      toast.error("No pallet found", { description: `Code ${q} did not match any QC entry.` });
+      return;
+    }
+    setJobId(match.jobId);
+    toast.success(`Found pallet #${match.palletNumber}`, {
+      description: `${jobs.find((j) => j.id === match.jobId)?.customer ?? ""} — opening job QC.`,
+    });
+  }
 
   const passRate = qc.length
     ? Math.round((qc.filter((q) => q.result === "Pass").length / qc.length) * 100)
@@ -44,11 +63,31 @@ function QCPage() {
   return (
     <AppShell>
       <div className="space-y-5">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Quality control</h1>
-          <p className="text-sm text-muted-foreground">
-            Pallet-level checks across every production run.
-          </p>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Quality control</h1>
+            <p className="text-sm text-muted-foreground">
+              Pallet-level checks across every production run.
+            </p>
+          </div>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleLookup();
+            }}
+            className="flex items-center gap-2"
+          >
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={lookup}
+                onChange={(e) => setLookup(e.target.value)}
+                placeholder="Pallet code (e.g. KS-…)"
+                className="w-72 pl-8 font-mono text-xs uppercase"
+              />
+            </div>
+            <Button type="submit" variant="outline">Look up pallet</Button>
+          </form>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

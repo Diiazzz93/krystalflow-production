@@ -54,6 +54,8 @@ export interface QCEntry {
   bottleQcOperator?: string;
   capperOperator?: string;
   packagingOperator?: string;
+  // Unique human-readable code printed on the pallet sticker for traceability
+  palletCode?: string;
 }
 
 export interface Job {

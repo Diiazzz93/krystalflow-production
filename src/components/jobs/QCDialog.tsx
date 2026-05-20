@@ -17,6 +17,7 @@ import type { QCEntry } from "@/lib/types";
 import { fmtDateTime, uid } from "@/lib/utils-domain";
 import { CheckCircle2, XCircle, Upload, Plus, Trash2, Sparkles, ChevronDown } from "lucide-react";
 import { SignaturePad } from "./SignaturePad";
+import { PalletStickerDialog } from "./PalletStickerDialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -51,6 +52,14 @@ function todayISO() {
 function nowHHMM() {
   const d = new Date();
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+function generatePalletCode(sku: string, pallet: number) {
+  const skuPart = (sku || "JOB").replace(/[^A-Z0-9]/gi, "").toUpperCase().slice(0, 4) || "JOB";
+  const d = new Date();
+  const datePart = `${String(d.getFullYear()).slice(-2)}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
+  const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
+  return `KS-${skuPart}-${datePart}-P${pallet}-${rand}`;
 }
 
 export function QCDialog({ jobId, open, onOpenChange }: Props) {
@@ -110,6 +119,7 @@ export function QCDialog({ jobId, open, onOpenChange }: Props) {
   const [capperOperator, setCapperOperator] = useState("");
   const [packagingOperator, setPackagingOperator] = useState("");
   const [lastSubmittedId, setLastSubmittedId] = useState<string | null>(null);
+  const [stickerEntry, setStickerEntry] = useState<QCEntry | null>(null);
   const historyListRef = useRef<HTMLOListElement>(null);
 
   // Clear highlight after 2.5s
@@ -149,6 +159,7 @@ export function QCDialog({ jobId, open, onOpenChange }: Props) {
     const result: "Pass" | "Fail" = Object.values(checks).some((v) => v === "Fail")
       ? "Fail"
       : "Pass";
+    const palletCode = generatePalletCode(job!.sku, palletNumber);
     const entry: QCEntry = {
       id: uid(),
       jobId,
@@ -180,12 +191,14 @@ export function QCDialog({ jobId, open, onOpenChange }: Props) {
       bottleQcOperator: bottleQcOperator || undefined,
       capperOperator: capperOperator || undefined,
       packagingOperator: packagingOperator || undefined,
+      palletCode,
     };
     addQC(entry);
     setLastSubmittedId(entry.id);
+    setStickerEntry(entry);
     toast.success(
       `Pallet #${entry.palletNumber} logged · ${entry.result}`,
-      { description: `Added to QC history at ${fmtDateTime(entry.timestamp)}` },
+      { description: `Code ${palletCode} — sticker ready to print.` },
     );
     // Scroll history to top so the new entry is visible
     requestAnimationFrame(() => {
@@ -525,6 +538,19 @@ export function QCDialog({ jobId, open, onOpenChange }: Props) {
                         {h.result}
                       </Badge>
                     </div>
+                    {h.palletCode && (
+                      <div className="mt-1 flex items-center justify-between gap-2 rounded border border-dashed border-border bg-muted/40 px-2 py-1">
+                        <code className="text-[10px] font-mono tracking-wide">{h.palletCode}</code>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-2 text-[10px]"
+                          onClick={() => setStickerEntry(h)}
+                        >
+                          Reprint
+                        </Button>
+                      </div>
+                    )}
                     <p className="text-xs text-muted-foreground">{fmtDateTime(h.timestamp)}</p>
                     <p className="text-xs text-muted-foreground">
                       {h.operatorName} · {h.bottleCount} bottles
@@ -568,6 +594,14 @@ export function QCDialog({ jobId, open, onOpenChange }: Props) {
           <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
         </DialogFooter>
       </DialogContent>
+      {stickerEntry && (
+        <PalletStickerDialog
+          open={!!stickerEntry}
+          onOpenChange={(v) => !v && setStickerEntry(null)}
+          entry={stickerEntry}
+          job={job}
+        />
+      )}
     </Dialog>
   );
 }
