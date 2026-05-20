@@ -44,6 +44,8 @@ interface Props {
   jobId: string;
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  /** When provided, pre-fills the form with the data from this QC entry (view/edit existing pallet). */
+  prefillEntryId?: string | null;
 }
 
 function todayISO() {
