@@ -91,7 +91,8 @@ export function computeJobStockCheck(
   stock: StockItem[] = MOCK_STOCK,
 ): JobStockCheck {
   const qty = Math.max(0, job.quantity ?? 0);
-  const cartons = Math.ceil(qty / BOTTLES_PER_CARTON);
+  const perCarton = Math.max(1, job.bottlesPerCarton ?? DEFAULT_BOTTLES_PER_CARTON);
+  const cartons = Math.ceil(qty / perCarton);
 
   const blueprint: Array<{
     category: RequirementCategory;
