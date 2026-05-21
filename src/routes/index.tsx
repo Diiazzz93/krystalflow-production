@@ -13,7 +13,7 @@ import {
   estimatedFinish,
   fmtDate,
   fmtTime,
-  progressPct,
+  
 } from "@/lib/utils-domain";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -136,42 +136,103 @@ function Dashboard() {
               {active.length === 0 && (
                 <p className="text-sm text-muted-foreground">No jobs currently running.</p>
               )}
-              {active.map((j) => (
-                <motion.button
-                  key={j.id}
-                  whileHover={{ x: 2 }}
-                  onClick={() => openJob(j.id)}
-                  className="w-full text-left rounded-lg border border-border p-3 hover:bg-accent/40 transition-colors"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="size-2.5 rounded-full"
-                          style={{ backgroundColor: j.customerColor }}
-                        />
-                        <span className="font-semibold truncate">{j.customer}</span>
-                        <Badge className={STATUS_COLORS[j.status]}>{j.status}</Badge>
+              {active.map((j) => {
+                const jobQc = qc
+                  .filter((q) => q.jobId === j.id)
+                  .sort(
+                    (a, b) =>
+                      new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+                  );
+                const liveBottles = jobQc.reduce(
+                  (sum, q) => sum + (q.bottleCount || 0),
+                  0,
+                );
+                const bottles = Math.max(j.bottlesCompleted, liveBottles);
+                const pct = j.quantity
+                  ? Math.min(100, Math.round((bottles / j.quantity) * 100))
+                  : 0;
+                const last = jobQc[0];
+                const secsAgo = last
+                  ? Math.round((Date.now() - new Date(last.timestamp).getTime()) / 1000)
+                  : null;
+                const ago =
+                  secsAgo == null
+                    ? null
+                    : secsAgo < 60
+                      ? `${secsAgo}s ago`
+                      : secsAgo < 3600
+                        ? `${Math.floor(secsAgo / 60)}m ago`
+                        : `${Math.floor(secsAgo / 3600)}h ago`;
+                return (
+                  <motion.button
+                    key={j.id}
+                    whileHover={{ x: 2 }}
+                    onClick={() => openJob(j.id)}
+                    className="w-full text-left rounded-lg border border-border p-3 hover:bg-accent/40 transition-colors"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="size-2.5 rounded-full"
+                            style={{ backgroundColor: j.customerColor }}
+                          />
+                          <span className="font-semibold truncate">{j.customer}</span>
+                          <Badge className={STATUS_COLORS[j.status]}>{j.status}</Badge>
+                        </div>
+                        <div className="text-sm text-muted-foreground truncate">
+                          {j.product} · {j.bottleSize} · {j.sku}
+                        </div>
                       </div>
-                      <div className="text-sm text-muted-foreground truncate">
-                        {j.product} · {j.bottleSize} · {j.sku}
+                      <div className="text-right text-xs text-muted-foreground shrink-0">
+                        <div className="flex items-center gap-1">
+                          <Clock className="size-3" /> ETA {fmtTime(estimatedFinish(j))}
+                        </div>
+                        <div>{j.operator || "Unassigned"}</div>
                       </div>
                     </div>
-                    <div className="text-right text-xs text-muted-foreground shrink-0">
-                      <div className="flex items-center gap-1">
-                        <Clock className="size-3" /> ETA {fmtTime(estimatedFinish(j))}
-                      </div>
-                      <div>{j.operator || "Unassigned"}</div>
+                    <div className="mt-2 flex items-center gap-3">
+                      <Progress value={pct} className="h-2 flex-1" />
+                      <span className="text-xs font-medium tabular-nums w-24 text-right">
+                        {bottles.toLocaleString()} / {j.quantity.toLocaleString()}
+                      </span>
                     </div>
-                  </div>
-                  <div className="mt-2 flex items-center gap-3">
-                    <Progress value={progressPct(j)} className="h-2 flex-1" />
-                    <span className="text-xs font-medium tabular-nums w-20 text-right">
-                      {j.bottlesCompleted.toLocaleString()} / {j.quantity.toLocaleString()}
-                    </span>
-                  </div>
-                </motion.button>
-              ))}
+                    <div className="mt-1.5 flex items-center justify-between text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1.5">
+                        {last ? (
+                          <>
+                            <span className="relative flex size-2">
+                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                              <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
+                            </span>
+                            <span>
+                              {jobQc.length} pallet{jobQc.length === 1 ? "" : "s"} QC'd
+                              {ago ? ` · last ${ago}` : ""}
+                            </span>
+                          </>
+                        ) : (
+                          <span>No QC entries yet</span>
+                        )}
+                      </div>
+                      {last && (
+                        <span className="tabular-nums">
+                          Pallet #{last.palletNumber} · {last.bottleCount} bottles ·{" "}
+                          <span
+                            className={
+                              last.result === "Pass"
+                                ? "text-emerald-600 dark:text-emerald-400"
+                                : "text-red-600 dark:text-red-400"
+                            }
+                          >
+                            {last.result}
+                          </span>
+                        </span>
+                      )}
+                    </div>
+                  </motion.button>
+                );
+              })}
+
             </CardContent>
           </Card>
 
