@@ -31,6 +31,18 @@ export interface JobStockCheck {
 // Default bottles per carton — can be overridden per-job.
 const DEFAULT_BOTTLES_PER_CARTON = 12;
 
+// Parse strings like "500ml", "1L", "4 Litre", "5 L" into litres.
+function parseBottleSizeLitres(size?: string): number {
+  if (!size) return 0;
+  const s = size.toString().trim().toLowerCase();
+  const m = s.match(/([\d.]+)\s*(ml|l|litre|liter)?/);
+  if (!m) return 0;
+  const n = parseFloat(m[1]);
+  if (!Number.isFinite(n)) return 0;
+  const unit = m[2] ?? (s.includes("ml") ? "ml" : "l");
+  return unit === "ml" ? n / 1000 : n;
+}
+
 function findStockFor(
   category: RequirementCategory,
   job: Job,
