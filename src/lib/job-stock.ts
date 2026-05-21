@@ -5,7 +5,7 @@
 import type { Job } from "@/lib/types";
 import { MOCK_STOCK, type StockItem } from "@/lib/stock";
 
-export type RequirementCategory = "bottle" | "cap" | "label" | "carton";
+export type RequirementCategory = "bottle" | "cap" | "label" | "carton" | "liquid";
 
 export interface JobRequirement {
   category: RequirementCategory;
@@ -31,6 +31,18 @@ export interface JobStockCheck {
 // Default bottles per carton — can be overridden per-job.
 const DEFAULT_BOTTLES_PER_CARTON = 12;
 
+// Parse strings like "500ml", "1L", "4 Litre", "5 L" into litres.
+function parseBottleSizeLitres(size?: string): number {
+  if (!size) return 0;
+  const s = size.toString().trim().toLowerCase();
+  const m = s.match(/([\d.]+)\s*(ml|l|litre|liter)?/);
+  if (!m) return 0;
+  const n = parseFloat(m[1]);
+  if (!Number.isFinite(n)) return 0;
+  const unit = m[2] ?? (s.includes("ml") ? "ml" : "l");
+  return unit === "ml" ? n / 1000 : n;
+}
+
 function findStockFor(
   category: RequirementCategory,
   job: Job,
@@ -45,6 +57,7 @@ function findStockFor(
       : category === "cap" ? job.capSku
       : category === "label" ? job.labelSku
       : category === "carton" ? job.cartonSku
+      : category === "liquid" ? job.liquidSku
       : undefined;
   if (override) {
     const m = stock.find((s) => s.sku.toUpperCase() === override.toUpperCase());
@@ -83,6 +96,8 @@ function findStockFor(
         return (
           ssku.startsWith("BOX") || sname.includes("BOX") || sname.includes("CARTON")
         );
+      case "liquid":
+        return ssku.startsWith("LIQ") || ssku.startsWith("RAW") || sname.includes("IBC");
     }
   });
   return byCategory ?? null;
@@ -95,6 +110,8 @@ export function computeJobStockCheck(
   const qty = Math.max(0, job.quantity ?? 0);
   const perCarton = Math.max(1, job.bottlesPerCarton ?? DEFAULT_BOTTLES_PER_CARTON);
   const cartons = Math.ceil(qty / perCarton);
+  const litresPerBottle = parseBottleSizeLitres(job.bottleSize);
+  const litresRequired = Math.ceil(litresPerBottle * qty);
 
   const blueprint: Array<{
     category: RequirementCategory;
@@ -111,6 +128,12 @@ export function computeJobStockCheck(
     { category: "cap", description: "Caps", required: qty, unit: "caps" },
     { category: "label", description: "Labels", required: qty, unit: "labels" },
     { category: "carton", description: "Cartons", required: cartons, unit: "boxes" },
+    {
+      category: "liquid",
+      description: "Liquid / product to fill",
+      required: litresRequired,
+      unit: "L",
+    },
   ];
 
   const requirements: JobRequirement[] = blueprint.map((b) => {

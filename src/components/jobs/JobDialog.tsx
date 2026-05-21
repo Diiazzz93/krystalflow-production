@@ -39,6 +39,7 @@ import {
   CAP_OPTIONS,
   LABEL_OPTIONS,
   CARTON_OPTIONS,
+  LIQUID_OPTIONS,
 } from "@/lib/catalog";
 
 const READY_STATES: ReadyState[] = ["Pending", "Ready", "Issue"];
@@ -224,6 +225,18 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
               <SelectTrigger><SelectValue placeholder="Select carton" /></SelectTrigger>
               <SelectContent>
                 {CARTON_OPTIONS.map((o) => (
+                  <SelectItem key={o.sku} value={o.sku}>
+                    {o.name} <span className="text-muted-foreground">· {o.sku}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field label="Liquid / Product to Fill">
+            <Select value={form.liquidSku ?? ""} onValueChange={(v) => set("liquidSku", v)}>
+              <SelectTrigger><SelectValue placeholder="Select liquid (IBC)" /></SelectTrigger>
+              <SelectContent>
+                {LIQUID_OPTIONS.map((o) => (
                   <SelectItem key={o.sku} value={o.sku}>
                     {o.name} <span className="text-muted-foreground">· {o.sku}</span>
                   </SelectItem>
