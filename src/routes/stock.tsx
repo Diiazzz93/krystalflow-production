@@ -238,6 +238,8 @@ function StockPage() {
             </div>
           </CardContent>
         </Card>
+
+        <ActiveJobsSection />
       </div>
     </AppShell>
   );
