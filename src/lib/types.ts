@@ -85,8 +85,10 @@ export interface Job {
   actualRuntimeMinutes: number;
   customerColor: string; // hex
   bottlesPerCarton?: number; // pack size override; defaults to 12
-  capSku?: string; // optional explicit cap stock SKU
-  labelSku?: string; // optional explicit label stock SKU
+  bottleSku?: string; // selected bottle stock SKU
+  capSku?: string; // selected cap stock SKU
+  labelSku?: string; // selected label stock SKU
+  cartonSku?: string; // selected carton stock SKU
   createdAt: string;
 }
 

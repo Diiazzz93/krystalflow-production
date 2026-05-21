@@ -34,6 +34,12 @@ import type { Job, ReadyState } from "@/lib/types";
 import { Progress } from "@/components/ui/progress";
 import { JobStockCheck } from "@/components/jobs/JobStockCheck";
 import { computeJobStockCheck } from "@/lib/job-stock";
+import {
+  BOTTLE_OPTIONS,
+  CAP_OPTIONS,
+  LABEL_OPTIONS,
+  CARTON_OPTIONS,
+} from "@/lib/catalog";
 
 const READY_STATES: ReadyState[] = ["Pending", "Ready", "Issue"];
 const COLORS = ["#0ea5e9", "#22c55e", "#f97316", "#a855f7", "#ec4899", "#14b8a6", "#eab308"];
@@ -156,11 +162,74 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
           <Field label="Product">
             <Input value={form.product} onChange={(e) => set("product", e.target.value)} />
           </Field>
-          <Field label="SKU">
-            <Input value={form.sku} onChange={(e) => set("sku", e.target.value)} />
+          <Field label="Bottle">
+            <Select
+              value={form.bottleSku ?? ""}
+              onValueChange={(v) => {
+                const opt = BOTTLE_OPTIONS.find((o) => o.sku === v);
+                setForm((f) => ({
+                  ...f,
+                  bottleSku: v,
+                  sku: v,
+                  bottleSize: opt?.size ?? f.bottleSize,
+                }));
+              }}
+            >
+              <SelectTrigger><SelectValue placeholder="Select bottle" /></SelectTrigger>
+              <SelectContent>
+                {BOTTLE_OPTIONS.map((o) => (
+                  <SelectItem key={o.sku} value={o.sku}>
+                    {o.name} <span className="text-muted-foreground">· {o.sku}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </Field>
-          <Field label="Bottle size">
-            <Input value={form.bottleSize} onChange={(e) => set("bottleSize", e.target.value)} />
+          <Field label="Cap">
+            <Select value={form.capSku ?? ""} onValueChange={(v) => set("capSku", v)}>
+              <SelectTrigger><SelectValue placeholder="Select cap" /></SelectTrigger>
+              <SelectContent>
+                {CAP_OPTIONS.map((o) => (
+                  <SelectItem key={o.sku} value={o.sku}>
+                    {o.name} <span className="text-muted-foreground">· {o.sku}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field label="Label">
+            <Select value={form.labelSku ?? ""} onValueChange={(v) => set("labelSku", v)}>
+              <SelectTrigger><SelectValue placeholder="Select label" /></SelectTrigger>
+              <SelectContent>
+                {LABEL_OPTIONS.map((o) => (
+                  <SelectItem key={o.sku} value={o.sku}>
+                    {o.name} <span className="text-muted-foreground">· {o.sku}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field label="Carton">
+            <Select
+              value={form.cartonSku ?? ""}
+              onValueChange={(v) => {
+                const opt = CARTON_OPTIONS.find((o) => o.sku === v);
+                setForm((f) => ({
+                  ...f,
+                  cartonSku: v,
+                  bottlesPerCarton: opt?.bottlesPerCarton ?? f.bottlesPerCarton,
+                }));
+              }}
+            >
+              <SelectTrigger><SelectValue placeholder="Select carton" /></SelectTrigger>
+              <SelectContent>
+                {CARTON_OPTIONS.map((o) => (
+                  <SelectItem key={o.sku} value={o.sku}>
+                    {o.name} <span className="text-muted-foreground">· {o.sku}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </Field>
           <Field label="Quantity (bottles)">
             <Input
@@ -174,27 +243,6 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
               type="number"
               value={form.pallets}
               onChange={(e) => set("pallets", Number(e.target.value))}
-            />
-          </Field>
-          <Field label="Bottles per carton">
-            <Input
-              type="number"
-              value={form.bottlesPerCarton ?? 12}
-              onChange={(e) => set("bottlesPerCarton", Number(e.target.value))}
-            />
-          </Field>
-          <Field label="Cap SKU (optional)">
-            <Input
-              value={form.capSku ?? ""}
-              placeholder="e.g. CAP-28MM"
-              onChange={(e) => set("capSku", e.target.value)}
-            />
-          </Field>
-          <Field label="Label SKU (optional)">
-            <Input
-              value={form.labelSku ?? ""}
-              placeholder="e.g. LBL-AQP-500"
-              onChange={(e) => set("labelSku", e.target.value)}
             />
           </Field>
           <Field label="Due date">
