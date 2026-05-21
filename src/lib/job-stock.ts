@@ -45,6 +45,7 @@ function findStockFor(
       : category === "cap" ? job.capSku
       : category === "label" ? job.labelSku
       : category === "carton" ? job.cartonSku
+      : category === "liquid" ? job.liquidSku
       : undefined;
   if (override) {
     const m = stock.find((s) => s.sku.toUpperCase() === override.toUpperCase());
