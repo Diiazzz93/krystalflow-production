@@ -51,7 +51,7 @@ export function JobStockCheck({ job, className }: Props) {
     ? `Missing stock — ${check.shortCount} item${check.shortCount === 1 ? "" : "s"} short`
     : check.hasLow
       ? "Low stock — review before scheduling"
-      : "Job ready — all stock available";
+      : "Ready to run — all stock available";
   const headerClr = check.hasShort
     ? "text-red-600 dark:text-red-400"
     : check.hasLow
@@ -63,7 +63,10 @@ export function JobStockCheck({ job, className }: Props) {
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <PackageCheck className="size-4 text-muted-foreground" />
-          <span className="font-medium text-sm">Stock check</span>
+          <span className="font-medium text-sm">Live Stock Check</span>
+          <span className="text-xs text-muted-foreground hidden sm:inline">
+            · updates as you edit the job
+          </span>
         </div>
         <div className={cn("flex items-center gap-1.5 text-sm font-medium", headerClr)}>
           <HeaderIcon className="size-4" />

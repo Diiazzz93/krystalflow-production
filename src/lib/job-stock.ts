@@ -28,9 +28,8 @@ export interface JobStockCheck {
   shortCount: number;
 }
 
-// Bottles per carton — production planning assumption.
-// Adjust per-product when Unleashed BOM data is available.
-const BOTTLES_PER_CARTON = 12;
+// Default bottles per carton — can be overridden per-job.
+const DEFAULT_BOTTLES_PER_CARTON = 12;
 
 function findStockFor(
   category: RequirementCategory,
@@ -39,6 +38,16 @@ function findStockFor(
 ): StockItem | null {
   const sku = job.sku?.toUpperCase() ?? "";
   const product = job.product?.toUpperCase() ?? "";
+
+  // Explicit overrides on the job take precedence.
+  if (category === "cap" && job.capSku) {
+    const m = stock.find((s) => s.sku.toUpperCase() === job.capSku!.toUpperCase());
+    if (m) return m;
+  }
+  if (category === "label" && job.labelSku) {
+    const m = stock.find((s) => s.sku.toUpperCase() === job.labelSku!.toUpperCase());
+    if (m) return m;
+  }
 
   // Prefer items whose SKU references the job's SKU (e.g. LBL-AQP-500 for AQP-500).
   const direct = stock.find((s) => {
@@ -82,7 +91,8 @@ export function computeJobStockCheck(
   stock: StockItem[] = MOCK_STOCK,
 ): JobStockCheck {
   const qty = Math.max(0, job.quantity ?? 0);
-  const cartons = Math.ceil(qty / BOTTLES_PER_CARTON);
+  const perCarton = Math.max(1, job.bottlesPerCarton ?? DEFAULT_BOTTLES_PER_CARTON);
+  const cartons = Math.ceil(qty / perCarton);
 
   const blueprint: Array<{
     category: RequirementCategory;

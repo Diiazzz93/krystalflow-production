@@ -176,6 +176,27 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
               onChange={(e) => set("pallets", Number(e.target.value))}
             />
           </Field>
+          <Field label="Bottles per carton">
+            <Input
+              type="number"
+              value={form.bottlesPerCarton ?? 12}
+              onChange={(e) => set("bottlesPerCarton", Number(e.target.value))}
+            />
+          </Field>
+          <Field label="Cap SKU (optional)">
+            <Input
+              value={form.capSku ?? ""}
+              placeholder="e.g. CAP-28MM"
+              onChange={(e) => set("capSku", e.target.value)}
+            />
+          </Field>
+          <Field label="Label SKU (optional)">
+            <Input
+              value={form.labelSku ?? ""}
+              placeholder="e.g. LBL-AQP-500"
+              onChange={(e) => set("labelSku", e.target.value)}
+            />
+          </Field>
           <Field label="Due date">
             <Input
               type="date"
