@@ -39,6 +39,7 @@ import {
   CAP_OPTIONS,
   LABEL_OPTIONS,
   CARTON_OPTIONS,
+  LIQUID_OPTIONS,
 } from "@/lib/catalog";
 
 const READY_STATES: ReadyState[] = ["Pending", "Ready", "Issue"];
