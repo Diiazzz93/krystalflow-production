@@ -40,12 +40,14 @@ function findStockFor(
   const product = job.product?.toUpperCase() ?? "";
 
   // Explicit overrides on the job take precedence.
-  if (category === "cap" && job.capSku) {
-    const m = stock.find((s) => s.sku.toUpperCase() === job.capSku!.toUpperCase());
-    if (m) return m;
-  }
-  if (category === "label" && job.labelSku) {
-    const m = stock.find((s) => s.sku.toUpperCase() === job.labelSku!.toUpperCase());
+  const override =
+    category === "bottle" ? job.bottleSku
+      : category === "cap" ? job.capSku
+      : category === "label" ? job.labelSku
+      : category === "carton" ? job.cartonSku
+      : undefined;
+  if (override) {
+    const m = stock.find((s) => s.sku.toUpperCase() === override.toUpperCase());
     if (m) return m;
   }
 
