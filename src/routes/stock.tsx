@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { AlertTriangle, Boxes, CheckCircle2, Layers, Package, Search } from "lucide-react";
 import { MOCK_STOCK, getStockStatus, type StockItem, type StockStatus } from "@/lib/stock";
+import { ActiveJobsSection } from "@/components/stock/ActiveJobsSection";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/stock")({
