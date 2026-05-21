@@ -5,7 +5,7 @@
 import type { Job } from "@/lib/types";
 import { MOCK_STOCK, type StockItem } from "@/lib/stock";
 
-export type RequirementCategory = "bottle" | "cap" | "label" | "carton";
+export type RequirementCategory = "bottle" | "cap" | "label" | "carton" | "liquid";
 
 export interface JobRequirement {
   category: RequirementCategory;
