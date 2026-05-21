@@ -1,6 +1,7 @@
 import { Link, useLocation } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import {
+  Boxes,
   CalendarDays,
   ClipboardList,
   Factory,
@@ -22,6 +23,7 @@ const NAV = [
   { to: "/jobs", label: "Jobs", icon: ClipboardList },
   { to: "/live", label: "Live Board", icon: Factory },
   { to: "/qc", label: "Quality", icon: ShieldCheck },
+  { to: "/stock", label: "Stock", icon: Boxes },
   { to: "/analytics", label: "Analytics", icon: TrendingUp },
   { to: "/settings", label: "Settings", icon: Settings },
 ] as const;
