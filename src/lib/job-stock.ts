@@ -98,6 +98,8 @@ export function computeJobStockCheck(
   const qty = Math.max(0, job.quantity ?? 0);
   const perCarton = Math.max(1, job.bottlesPerCarton ?? DEFAULT_BOTTLES_PER_CARTON);
   const cartons = Math.ceil(qty / perCarton);
+  const litresPerBottle = parseBottleSizeLitres(job.bottleSize);
+  const litresRequired = Math.ceil(litresPerBottle * qty);
 
   const blueprint: Array<{
     category: RequirementCategory;
@@ -114,6 +116,12 @@ export function computeJobStockCheck(
     { category: "cap", description: "Caps", required: qty, unit: "caps" },
     { category: "label", description: "Labels", required: qty, unit: "labels" },
     { category: "carton", description: "Cartons", required: cartons, unit: "boxes" },
+    {
+      category: "liquid",
+      description: "Liquid / product to fill",
+      required: litresRequired,
+      unit: "L",
+    },
   ];
 
   const requirements: JobRequirement[] = blueprint.map((b) => {
