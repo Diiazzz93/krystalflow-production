@@ -267,6 +267,8 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
           </Field>
         </div>
 
+        <JobStockCheck job={form} />
+
         <Field label="Notes">
           <Textarea
             rows={2}
