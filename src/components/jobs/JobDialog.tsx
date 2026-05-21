@@ -232,6 +232,18 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
               </SelectContent>
             </Select>
           </Field>
+          <Field label="Liquid / Product to Fill">
+            <Select value={form.liquidSku ?? ""} onValueChange={(v) => set("liquidSku", v)}>
+              <SelectTrigger><SelectValue placeholder="Select liquid (IBC)" /></SelectTrigger>
+              <SelectContent>
+                {LIQUID_OPTIONS.map((o) => (
+                  <SelectItem key={o.sku} value={o.sku}>
+                    {o.name} <span className="text-muted-foreground">· {o.sku}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
           <Field label="Quantity (bottles)">
             <Input
               type="number"
