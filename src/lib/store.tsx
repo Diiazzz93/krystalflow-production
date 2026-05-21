@@ -79,11 +79,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     (entry: QCEntry) =>
       setState((s) => {
         const failed = entry.result === "Fail";
-        const updatedJobs = failed
-          ? s.jobs.map((j) =>
-              j.id === entry.jobId ? { ...j, status: "Requires Review" as const } : j,
-            )
-          : s.jobs;
+        const updatedJobs = s.jobs.map((j) => {
+          if (j.id !== entry.jobId) return j;
+          if (failed) return { ...j, status: "Requires Review" as const };
+          // Auto-promote Scheduled jobs to Filling on first QC entry
+          if (j.status === "Scheduled") return { ...j, status: "Filling" as const };
+          return j;
+        });
         return { ...s, qc: [...s.qc, entry], jobs: updatedJobs };
       }),
     [],
