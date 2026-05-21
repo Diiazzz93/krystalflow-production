@@ -42,5 +42,19 @@ export const CARTON_OPTIONS: CartonCatalogItem[] = [
   { sku: "BOX-4X4L", name: "4 x 4L Carton", bottlesPerCarton: 4 },
 ];
 
+// Liquid / bulk product to fill — supplied by the customer in IBCs.
+// Stock is tracked in litres so the Live Stock Check can compare directly
+// against bottle-size × quantity. `litresPerIBC` is informational only.
+export interface LiquidCatalogItem extends CatalogItem {
+  litresPerIBC: number;
+}
+
+export const LIQUID_OPTIONS: LiquidCatalogItem[] = [
+  { sku: "LIQ-CUSTA-BLUE", name: "Customer A Blue Detergent IBC", litresPerIBC: 1000 },
+  { sku: "LIQ-CUSTB-SAN", name: "Customer B Sanitiser IBC", litresPerIBC: 1000 },
+  { sku: "LIQ-CUSTC-FLOOR", name: "Customer C Floor Cleaner IBC", litresPerIBC: 1000 },
+  { sku: "LIQ-CUSTD-DEGR", name: "Customer D Degreaser IBC", litresPerIBC: 1000 },
+];
+
 // Future swap point — replace with live Unleashed-backed fetchers:
 // export async function fetchBottleOptions(): Promise<BottleCatalogItem[]> { ... }
