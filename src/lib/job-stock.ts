@@ -84,6 +84,8 @@ function findStockFor(
         return (
           ssku.startsWith("BOX") || sname.includes("BOX") || sname.includes("CARTON")
         );
+      case "liquid":
+        return ssku.startsWith("LIQ") || ssku.startsWith("RAW") || sname.includes("IBC");
     }
   });
   return byCategory ?? null;
