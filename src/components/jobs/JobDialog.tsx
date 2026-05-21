@@ -32,6 +32,8 @@ import {
 } from "@/lib/utils-domain";
 import type { Job, ReadyState } from "@/lib/types";
 import { Progress } from "@/components/ui/progress";
+import { JobStockCheck } from "@/components/jobs/JobStockCheck";
+import { computeJobStockCheck } from "@/lib/job-stock";
 
 const READY_STATES: ReadyState[] = ["Pending", "Ready", "Issue"];
 const COLORS = ["#0ea5e9", "#22c55e", "#f97316", "#a855f7", "#ec4899", "#14b8a6", "#eab308"];
@@ -116,11 +118,31 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 flex-wrap">
             {isEdit ? "Edit Production Job" : "New Production Job"}
             {isEdit && (
               <Badge className={STATUS_COLORS[form.status]}>{form.status}</Badge>
             )}
+            {(() => {
+              const c = computeJobStockCheck(form);
+              if (c.hasShort)
+                return (
+                  <Badge variant="outline" className="border-red-500/40 text-red-600 dark:text-red-400">
+                    Stock short
+                  </Badge>
+                );
+              if (c.hasLow)
+                return (
+                  <Badge variant="outline" className="border-amber-500/40 text-amber-600 dark:text-amber-400">
+                    Stock low
+                  </Badge>
+                );
+              return (
+                <Badge variant="outline" className="border-emerald-500/40 text-emerald-600 dark:text-emerald-400">
+                  Job ready
+                </Badge>
+              );
+            })()}
           </DialogTitle>
           <DialogDescription>
             Configure the run, line, and readiness checks for this filling job.
