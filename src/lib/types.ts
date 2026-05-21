@@ -89,6 +89,7 @@ export interface Job {
   capSku?: string; // selected cap stock SKU
   labelSku?: string; // selected label stock SKU
   cartonSku?: string; // selected carton stock SKU
+  liquidSku?: string; // selected bulk liquid / product-to-fill SKU
   createdAt: string;
 }
 
