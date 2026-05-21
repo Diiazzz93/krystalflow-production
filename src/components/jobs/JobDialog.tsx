@@ -34,6 +34,12 @@ import type { Job, ReadyState } from "@/lib/types";
 import { Progress } from "@/components/ui/progress";
 import { JobStockCheck } from "@/components/jobs/JobStockCheck";
 import { computeJobStockCheck } from "@/lib/job-stock";
+import {
+  BOTTLE_OPTIONS,
+  CAP_OPTIONS,
+  LABEL_OPTIONS,
+  CARTON_OPTIONS,
+} from "@/lib/catalog";
 
 const READY_STATES: ReadyState[] = ["Pending", "Ready", "Issue"];
 const COLORS = ["#0ea5e9", "#22c55e", "#f97316", "#a855f7", "#ec4899", "#14b8a6", "#eab308"];
