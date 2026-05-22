@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { useLineSetups, type LineSetupPreset } from "@/lib/line-setups";
 import { useAuth } from "@/lib/auth";
+import { AppShell } from "@/components/layout/AppShell";
 import { LineSetupViewerDialog } from "@/components/line-setup/LineSetupViewerDialog";
 import { LineSetupEditorDialog } from "@/components/line-setup/LineSetupEditorDialog";
 
