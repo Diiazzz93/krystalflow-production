@@ -43,6 +43,8 @@ export const Route = createFileRoute("/jobs")({
 
 function JobsPage() {
   const { jobs } = useStore();
+  const { can } = useAuth();
+  const canCreate = can("jobs:create");
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<string>("all");
   const [customer, setCustomer] = useState<string>("all");
