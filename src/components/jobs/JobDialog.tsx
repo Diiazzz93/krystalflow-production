@@ -42,6 +42,9 @@ import {
   CARTON_OPTIONS,
   LIQUID_OPTIONS,
 } from "@/lib/catalog";
+import { SlidersHorizontal } from "lucide-react";
+import { findSetupForJob, useLineSetups } from "@/lib/line-setups";
+import { LineSetupViewerDialog } from "@/components/line-setup/LineSetupViewerDialog";
 
 const READY_STATES: ReadyState[] = ["Pending", "Ready", "Issue"];
 const COLORS = ["#0ea5e9", "#22c55e", "#f97316", "#a855f7", "#ec4899", "#14b8a6", "#eab308"];
