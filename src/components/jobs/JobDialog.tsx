@@ -103,6 +103,12 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
   const canEdit = can("jobs:create") || can("jobs:edit");
   const existing = useMemo(() => jobs.find((j) => j.id === jobId) ?? null, [jobs, jobId]);
   const [form, setForm] = useState<Job>(() => existing ?? emptyJob());
+  const { presets } = useLineSetups();
+  const [setupOpen, setSetupOpen] = useState(false);
+  const matchedSetup = useMemo(
+    () => findSetupForJob(presets, form.product, form.bottleSize),
+    [presets, form.product, form.bottleSize],
+  );
 
   useEffect(() => {
     if (open) {
