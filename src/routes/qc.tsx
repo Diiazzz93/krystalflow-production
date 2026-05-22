@@ -15,8 +15,7 @@ import { Input } from "@/components/ui/input";
 import { useStore } from "@/lib/store";
 import { fmtDateTime } from "@/lib/utils-domain";
 import { QCDialog } from "@/components/jobs/QCDialog";
-import { PalletStickerDialog } from "@/components/jobs/PalletStickerDialog";
-import { CheckCircle2, ShieldAlert, XCircle, Search, Package } from "lucide-react";
+import { CheckCircle2, ShieldAlert, XCircle, Search } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/qc")({
@@ -29,7 +28,6 @@ function QCPage() {
   const [customerFilter, setCustomerFilter] = useState<string>("all");
   const [productFilter, setProductFilter] = useState<string>("all");
   const [jobId, setJobId] = useState<string | null>(null);
-  const [palletEntryId, setPalletEntryId] = useState<string | null>(null);
   const [prefillEntryId, setPrefillEntryId] = useState<string | null>(null);
   const [lookup, setLookup] = useState("");
 
@@ -282,33 +280,14 @@ function QCPage() {
                       </div>
                       {e.notes && <p className="text-xs mt-1">{e.notes}</p>}
                       {job && (
-                        <div className="flex flex-wrap items-center gap-3 mt-1">
-                          <Button
-                            variant="default"
-                            size="sm"
-                            onClick={() => {
-                              setPrefillEntryId(e.id);
-                              setJobId(job.id);
-                            }}
-                          >
-                            <Search className="size-4 mr-1" /> Open pallet QC
-                          </Button>
-                          <Button
-                            variant="link"
-                            size="sm"
-                            className="px-0 h-auto"
-                            onClick={() => setJobId(job.id)}
-                          >
-                            View job QC
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setPalletEntryId(e.id)}
-                          >
-                            <Package className="size-4 mr-1" /> View pallet info
-                          </Button>
-                        </div>
+                        <Button
+                          variant="link"
+                          size="sm"
+                          className="px-0 h-auto"
+                          onClick={() => setJobId(job.id)}
+                        >
+                          View job QC
+                        </Button>
                       )}
                     </li>
                   );
@@ -332,20 +311,6 @@ function QCPage() {
           prefillEntryId={prefillEntryId}
         />
       )}
-
-      {palletEntryId && (() => {
-        const entry = qc.find((e) => e.id === palletEntryId);
-        const job = entry ? jobs.find((j) => j.id === entry.jobId) : null;
-        if (!entry || !job) return null;
-        return (
-          <PalletStickerDialog
-            open={!!palletEntryId}
-            onOpenChange={(v) => !v && setPalletEntryId(null)}
-            entry={entry}
-            job={job}
-          />
-        );
-      })()}
     </AppShell>
   );
 }
