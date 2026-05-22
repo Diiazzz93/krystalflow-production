@@ -13,6 +13,7 @@ import { Route as StockRouteImport } from './routes/stock'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as QcRouteImport } from './routes/qc'
 import { Route as LiveRouteImport } from './routes/live'
+import { Route as LineSetupRouteImport } from './routes/line-setup'
 import { Route as JobsRouteImport } from './routes/jobs'
 import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
@@ -36,6 +37,11 @@ const QcRoute = QcRouteImport.update({
 const LiveRoute = LiveRouteImport.update({
   id: '/live',
   path: '/live',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LineSetupRoute = LineSetupRouteImport.update({
+  id: '/line-setup',
+  path: '/line-setup',
   getParentRoute: () => rootRouteImport,
 } as any)
 const JobsRoute = JobsRouteImport.update({
@@ -64,6 +70,7 @@ export interface FileRoutesByFullPath {
   '/analytics': typeof AnalyticsRoute
   '/calendar': typeof CalendarRoute
   '/jobs': typeof JobsRoute
+  '/line-setup': typeof LineSetupRoute
   '/live': typeof LiveRoute
   '/qc': typeof QcRoute
   '/settings': typeof SettingsRoute
@@ -74,6 +81,7 @@ export interface FileRoutesByTo {
   '/analytics': typeof AnalyticsRoute
   '/calendar': typeof CalendarRoute
   '/jobs': typeof JobsRoute
+  '/line-setup': typeof LineSetupRoute
   '/live': typeof LiveRoute
   '/qc': typeof QcRoute
   '/settings': typeof SettingsRoute
@@ -85,6 +93,7 @@ export interface FileRoutesById {
   '/analytics': typeof AnalyticsRoute
   '/calendar': typeof CalendarRoute
   '/jobs': typeof JobsRoute
+  '/line-setup': typeof LineSetupRoute
   '/live': typeof LiveRoute
   '/qc': typeof QcRoute
   '/settings': typeof SettingsRoute
@@ -97,6 +106,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/calendar'
     | '/jobs'
+    | '/line-setup'
     | '/live'
     | '/qc'
     | '/settings'
@@ -107,6 +117,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/calendar'
     | '/jobs'
+    | '/line-setup'
     | '/live'
     | '/qc'
     | '/settings'
@@ -117,6 +128,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/calendar'
     | '/jobs'
+    | '/line-setup'
     | '/live'
     | '/qc'
     | '/settings'
@@ -128,6 +140,7 @@ export interface RootRouteChildren {
   AnalyticsRoute: typeof AnalyticsRoute
   CalendarRoute: typeof CalendarRoute
   JobsRoute: typeof JobsRoute
+  LineSetupRoute: typeof LineSetupRoute
   LiveRoute: typeof LiveRoute
   QcRoute: typeof QcRoute
   SettingsRoute: typeof SettingsRoute
@@ -162,6 +175,13 @@ declare module '@tanstack/react-router' {
       path: '/live'
       fullPath: '/live'
       preLoaderRoute: typeof LiveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/line-setup': {
+      id: '/line-setup'
+      path: '/line-setup'
+      fullPath: '/line-setup'
+      preLoaderRoute: typeof LineSetupRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/jobs': {
@@ -200,6 +220,7 @@ const rootRouteChildren: RootRouteChildren = {
   AnalyticsRoute: AnalyticsRoute,
   CalendarRoute: CalendarRoute,
   JobsRoute: JobsRoute,
+  LineSetupRoute: LineSetupRoute,
   LiveRoute: LiveRoute,
   QcRoute: QcRoute,
   SettingsRoute: SettingsRoute,

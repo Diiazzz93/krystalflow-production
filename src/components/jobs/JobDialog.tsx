@@ -42,6 +42,9 @@ import {
   CARTON_OPTIONS,
   LIQUID_OPTIONS,
 } from "@/lib/catalog";
+import { SlidersHorizontal } from "lucide-react";
+import { findSetupForJob, useLineSetups } from "@/lib/line-setups";
+import { LineSetupViewerDialog } from "@/components/line-setup/LineSetupViewerDialog";
 
 const READY_STATES: ReadyState[] = ["Pending", "Ready", "Issue"];
 const COLORS = ["#0ea5e9", "#22c55e", "#f97316", "#a855f7", "#ec4899", "#14b8a6", "#eab308"];
@@ -100,6 +103,12 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
   const canEdit = can("jobs:create") || can("jobs:edit");
   const existing = useMemo(() => jobs.find((j) => j.id === jobId) ?? null, [jobs, jobId]);
   const [form, setForm] = useState<Job>(() => existing ?? emptyJob());
+  const { presets } = useLineSetups();
+  const [setupOpen, setSetupOpen] = useState(false);
+  const matchedSetup = useMemo(
+    () => findSetupForJob(presets, form.product, form.bottleSize),
+    [presets, form.product, form.bottleSize],
+  );
 
   useEffect(() => {
     if (open) {
@@ -398,10 +407,25 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
           </div>
         )}
 
-        <div className="text-xs text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
-          <span>Est. runtime: <span className="font-medium text-foreground">{Math.floor(runtime / 60)}h {runtime % 60}m</span></span>
-          <span>Est. finish: <span className="font-medium text-foreground">{fmtDateTime(finishEta)}</span></span>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="text-xs text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
+            <span>Est. runtime: <span className="font-medium text-foreground">{Math.floor(runtime / 60)}h {runtime % 60}m</span></span>
+            <span>Est. finish: <span className="font-medium text-foreground">{fmtDateTime(finishEta)}</span></span>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => setSetupOpen(true)}>
+            <SlidersHorizontal className="size-4" />
+            View Line Setup
+            {matchedSetup && (
+              <Badge variant="secondary" className="ml-1">match</Badge>
+            )}
+          </Button>
         </div>
+
+        <LineSetupViewerDialog
+          preset={matchedSetup}
+          open={setupOpen}
+          onOpenChange={setSetupOpen}
+        />
 
         <DialogFooter className="gap-2 sm:gap-2">
           {isEdit && canDelete && (

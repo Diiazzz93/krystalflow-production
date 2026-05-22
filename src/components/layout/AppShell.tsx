@@ -11,6 +11,7 @@ import {
   Moon,
   Settings,
   ShieldCheck,
+  SlidersHorizontal,
   Sun,
   TrendingUp,
 } from "lucide-react";
@@ -33,6 +34,7 @@ const NAV: Array<{
   { to: "/live", label: "Live Board", icon: Factory, permission: "page:live" },
   { to: "/qc", label: "Quality", icon: ShieldCheck, permission: "page:qc" },
   { to: "/stock", label: "Stock", icon: Boxes, permission: "page:stock" },
+  { to: "/line-setup", label: "Line Setup", icon: SlidersHorizontal, permission: "page:line-setup" },
   { to: "/analytics", label: "Analytics", icon: TrendingUp, permission: "page:analytics" },
   { to: "/settings", label: "Settings", icon: Settings, permission: "page:settings" },
 ];

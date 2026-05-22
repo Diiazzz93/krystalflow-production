@@ -35,6 +35,7 @@ export type Permission =
   | "page:qc"
   | "page:stock"
   | "page:analytics"
+  | "page:line-setup"
   | "page:settings"
   // Actions
   | "jobs:create"
@@ -46,30 +47,34 @@ export type Permission =
   | "settings:manage"
   | "integrations:manage"
   | "users:manage"
-  | "presets:manage";
+  | "presets:manage"
+  | "line-setup:manage";
 
 const PERMISSIONS: Record<Role, Permission[]> = {
   admin: [
     "page:dashboard", "page:calendar", "page:jobs", "page:live",
-    "page:qc", "page:stock", "page:analytics", "page:settings",
+    "page:qc", "page:stock", "page:analytics", "page:line-setup", "page:settings",
     "jobs:create", "jobs:edit", "jobs:delete", "jobs:reschedule",
     "jobs:update-progress", "qc:complete",
     "settings:manage", "integrations:manage", "users:manage", "presets:manage",
+    "line-setup:manage",
   ],
   manager: [
     "page:dashboard", "page:calendar", "page:jobs", "page:live",
-    "page:qc", "page:stock", "page:analytics",
+    "page:qc", "page:stock", "page:analytics", "page:line-setup",
     "jobs:create", "jobs:edit", "jobs:reschedule",
     "jobs:update-progress", "qc:complete",
+    "line-setup:manage",
   ],
   operator: [
     "page:dashboard", "page:calendar", "page:jobs", "page:live",
-    "page:qc", "page:stock",
+    "page:qc", "page:stock", "page:line-setup",
     "jobs:update-progress", "qc:complete",
+    "line-setup:manage",
   ],
   viewer: [
     "page:dashboard", "page:calendar", "page:jobs", "page:live",
-    "page:qc", "page:stock",
+    "page:qc", "page:stock", "page:line-setup",
   ],
 };
 

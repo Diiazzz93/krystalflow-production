@@ -11,6 +11,7 @@ import {
 import appCss from "../styles.css?url";
 import { ThemeProvider } from "@/lib/theme";
 import { StoreProvider } from "@/lib/store";
+import { LineSetupProvider } from "@/lib/line-setups";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { LoginScreen } from "@/components/auth/LoginScreen";
 
@@ -124,9 +125,11 @@ function RootComponent() {
       <ThemeProvider>
         <AuthProvider>
           <StoreProvider>
-            <AuthGate>
-              <Outlet />
-            </AuthGate>
+            <LineSetupProvider>
+              <AuthGate>
+                <Outlet />
+              </AuthGate>
+            </LineSetupProvider>
           </StoreProvider>
         </AuthProvider>
       </ThemeProvider>
