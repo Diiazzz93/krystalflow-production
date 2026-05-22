@@ -137,14 +137,13 @@ function MonthGrid({
   jobs,
   onCreate,
   onSelectJob,
-  onUpdateJob,
 }: {
   days: Date[];
   jobs: Job[];
   onCreate: (s: string) => void;
   onSelectJob: (id: string) => void;
-  onUpdateJob: (id: string, patch: Partial<Job>) => void;
 }) {
+  const { updateJob } = useStore();
   const month = days[15].getMonth();
   const today = new Date();
   const weeks: Date[][] = [];
@@ -164,6 +163,14 @@ function MonthGrid({
     delta: number;
     mode: "move" | "resize-end" | "resize-start";
   } | null>(null);
+  const [highlightIds, setHighlightIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (highlightIds.size === 0) return;
+    const t = setTimeout(() => setHighlightIds(new Set()), 1600);
+    return () => clearTimeout(t);
+  }, [highlightIds]);
+
 
   function cellIdxAt(x: number, y: number): number | null {
     const el = document.elementFromPoint(x, y);
