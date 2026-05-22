@@ -49,6 +49,8 @@ function JobsPage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [qcId, setQcId] = useState<string | null>(null);
+  const [stockJobId, setStockJobId] = useState<string | null>(null);
+
 
   const customers = useMemo(() => {
     const map = new Map<string, string>();
