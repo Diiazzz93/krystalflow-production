@@ -183,6 +183,7 @@ function LineSetupPage() {
         onOpenChange={setEditorOpen}
       />
     </div>
+    </AppShell>
   );
 }
 
