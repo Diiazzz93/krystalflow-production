@@ -17,6 +17,7 @@ import {
   upsertCustomPreset,
   type QCPreset,
 } from "@/lib/qc-presets";
+import { UnleashedSyncPanel } from "@/components/settings/UnleashedSyncPanel";
 
 export const Route = createFileRoute("/settings")({
   component: SettingsPage,
