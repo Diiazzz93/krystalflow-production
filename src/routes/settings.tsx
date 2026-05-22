@@ -49,6 +49,8 @@ function emptyPreset(): QCPreset {
 }
 
 function SettingsPage() {
+  const { hasRole } = useAuth();
+  const isAdmin = hasRole("admin");
   const [custom, setCustom] = useState<QCPreset[]>(() => getCustomPresets());
   const [editing, setEditing] = useState<QCPreset | null>(null);
 
