@@ -124,14 +124,16 @@ function JobsPage() {
                 <Building2 className="size-4 mr-1" /> By company
               </Button>
             </div>
-            <Button
-              onClick={() => {
-                setEditing(null);
-                setOpen(true);
-              }}
-            >
-              <Plus className="size-4 mr-1" /> New job
-            </Button>
+            {canCreate && (
+              <Button
+                onClick={() => {
+                  setEditing(null);
+                  setOpen(true);
+                }}
+              >
+                <Plus className="size-4 mr-1" /> New job
+              </Button>
+            )}
           </div>
         </div>
 
