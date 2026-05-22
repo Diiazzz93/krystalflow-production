@@ -99,21 +99,34 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 // Highest-privilege role wins if a user has multiple (e.g. admin + manager).
 const ROLE_PRIORITY: Role[] = ["admin", "manager", "operator", "viewer"];
 
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 async function loadAuthUser(userId: string, email: string): Promise<AuthUser | null> {
-  const [{ data: profile }, { data: roles }] = await Promise.all([
-    supabase.from("profiles").select("name").eq("id", userId).maybeSingle(),
-    supabase.from("user_roles").select("role").eq("user_id", userId),
-  ]);
+  let lastError: string | null = null;
 
-  const roleList = (roles ?? []).map((r) => r.role as Role);
-  const role: Role = ROLE_PRIORITY.find((r) => roleList.includes(r)) ?? "viewer";
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const [{ data: profile, error: profileError }, { data: roles, error: rolesError }] = await Promise.all([
+      supabase.from("profiles").select("name").eq("id", userId).maybeSingle(),
+      supabase.from("user_roles").select("role").eq("user_id", userId),
+    ]);
 
-  return {
-    id: userId,
-    email,
-    name: profile?.name?.trim() || email.split("@")[0],
-    role,
-  };
+    if (!rolesError) {
+      const roleList = (roles ?? []).map((r) => r.role as Role);
+      const role: Role = ROLE_PRIORITY.find((r) => roleList.includes(r)) ?? "viewer";
+
+      return {
+        id: userId,
+        email,
+        name: profileError ? email.split("@")[0] : profile?.name?.trim() || email.split("@")[0],
+        role,
+      };
+    }
+
+    lastError = rolesError.message;
+    await wait(250 * (attempt + 1));
+  }
+
+  throw new Error(`Unable to load user role: ${lastError ?? "unknown error"}`);
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -131,20 +144,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
       // Defer the Supabase read out of the auth callback to avoid deadlocks.
+      setLoading(true);
       setTimeout(async () => {
-        const u = await loadAuthUser(session.user.id, session.user.email ?? "");
-        if (active) setUser(u);
+        try {
+          const u = await loadAuthUser(session.user.id, session.user.email ?? "");
+          if (active) setUser(u);
+        } finally {
+          if (active) setLoading(false);
+        }
       }, 0);
     });
 
     // THEN check existing session.
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!active) return;
-      if (session?.user) {
-        const u = await loadAuthUser(session.user.id, session.user.email ?? "");
-        if (active) setUser(u);
+      try {
+        if (session?.user) {
+          const u = await loadAuthUser(session.user.id, session.user.email ?? "");
+          if (active) setUser(u);
+        }
+      } finally {
+        if (active) setLoading(false);
       }
-      if (active) setLoading(false);
     });
 
     return () => {
