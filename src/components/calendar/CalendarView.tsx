@@ -215,27 +215,43 @@ function MonthGrid({
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
       if (!d) return;
-      const days = d.currentIdx - d.origIdx;
-      if (d.moved && days !== 0) {
+      const daysDelta = d.currentIdx - d.origIdx;
+      if (d.moved && daysDelta !== 0) {
+        let newStart = new Date(d.origStart);
+        let newEnd = new Date(d.origEnd);
         if (d.mode === "move") {
-          const ns = new Date(d.origStart); ns.setDate(ns.getDate() + days);
-          const ne = new Date(d.origEnd); ne.setDate(ne.getDate() + days);
-          onUpdateJob(d.jobId, { scheduledStart: ns.toISOString(), scheduledEnd: ne.toISOString() });
+          newStart.setDate(newStart.getDate() + daysDelta);
+          newEnd.setDate(newEnd.getDate() + daysDelta);
         } else if (d.mode === "resize-end") {
-          const ne = new Date(d.origEnd); ne.setDate(ne.getDate() + days);
-          if (ne > d.origStart) {
-            onUpdateJob(d.jobId, { scheduledEnd: ne.toISOString() });
-          }
+          newEnd.setDate(newEnd.getDate() + daysDelta);
+          if (newEnd <= newStart) newEnd = new Date(newStart.getTime() + 60 * 60 * 1000);
         } else {
-          const ns = new Date(d.origStart); ns.setDate(ns.getDate() + days);
-          if (ns < d.origEnd) {
-            onUpdateJob(d.jobId, { scheduledStart: ns.toISOString() });
-          }
+          newStart.setDate(newStart.getDate() + daysDelta);
+          if (newStart >= newEnd) newStart = new Date(newEnd.getTime() - 60 * 60 * 1000);
+        }
+        const changes = cascadeReschedule(jobs, d.jobId, newStart.toISOString(), newEnd.toISOString());
+        changes.forEach((c) =>
+          updateJob(c.id, { scheduledStart: c.scheduledStart, scheduledEnd: c.scheduledEnd }),
+        );
+        if (changes.length > 0) {
+          setHighlightIds(new Set(changes.map((c) => c.id)));
+          const trigger = jobs.find((j) => j.id === d.jobId);
+          const cascaded = changes.length - 1;
+          toast.success(
+            `${trigger?.customer ?? "Job"} rescheduled to ${fmtDate(newStart)}`,
+            {
+              description:
+                cascaded > 0
+                  ? `${cascaded} downstream job${cascaded === 1 ? "" : "s"} shifted — gaps preserved.`
+                  : "No downstream jobs affected.",
+            },
+          );
         }
       }
       dragRef.current = null;
       setDragState(null);
     };
+
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
   }
