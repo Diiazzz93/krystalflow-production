@@ -15,7 +15,8 @@ import { Input } from "@/components/ui/input";
 import { useStore } from "@/lib/store";
 import { fmtDateTime } from "@/lib/utils-domain";
 import { QCDialog } from "@/components/jobs/QCDialog";
-import { CheckCircle2, ShieldAlert, XCircle, Search } from "lucide-react";
+import { PalletStickerDialog } from "@/components/jobs/PalletStickerDialog";
+import { CheckCircle2, ShieldAlert, XCircle, Search, Package } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/qc")({
