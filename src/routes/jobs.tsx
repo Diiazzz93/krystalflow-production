@@ -23,6 +23,7 @@ import { JobDialog } from "@/components/jobs/JobDialog";
 import { QCDialog } from "@/components/jobs/QCDialog";
 import { JobStockDialog } from "@/components/jobs/JobStockDialog";
 import { useStore } from "@/lib/store";
+import { useAuth } from "@/lib/auth";
 import {
   ALL_STATUSES,
   PRIORITY_COLOR,
