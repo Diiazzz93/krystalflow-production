@@ -91,6 +91,8 @@ function SettingsPage() {
           </p>
         </div>
 
+        {isAdmin && <UserManagementPanel />}
+
         <UnleashedSyncPanel />
 
         <Card>
