@@ -352,6 +352,7 @@ function MonthGrid({
             <div className="pointer-events-none absolute inset-x-0" style={{ top: 28 }}>
               {placed.map(({ job, startCol, span, row, continuesBefore, continuesAfter, absStartIdx, absEndIdx }) => {
                 const isDragging = dragState?.id === job.id;
+                const isHighlighted = highlightIds.has(job.id);
                 return (
                   <div
                     key={job.id + "-" + wi}
@@ -361,6 +362,7 @@ function MonthGrid({
                       height: BAR_H,
                       left: `calc(${(startCol / 7) * 100}% + 4px)`,
                       width: `calc(${(span / 7) * 100}% - 8px)`,
+                      transition: "left 250ms ease, width 250ms ease",
                     }}
                   >
                     <div
@@ -374,7 +376,9 @@ function MonthGrid({
                       className={cn(
                         "h-full w-full text-left text-[11px] truncate rounded px-1.5 py-0.5 text-white font-medium shadow-sm cursor-grab active:cursor-grabbing select-none touch-none",
                         isDragging && "ring-2 ring-ring opacity-70",
+                        isHighlighted && "ring-2 ring-yellow-400 animate-pulse",
                       )}
+
                       style={{ backgroundColor: job.customerColor }}
                       title={`${job.customer} — ${job.product} (drag to move, drag right edge to extend)`}
                     >
