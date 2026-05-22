@@ -178,7 +178,7 @@ function JobsPage() {
 
         {view === "list" ? (
           <div className="rounded-lg border border-border bg-card overflow-x-auto">
-            <JobsTable jobs={filtered} onEdit={openEdit} onQC={setQcId} />
+            <JobsTable jobs={filtered} onEdit={openEdit} onQC={setQcId} onViewStock={setStockJobId} />
           </div>
         ) : (
           <div className="space-y-3">
@@ -209,7 +209,7 @@ function JobsPage() {
                     {upcoming > 0 && <Badge variant="outline">{upcoming} upcoming</Badge>}
                   </header>
                   <div className="overflow-x-auto">
-                    <JobsTable jobs={g.jobs} onEdit={openEdit} onQC={setQcId} hideCustomer />
+                    <JobsTable jobs={g.jobs} onEdit={openEdit} onQC={setQcId} onViewStock={setStockJobId} hideCustomer />
                   </div>
                 </section>
               );
@@ -222,9 +222,15 @@ function JobsPage() {
       {qcId && (
         <QCDialog jobId={qcId} open={!!qcId} onOpenChange={(v) => !v && setQcId(null)} />
       )}
+      <JobStockDialog
+        job={jobs.find((j) => j.id === stockJobId) ?? null}
+        open={!!stockJobId}
+        onOpenChange={(v) => !v && setStockJobId(null)}
+      />
     </AppShell>
   );
 }
+
 
 function JobsTable({
   jobs,
