@@ -1,8 +1,10 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
 import { useStore } from "@/lib/store";
 import type { Job } from "@/lib/types";
-import { STATUS_DOT, fmtTime, jobEnd } from "@/lib/utils-domain";
+import { STATUS_DOT, fmtDate, fmtTime, jobEnd } from "@/lib/utils-domain";
+import { cascadeReschedule } from "@/lib/schedule";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -16,7 +18,7 @@ interface Props {
 
 export function CalendarView({ onSelectJob, onCreate }: Props) {
   const { jobs, lines, updateJob } = useStore();
-  const [view, setView] = useState<View>("week");
+  const [view, setView] = useState<View>("month");
   const [cursor, setCursor] = useState(() => startOfDay(new Date()));
 
   const range = useMemo(() => buildRange(cursor, view), [cursor, view]);
@@ -63,7 +65,7 @@ export function CalendarView({ onSelectJob, onCreate }: Props) {
       </div>
 
       {view === "month" ? (
-        <MonthGrid days={range} jobs={jobs} onCreate={onCreate} onSelectJob={onSelectJob} onUpdateJob={updateJob} />
+        <MonthGrid days={range} jobs={jobs} onCreate={onCreate} onSelectJob={onSelectJob} />
       ) : (
         <LineSchedule
           days={range}
@@ -135,14 +137,13 @@ function MonthGrid({
   jobs,
   onCreate,
   onSelectJob,
-  onUpdateJob,
 }: {
   days: Date[];
   jobs: Job[];
   onCreate: (s: string) => void;
   onSelectJob: (id: string) => void;
-  onUpdateJob: (id: string, patch: Partial<Job>) => void;
 }) {
+  const { updateJob } = useStore();
   const month = days[15].getMonth();
   const today = new Date();
   const weeks: Date[][] = [];
@@ -162,6 +163,14 @@ function MonthGrid({
     delta: number;
     mode: "move" | "resize-end" | "resize-start";
   } | null>(null);
+  const [highlightIds, setHighlightIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (highlightIds.size === 0) return;
+    const t = setTimeout(() => setHighlightIds(new Set()), 1600);
+    return () => clearTimeout(t);
+  }, [highlightIds]);
+
 
   function cellIdxAt(x: number, y: number): number | null {
     const el = document.elementFromPoint(x, y);
@@ -206,27 +215,43 @@ function MonthGrid({
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
       if (!d) return;
-      const days = d.currentIdx - d.origIdx;
-      if (d.moved && days !== 0) {
+      const daysDelta = d.currentIdx - d.origIdx;
+      if (d.moved && daysDelta !== 0) {
+        let newStart = new Date(d.origStart);
+        let newEnd = new Date(d.origEnd);
         if (d.mode === "move") {
-          const ns = new Date(d.origStart); ns.setDate(ns.getDate() + days);
-          const ne = new Date(d.origEnd); ne.setDate(ne.getDate() + days);
-          onUpdateJob(d.jobId, { scheduledStart: ns.toISOString(), scheduledEnd: ne.toISOString() });
+          newStart.setDate(newStart.getDate() + daysDelta);
+          newEnd.setDate(newEnd.getDate() + daysDelta);
         } else if (d.mode === "resize-end") {
-          const ne = new Date(d.origEnd); ne.setDate(ne.getDate() + days);
-          if (ne > d.origStart) {
-            onUpdateJob(d.jobId, { scheduledEnd: ne.toISOString() });
-          }
+          newEnd.setDate(newEnd.getDate() + daysDelta);
+          if (newEnd <= newStart) newEnd = new Date(newStart.getTime() + 60 * 60 * 1000);
         } else {
-          const ns = new Date(d.origStart); ns.setDate(ns.getDate() + days);
-          if (ns < d.origEnd) {
-            onUpdateJob(d.jobId, { scheduledStart: ns.toISOString() });
-          }
+          newStart.setDate(newStart.getDate() + daysDelta);
+          if (newStart >= newEnd) newStart = new Date(newEnd.getTime() - 60 * 60 * 1000);
+        }
+        const changes = cascadeReschedule(jobs, d.jobId, newStart.toISOString(), newEnd.toISOString());
+        changes.forEach((c) =>
+          updateJob(c.id, { scheduledStart: c.scheduledStart, scheduledEnd: c.scheduledEnd }),
+        );
+        if (changes.length > 0) {
+          setHighlightIds(new Set(changes.map((c) => c.id)));
+          const trigger = jobs.find((j) => j.id === d.jobId);
+          const cascaded = changes.length - 1;
+          toast.success(
+            `${trigger?.customer ?? "Job"} rescheduled to ${fmtDate(newStart)}`,
+            {
+              description:
+                cascaded > 0
+                  ? `${cascaded} downstream job${cascaded === 1 ? "" : "s"} shifted — gaps preserved.`
+                  : "No downstream jobs affected.",
+            },
+          );
         }
       }
       dragRef.current = null;
       setDragState(null);
     };
+
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
   }
@@ -327,6 +352,7 @@ function MonthGrid({
             <div className="pointer-events-none absolute inset-x-0" style={{ top: 28 }}>
               {placed.map(({ job, startCol, span, row, continuesBefore, continuesAfter, absStartIdx, absEndIdx }) => {
                 const isDragging = dragState?.id === job.id;
+                const isHighlighted = highlightIds.has(job.id);
                 return (
                   <div
                     key={job.id + "-" + wi}
@@ -336,6 +362,7 @@ function MonthGrid({
                       height: BAR_H,
                       left: `calc(${(startCol / 7) * 100}% + 4px)`,
                       width: `calc(${(span / 7) * 100}% - 8px)`,
+                      transition: "left 250ms ease, width 250ms ease",
                     }}
                   >
                     <div
@@ -349,7 +376,9 @@ function MonthGrid({
                       className={cn(
                         "h-full w-full text-left text-[11px] truncate rounded px-1.5 py-0.5 text-white font-medium shadow-sm cursor-grab active:cursor-grabbing select-none touch-none",
                         isDragging && "ring-2 ring-ring opacity-70",
+                        isHighlighted && "ring-2 ring-yellow-400 animate-pulse",
                       )}
+
                       style={{ backgroundColor: job.customerColor }}
                       title={`${job.customer} — ${job.product} (drag to move, drag right edge to extend)`}
                     >
