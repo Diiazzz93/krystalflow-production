@@ -322,6 +322,20 @@ function QCPage() {
           prefillEntryId={prefillEntryId}
         />
       )}
+
+      {palletEntryId && (() => {
+        const entry = qc.find((e) => e.id === palletEntryId);
+        const job = entry ? jobs.find((j) => j.id === entry.jobId) : null;
+        if (!entry || !job) return null;
+        return (
+          <PalletStickerDialog
+            open={!!palletEntryId}
+            onOpenChange={(v) => !v && setPalletEntryId(null)}
+            entry={entry}
+            job={job}
+          />
+        );
+      })()}
     </AppShell>
   );
 }
