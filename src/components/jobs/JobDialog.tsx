@@ -95,6 +95,9 @@ function toLocalInput(iso: string) {
 
 export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine }: Props) {
   const { jobs, lines, addJob, updateJob, deleteJob } = useStore();
+  const { can } = useAuth();
+  const canDelete = can("jobs:delete");
+  const canEdit = can("jobs:create") || can("jobs:edit");
   const existing = useMemo(() => jobs.find((j) => j.id === jobId) ?? null, [jobs, jobId]);
   const [form, setForm] = useState<Job>(() => existing ?? emptyJob());
 
