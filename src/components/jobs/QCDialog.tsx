@@ -132,11 +132,8 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
     return () => clearTimeout(t);
   }, [lastSubmittedId]);
 
-  // Prefill form from an existing entry (look-up by pallet code flow)
-  useEffect(() => {
-    if (!open || !prefillEntryId) return;
-    const e = qc.find((q) => q.id === prefillEntryId);
-    if (!e) return;
+  // Prefill form from an existing entry
+  const loadEntry = useCallback((e: QCEntry) => {
     setPalletNumber(e.palletNumber);
     setChecks({
       fillLevel: e.fillLevel,
@@ -173,10 +170,19 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
     setBottleQcOperator(e.bottleQcOperator ?? "");
     setCapperOperator(e.capperOperator ?? "");
     setPackagingOperator(e.packagingOperator ?? "");
+    setLastSubmittedId(e.id);
+  }, []);
+
+  // Prefill form from an existing entry (look-up by pallet code flow)
+  useEffect(() => {
+    if (!open || !prefillEntryId) return;
+    const e = qc.find((q) => q.id === prefillEntryId);
+    if (!e) return;
+    loadEntry(e);
     toast.info(`Loaded pallet #${e.palletNumber}`, {
       description: e.palletCode ? `Code ${e.palletCode}` : undefined,
     });
-  }, [open, prefillEntryId, qc]);
+  }, [open, prefillEntryId, qc, loadEntry]);
 
   if (!job) return null;
 
