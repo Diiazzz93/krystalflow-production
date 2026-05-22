@@ -404,7 +404,7 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
         </div>
 
         <DialogFooter className="gap-2 sm:gap-2">
-          {isEdit && (
+          {isEdit && canDelete && (
             <Button
               variant="destructive"
               onClick={() => {
@@ -418,8 +418,12 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
               Delete
             </Button>
           )}
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={save}>{isEdit ? "Save changes" : "Create job"}</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            {canEdit ? "Cancel" : "Close"}
+          </Button>
+          {canEdit && (
+            <Button onClick={save}>{isEdit ? "Save changes" : "Create job"}</Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
