@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { JobDialog } from "@/components/jobs/JobDialog";
 import { QCDialog } from "@/components/jobs/QCDialog";
+import { JobStockDialog } from "@/components/jobs/JobStockDialog";
 import { useStore } from "@/lib/store";
 import {
   ALL_STATUSES,
@@ -30,7 +31,8 @@ import {
   fmtTime,
   progressPct,
 } from "@/lib/utils-domain";
-import { Plus, Search, ShieldCheck, LayoutList, Building2 } from "lucide-react";
+import { Plus, Search, ShieldCheck, LayoutList, Building2, Eye } from "lucide-react";
+
 import { Progress } from "@/components/ui/progress";
 import type { Job } from "@/lib/types";
 
