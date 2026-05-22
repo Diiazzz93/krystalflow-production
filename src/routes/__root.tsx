@@ -122,10 +122,20 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <StoreProvider>
-          <Outlet />
-        </StoreProvider>
+        <AuthProvider>
+          <StoreProvider>
+            <AuthGate>
+              <Outlet />
+            </AuthGate>
+          </StoreProvider>
+        </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );
+}
+
+function AuthGate({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  if (!user) return <LoginScreen />;
+  return <>{children}</>;
 }
