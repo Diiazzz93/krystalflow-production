@@ -23,6 +23,7 @@ import { JobDialog } from "@/components/jobs/JobDialog";
 import { QCDialog } from "@/components/jobs/QCDialog";
 import { JobStockDialog } from "@/components/jobs/JobStockDialog";
 import { useStore } from "@/lib/store";
+import { useAuth } from "@/lib/auth";
 import {
   ALL_STATUSES,
   PRIORITY_COLOR,
@@ -42,6 +43,8 @@ export const Route = createFileRoute("/jobs")({
 
 function JobsPage() {
   const { jobs } = useStore();
+  const { can } = useAuth();
+  const canCreate = can("jobs:create");
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<string>("all");
   const [customer, setCustomer] = useState<string>("all");
@@ -121,14 +124,16 @@ function JobsPage() {
                 <Building2 className="size-4 mr-1" /> By company
               </Button>
             </div>
-            <Button
-              onClick={() => {
-                setEditing(null);
-                setOpen(true);
-              }}
-            >
-              <Plus className="size-4 mr-1" /> New job
-            </Button>
+            {canCreate && (
+              <Button
+                onClick={() => {
+                  setEditing(null);
+                  setOpen(true);
+                }}
+              >
+                <Plus className="size-4 mr-1" /> New job
+              </Button>
+            )}
           </div>
         </div>
 

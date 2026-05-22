@@ -20,6 +20,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useStore } from "@/lib/store";
+import { useAuth } from "@/lib/auth";
 import {
   ALL_STATUSES,
   PRIORITIES,
@@ -94,6 +95,9 @@ function toLocalInput(iso: string) {
 
 export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine }: Props) {
   const { jobs, lines, addJob, updateJob, deleteJob } = useStore();
+  const { can } = useAuth();
+  const canDelete = can("jobs:delete");
+  const canEdit = can("jobs:create") || can("jobs:edit");
   const existing = useMemo(() => jobs.find((j) => j.id === jobId) ?? null, [jobs, jobId]);
   const [form, setForm] = useState<Job>(() => existing ?? emptyJob());
 
@@ -400,7 +404,7 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
         </div>
 
         <DialogFooter className="gap-2 sm:gap-2">
-          {isEdit && (
+          {isEdit && canDelete && (
             <Button
               variant="destructive"
               onClick={() => {
@@ -414,8 +418,12 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
               Delete
             </Button>
           )}
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={save}>{isEdit ? "Save changes" : "Create job"}</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            {canEdit ? "Cancel" : "Close"}
+          </Button>
+          {canEdit && (
+            <Button onClick={save}>{isEdit ? "Save changes" : "Create job"}</Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

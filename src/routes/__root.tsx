@@ -11,6 +11,8 @@ import {
 import appCss from "../styles.css?url";
 import { ThemeProvider } from "@/lib/theme";
 import { StoreProvider } from "@/lib/store";
+import { AuthProvider, useAuth } from "@/lib/auth";
+import { LoginScreen } from "@/components/auth/LoginScreen";
 
 function NotFoundComponent() {
   return (
@@ -120,10 +122,20 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <StoreProvider>
-          <Outlet />
-        </StoreProvider>
+        <AuthProvider>
+          <StoreProvider>
+            <AuthGate>
+              <Outlet />
+            </AuthGate>
+          </StoreProvider>
+        </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );
+}
+
+function AuthGate({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  if (!user) return <LoginScreen />;
+  return <>{children}</>;
 }
