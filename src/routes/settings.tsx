@@ -18,6 +18,8 @@ import {
   type QCPreset,
 } from "@/lib/qc-presets";
 import { UnleashedSyncPanel } from "@/components/settings/UnleashedSyncPanel";
+import { UserManagementPanel } from "@/components/settings/UserManagementPanel";
+import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/settings")({
   component: SettingsPage,
@@ -47,6 +49,8 @@ function emptyPreset(): QCPreset {
 }
 
 function SettingsPage() {
+  const { hasRole } = useAuth();
+  const isAdmin = hasRole("admin");
   const [custom, setCustom] = useState<QCPreset[]>(() => getCustomPresets());
   const [editing, setEditing] = useState<QCPreset | null>(null);
 
@@ -86,6 +90,8 @@ function SettingsPage() {
             Configure presets and defaults used across the production app.
           </p>
         </div>
+
+        {isAdmin && <UserManagementPanel />}
 
         <UnleashedSyncPanel />
 
