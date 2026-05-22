@@ -284,6 +284,16 @@ function QCPage() {
                       {job && (
                         <div className="flex flex-wrap items-center gap-3 mt-1">
                           <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => {
+                              setPrefillEntryId(e.id);
+                              setJobId(job.id);
+                            }}
+                          >
+                            <Search className="size-4 mr-1" /> Open pallet QC
+                          </Button>
+                          <Button
                             variant="link"
                             size="sm"
                             className="px-0 h-auto"
