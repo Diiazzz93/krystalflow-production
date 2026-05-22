@@ -1,13 +1,10 @@
-// Mock client-side auth + RBAC.
+// Supabase-backed auth + role permissions.
 //
-// Structured so Supabase Auth can drop in later:
-//   - `signIn` / `signOut` are async — swap localStorage for
-//     `supabase.auth.signInWithPassword` / `supabase.auth.signOut`.
-//   - The `AuthUser` shape mirrors what we'd map from `auth.users` +
-//     a `profiles` table (id, email, name, role).
-//   - `can(...)` is the only call site components use, so the permission
-//     matrix can later be backed by a `user_roles` table without touching
-//     components.
+// - Session is sourced from Supabase Auth (email/password).
+// - The user's role lives in `public.user_roles` and is fetched after sign-in.
+// - Permissions are computed entirely client-side from the role string, so the
+//   component API (`can(...)`, `hasRole(...)`) is unchanged from the mock
+//   version. Server-side enforcement happens via RLS on the database.
 
 import {
   createContext,
@@ -18,6 +15,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 export type Role = "admin" | "manager" | "operator" | "viewer";
 
@@ -28,17 +26,6 @@ export interface AuthUser {
   role: Role;
 }
 
-const STORAGE_KEY = "krystalflow.auth.user";
-
-// Mock user directory. Password is the same as the role for demo purposes.
-export const MOCK_USERS: Array<AuthUser & { password: string }> = [
-  { id: "u-admin", email: "admin@krystalflow.app",   name: "Alex Admin",     role: "admin",    password: "admin" },
-  { id: "u-mgr",   email: "manager@krystalflow.app", name: "Morgan Manager", role: "manager",  password: "manager" },
-  { id: "u-op",    email: "operator@krystalflow.app",name: "Ollie Operator", role: "operator", password: "operator" },
-  { id: "u-view",  email: "viewer@krystalflow.app",  name: "Vera Viewer",    role: "viewer",   password: "viewer" },
-];
-
-// Permission strings — the only vocabulary components should use.
 export type Permission =
   // Pages
   | "page:dashboard"
@@ -97,6 +84,11 @@ interface AuthContextValue {
   user: AuthUser | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  signUp: (
+    email: string,
+    password: string,
+    name: string,
+  ) => Promise<{ error: string | null; needsConfirmation?: boolean }>;
   signOut: () => Promise<void>;
   can: (permission: Permission) => boolean;
   hasRole: (...roles: Role[]) => boolean;
@@ -104,42 +96,88 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-function readStoredUser(): AuthUser | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as AuthUser) : null;
-  } catch {
-    return null;
-  }
+// Highest-privilege role wins if a user has multiple (e.g. admin + manager).
+const ROLE_PRIORITY: Role[] = ["admin", "manager", "operator", "viewer"];
+
+async function loadAuthUser(userId: string, email: string): Promise<AuthUser | null> {
+  const [{ data: profile }, { data: roles }] = await Promise.all([
+    supabase.from("profiles").select("name").eq("id", userId).maybeSingle(),
+    supabase.from("user_roles").select("role").eq("user_id", userId),
+  ]);
+
+  const roleList = (roles ?? []).map((r) => r.role as Role);
+  const role: Role = ROLE_PRIORITY.find((r) => roleList.includes(r)) ?? "viewer";
+
+  return {
+    id: userId,
+    email,
+    name: profile?.name?.trim() || email.split("@")[0],
+    role,
+  };
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(() => readStoredUser());
-  const [loading] = useState(false);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Cross-tab sync — also handy when Supabase Auth is added.
   useEffect(() => {
-    function onStorage(e: StorageEvent) {
-      if (e.key === STORAGE_KEY) setUser(readStoredUser());
-    }
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
+    let active = true;
+
+    // Listener FIRST (don't await async work inside it — defer it).
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!active) return;
+      if (!session?.user) {
+        setUser(null);
+        return;
+      }
+      // Defer the Supabase read out of the auth callback to avoid deadlocks.
+      setTimeout(async () => {
+        const u = await loadAuthUser(session.user.id, session.user.email ?? "");
+        if (active) setUser(u);
+      }, 0);
+    });
+
+    // THEN check existing session.
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!active) return;
+      if (session?.user) {
+        const u = await loadAuthUser(session.user.id, session.user.email ?? "");
+        if (active) setUser(u);
+      }
+      if (active) setLoading(false);
+    });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
-    const match = MOCK_USERS.find(
-      (u) => u.email.toLowerCase() === email.trim().toLowerCase() && u.password === password,
-    );
-    if (!match) return { error: "Invalid email or password" };
-    const { password: _pw, ...safe } = match;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(safe));
-    setUser(safe);
-    return { error: null };
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
+    return { error: error?.message ?? null };
+  }, []);
+
+  const signUp = useCallback(async (email: string, password: string, name: string) => {
+    const { data, error } = await supabase.auth.signUp({
+      email: email.trim(),
+      password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/`,
+        data: { name: name.trim() },
+      },
+    });
+    if (error) return { error: error.message };
+    // If email confirmation is required, there's no session yet.
+    const needsConfirmation = !data.session;
+    return { error: null, needsConfirmation };
   }, []);
 
   const signOut = useCallback(async () => {
-    localStorage.removeItem(STORAGE_KEY);
+    await supabase.auth.signOut();
     setUser(null);
   }, []);
 
@@ -154,8 +192,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, loading, signIn, signOut, can, hasRole }),
-    [user, loading, signIn, signOut, can, hasRole],
+    () => ({ user, loading, signIn, signUp, signOut, can, hasRole }),
+    [user, loading, signIn, signUp, signOut, can, hasRole],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
