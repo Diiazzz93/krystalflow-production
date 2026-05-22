@@ -125,9 +125,11 @@ function RootComponent() {
       <ThemeProvider>
         <AuthProvider>
           <StoreProvider>
-            <AuthGate>
-              <Outlet />
-            </AuthGate>
+            <LineSetupProvider>
+              <AuthGate>
+                <Outlet />
+              </AuthGate>
+            </LineSetupProvider>
           </StoreProvider>
         </AuthProvider>
       </ThemeProvider>
