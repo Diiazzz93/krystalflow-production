@@ -135,7 +135,14 @@ function RootComponent() {
 }
 
 function AuthGate({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  if (loading) {
+    return (
+      <div className="min-h-screen grid place-items-center bg-background text-muted-foreground text-sm">
+        Loading…
+      </div>
+    );
+  }
   if (!user) return <LoginScreen />;
   return <>{children}</>;
 }
