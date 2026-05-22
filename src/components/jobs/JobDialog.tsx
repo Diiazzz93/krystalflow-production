@@ -407,10 +407,25 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
           </div>
         )}
 
-        <div className="text-xs text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
-          <span>Est. runtime: <span className="font-medium text-foreground">{Math.floor(runtime / 60)}h {runtime % 60}m</span></span>
-          <span>Est. finish: <span className="font-medium text-foreground">{fmtDateTime(finishEta)}</span></span>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="text-xs text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
+            <span>Est. runtime: <span className="font-medium text-foreground">{Math.floor(runtime / 60)}h {runtime % 60}m</span></span>
+            <span>Est. finish: <span className="font-medium text-foreground">{fmtDateTime(finishEta)}</span></span>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => setSetupOpen(true)}>
+            <SlidersHorizontal className="size-4" />
+            View Line Setup
+            {matchedSetup && (
+              <Badge variant="secondary" className="ml-1">match</Badge>
+            )}
+          </Button>
         </div>
+
+        <LineSetupViewerDialog
+          preset={matchedSetup}
+          open={setupOpen}
+          onOpenChange={setSetupOpen}
+        />
 
         <DialogFooter className="gap-2 sm:gap-2">
           {isEdit && canDelete && (
