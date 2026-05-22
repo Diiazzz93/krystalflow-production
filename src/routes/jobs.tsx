@@ -299,17 +299,30 @@ function JobsTable({
               </div>
             </TableCell>
             <TableCell className="text-right">
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onQC(j.id);
-                }}
-              >
-                <ShieldCheck className="size-4 mr-1" /> QC
-              </Button>
+              <div className="flex justify-end gap-1">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onViewStock(j.id);
+                  }}
+                >
+                  <Eye className="size-4 mr-1" /> View Job
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onQC(j.id);
+                  }}
+                >
+                  <ShieldCheck className="size-4 mr-1" /> QC
+                </Button>
+              </div>
             </TableCell>
+
           </TableRow>
         ))}
         {jobs.length === 0 && (
