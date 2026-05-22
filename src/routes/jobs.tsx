@@ -236,13 +236,16 @@ function JobsTable({
   jobs,
   onEdit,
   onQC,
+  onViewStock,
   hideCustomer = false,
 }: {
   jobs: Job[];
   onEdit: (id: string) => void;
   onQC: (id: string) => void;
+  onViewStock: (id: string) => void;
   hideCustomer?: boolean;
 }) {
+
   return (
     <Table>
       <TableHeader>
