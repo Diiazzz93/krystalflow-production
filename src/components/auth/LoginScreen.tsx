@@ -4,29 +4,51 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { LogIn, AlertCircle } from "lucide-react";
-import { MOCK_USERS, ROLE_LABELS, useAuth } from "@/lib/auth";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { LogIn, AlertCircle, CheckCircle2, UserPlus } from "lucide-react";
+import { useAuth } from "@/lib/auth";
 
 export function LoginScreen() {
-  const { signIn } = useAuth();
+  const { signIn, signUp } = useAuth();
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  async function onSubmit(e: FormEvent) {
+  async function onSignIn(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    setInfo(null);
     setBusy(true);
     const { error } = await signIn(email, password);
     setBusy(false);
     if (error) setError(error);
   }
 
-  function quickFill(em: string, pw: string) {
-    setEmail(em);
-    setPassword(pw);
+  async function onSignUp(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setInfo(null);
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters");
+      return;
+    }
+    setBusy(true);
+    const { error, needsConfirmation } = await signUp(email, password, name);
+    setBusy(false);
+    if (error) {
+      setError(error);
+      return;
+    }
+    if (needsConfirmation) {
+      setInfo("Check your inbox to confirm your email, then sign in.");
+      setMode("signin");
+    }
   }
 
   return (
@@ -45,70 +67,104 @@ export function LoginScreen() {
               </div>
               <div>
                 <CardTitle className="text-xl">Krystalshield</CardTitle>
-                <CardDescription>Sign in to the production scheduler</CardDescription>
+                <CardDescription>Production scheduler access</CardDescription>
               </div>
             </div>
           </CardHeader>
-          <CardContent className="space-y-5">
-            <form onSubmit={onSubmit} className="space-y-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="email" className="text-xs text-muted-foreground">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  autoComplete="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@krystalflow.app"
-                  required
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="password" className="text-xs text-muted-foreground">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-              </div>
+          <CardContent className="space-y-4">
+            <Tabs value={mode} onValueChange={(v) => { setMode(v as "signin" | "signup"); setError(null); setInfo(null); }}>
+              <TabsList className="grid grid-cols-2 w-full">
+                <TabsTrigger value="signin">Sign in</TabsTrigger>
+                <TabsTrigger value="signup">Create account</TabsTrigger>
+              </TabsList>
 
-              {error && (
-                <div className="flex items-center gap-2 text-sm text-red-400 border border-red-500/30 bg-red-500/10 rounded p-2">
-                  <AlertCircle className="size-4" /> {error}
-                </div>
-              )}
+              <TabsContent value="signin" className="mt-4">
+                <form onSubmit={onSignIn} className="space-y-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="si-email" className="text-xs text-muted-foreground">Email</Label>
+                    <Input
+                      id="si-email"
+                      type="email"
+                      autoComplete="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="si-pass" className="text-xs text-muted-foreground">Password</Label>
+                    <Input
+                      id="si-pass"
+                      type="password"
+                      autoComplete="current-password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <Button type="submit" className="w-full" disabled={busy}>
+                    <LogIn className="size-4" /> {busy ? "Signing in…" : "Sign in"}
+                  </Button>
+                </form>
+              </TabsContent>
 
-              <Button type="submit" className="w-full" disabled={busy}>
-                <LogIn className="size-4" /> {busy ? "Signing in…" : "Sign in"}
-              </Button>
-            </form>
+              <TabsContent value="signup" className="mt-4">
+                <form onSubmit={onSignUp} className="space-y-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="su-name" className="text-xs text-muted-foreground">Full name</Label>
+                    <Input
+                      id="su-name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Jane Doe"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="su-email" className="text-xs text-muted-foreground">Email</Label>
+                    <Input
+                      id="su-email"
+                      type="email"
+                      autoComplete="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="su-pass" className="text-xs text-muted-foreground">Password</Label>
+                    <Input
+                      id="su-pass"
+                      type="password"
+                      autoComplete="new-password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="At least 6 characters"
+                      required
+                    />
+                  </div>
+                  <Button type="submit" className="w-full" disabled={busy}>
+                    <UserPlus className="size-4" /> {busy ? "Creating account…" : "Create account"}
+                  </Button>
+                  <p className="text-xs text-muted-foreground">
+                    The first account created becomes the administrator. Additional accounts start
+                    as <span className="font-medium text-foreground">Viewer</span> and must be
+                    promoted by an admin.
+                  </p>
+                </form>
+              </TabsContent>
+            </Tabs>
 
-            <div className="border-t border-border pt-4 space-y-2">
-              <div className="text-xs text-muted-foreground">
-                Demo accounts (click to fill — password matches the role):
+            {error && (
+              <div className="flex items-center gap-2 text-sm text-red-400 border border-red-500/30 bg-red-500/10 rounded p-2">
+                <AlertCircle className="size-4 shrink-0" /> {error}
               </div>
-              <div className="grid gap-1.5">
-                {MOCK_USERS.map((u) => (
-                  <button
-                    key={u.id}
-                    type="button"
-                    onClick={() => quickFill(u.email, u.password)}
-                    className="flex items-center justify-between gap-2 rounded-md border border-border bg-card/50 hover:bg-accent px-3 py-2 text-left text-sm transition-colors"
-                  >
-                    <div className="min-w-0">
-                      <div className="font-medium truncate">{u.name}</div>
-                      <div className="text-xs text-muted-foreground truncate">{u.email}</div>
-                    </div>
-                    <Badge variant="secondary" className="shrink-0">
-                      {ROLE_LABELS[u.role]}
-                    </Badge>
-                  </button>
-                ))}
+            )}
+            {info && (
+              <div className="flex items-center gap-2 text-sm text-emerald-400 border border-emerald-500/30 bg-emerald-500/10 rounded p-2">
+                <CheckCircle2 className="size-4 shrink-0" /> {info}
               </div>
-            </div>
+            )}
           </CardContent>
         </Card>
       </motion.div>
