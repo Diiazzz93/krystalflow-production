@@ -18,7 +18,7 @@ interface Props {
 
 export function CalendarView({ onSelectJob, onCreate }: Props) {
   const { jobs, lines, updateJob } = useStore();
-  const [view, setView] = useState<View>("week");
+  const [view, setView] = useState<View>("month");
   const [cursor, setCursor] = useState(() => startOfDay(new Date()));
 
   const range = useMemo(() => buildRange(cursor, view), [cursor, view]);
