@@ -6,6 +6,8 @@ import {
   ClipboardList,
   Factory,
   LayoutDashboard,
+  LogOut,
+  Lock,
   Moon,
   Settings,
   ShieldCheck,
@@ -14,23 +16,37 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
+import { ROLE_LABELS, useAuth, type Permission } from "@/lib/auth";
 
-const NAV = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/calendar", label: "Calendar", icon: CalendarDays },
-  { to: "/jobs", label: "Jobs", icon: ClipboardList },
-  { to: "/live", label: "Live Board", icon: Factory },
-  { to: "/qc", label: "Quality", icon: ShieldCheck },
-  { to: "/stock", label: "Stock", icon: Boxes },
-  { to: "/analytics", label: "Analytics", icon: TrendingUp },
-  { to: "/settings", label: "Settings", icon: Settings },
-] as const;
+const NAV: Array<{
+  to: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  permission: Permission;
+}> = [
+  { to: "/", label: "Dashboard", icon: LayoutDashboard, permission: "page:dashboard" },
+  { to: "/calendar", label: "Calendar", icon: CalendarDays, permission: "page:calendar" },
+  { to: "/jobs", label: "Jobs", icon: ClipboardList, permission: "page:jobs" },
+  { to: "/live", label: "Live Board", icon: Factory, permission: "page:live" },
+  { to: "/qc", label: "Quality", icon: ShieldCheck, permission: "page:qc" },
+  { to: "/stock", label: "Stock", icon: Boxes, permission: "page:stock" },
+  { to: "/analytics", label: "Analytics", icon: TrendingUp, permission: "page:analytics" },
+  { to: "/settings", label: "Settings", icon: Settings, permission: "page:settings" },
+];
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { theme, toggle } = useTheme();
   const location = useLocation();
+  const { user, signOut, can } = useAuth();
+
+  const visibleNav = NAV.filter((n) => can(n.permission));
+  const currentNav = NAV.find((n) =>
+    n.to === "/" ? location.pathname === "/" : location.pathname.startsWith(n.to),
+  );
+  const allowed = currentNav ? can(currentNav.permission) : true;
 
   return (
     <div className="min-h-screen flex bg-background text-foreground">
@@ -46,7 +62,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
 
         <nav className="flex-1 px-3 py-4 space-y-1">
-          {NAV.map((item) => {
+          {visibleNav.map((item) => {
             const active =
               item.to === "/"
                 ? location.pathname === "/"
@@ -69,6 +85,19 @@ export function AppShell({ children }: { children: ReactNode }) {
             );
           })}
         </nav>
+
+        {user && (
+          <div className="px-3 py-3 border-t border-sidebar-border space-y-2">
+            <div className="px-2">
+              <div className="text-sm font-medium truncate">{user.name}</div>
+              <div className="text-xs text-muted-foreground truncate">{user.email}</div>
+              <Badge variant="secondary" className="mt-1.5">{ROLE_LABELS[user.role]}</Badge>
+            </div>
+            <Button variant="outline" size="sm" className="w-full" onClick={() => signOut()}>
+              <LogOut className="size-4" /> Sign out
+            </Button>
+          </div>
+        )}
 
         <div className="px-4 py-3 border-t border-sidebar-border text-xs text-muted-foreground">
           <div className="flex items-center justify-between">
@@ -93,15 +122,23 @@ export function AppShell({ children }: { children: ReactNode }) {
             Production systems nominal
           </div>
           <div className="flex items-center gap-2">
+            {user && (
+              <Badge variant="secondary" className="hidden sm:inline-flex">
+                {ROLE_LABELS[user.role]}
+              </Badge>
+            )}
             <Button variant="ghost" size="icon" onClick={toggle} aria-label="Toggle theme">
               {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => signOut()} aria-label="Sign out" className="md:hidden">
+              <LogOut className="size-4" />
             </Button>
           </div>
         </header>
 
         <nav className="md:hidden border-b border-border bg-background overflow-x-auto">
           <div className="flex gap-1 px-2 py-2">
-            {NAV.map((item) => {
+            {visibleNav.map((item) => {
               const active =
                 item.to === "/" ? location.pathname === "/" : location.pathname.startsWith(item.to);
               const Icon = item.icon;
@@ -129,8 +166,32 @@ export function AppShell({ children }: { children: ReactNode }) {
           transition={{ duration: 0.2 }}
           className="flex-1 min-w-0 p-4 md:p-6"
         >
-          {children}
+          {allowed ? children : <AccessDenied />}
         </motion.main>
+      </div>
+    </div>
+  );
+}
+
+function AccessDenied() {
+  const { user } = useAuth();
+  return (
+    <div className="min-h-[60vh] grid place-items-center">
+      <div className="max-w-md text-center space-y-3 p-6 rounded-md border border-border bg-card">
+        <div className="mx-auto size-12 rounded-full bg-red-500/15 text-red-400 grid place-items-center">
+          <Lock className="size-6" />
+        </div>
+        <h2 className="text-lg font-semibold">Access restricted</h2>
+        <p className="text-sm text-muted-foreground">
+          Your role ({user ? ROLE_LABELS[user.role] : "guest"}) does not have permission to view
+          this page. Please contact an administrator if you need access.
+        </p>
+        <Link
+          to="/"
+          className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+        >
+          Back to dashboard
+        </Link>
       </div>
     </div>
   );
