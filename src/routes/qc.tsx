@@ -29,6 +29,7 @@ function QCPage() {
   const [customerFilter, setCustomerFilter] = useState<string>("all");
   const [productFilter, setProductFilter] = useState<string>("all");
   const [jobId, setJobId] = useState<string | null>(null);
+  const [palletEntryId, setPalletEntryId] = useState<string | null>(null);
   const [prefillEntryId, setPrefillEntryId] = useState<string | null>(null);
   const [lookup, setLookup] = useState("");
 
