@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -132,11 +132,8 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
     return () => clearTimeout(t);
   }, [lastSubmittedId]);
 
-  // Prefill form from an existing entry (look-up by pallet code flow)
-  useEffect(() => {
-    if (!open || !prefillEntryId) return;
-    const e = qc.find((q) => q.id === prefillEntryId);
-    if (!e) return;
+  // Prefill form from an existing entry
+  const loadEntry = useCallback((e: QCEntry) => {
     setPalletNumber(e.palletNumber);
     setChecks({
       fillLevel: e.fillLevel,
@@ -173,10 +170,19 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
     setBottleQcOperator(e.bottleQcOperator ?? "");
     setCapperOperator(e.capperOperator ?? "");
     setPackagingOperator(e.packagingOperator ?? "");
+    setLastSubmittedId(e.id);
+  }, []);
+
+  // Prefill form from an existing entry (look-up by pallet code flow)
+  useEffect(() => {
+    if (!open || !prefillEntryId) return;
+    const e = qc.find((q) => q.id === prefillEntryId);
+    if (!e) return;
+    loadEntry(e);
     toast.info(`Loaded pallet #${e.palletNumber}`, {
       description: e.palletCode ? `Code ${e.palletCode}` : undefined,
     });
-  }, [open, prefillEntryId, qc]);
+  }, [open, prefillEntryId, qc, loadEntry]);
 
   if (!job) return null;
 
@@ -578,14 +584,27 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
                         h.result === "Pass" ? "bg-emerald-500" : "bg-red-500"
                       }`}
                     />
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-2">
                       <span className="text-sm font-medium">
                         Pallet #{h.palletNumber}
                         {h.mNumber && <span className="text-muted-foreground"> · {h.mNumber}</span>}
                       </span>
-                      <Badge className={h.result === "Pass" ? "bg-emerald-600 text-white" : "bg-red-600 text-white"}>
-                        {h.result}
-                      </Badge>
+                      <div className="flex items-center gap-1.5">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-6 px-2 text-[10px]"
+                          onClick={() => {
+                            loadEntry(h);
+                            toast.info(`Loaded pallet #${h.palletNumber}`);
+                          }}
+                        >
+                          View
+                        </Button>
+                        <Badge className={h.result === "Pass" ? "bg-emerald-600 text-white" : "bg-red-600 text-white"}>
+                          {h.result}
+                        </Badge>
+                      </div>
                     </div>
                     {h.palletCode && (
                       <div className="mt-1 flex items-center justify-between gap-2 rounded border border-dashed border-border bg-muted/40 px-2 py-1">
