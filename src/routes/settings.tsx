@@ -17,6 +17,7 @@ import {
   upsertCustomPreset,
   type QCPreset,
 } from "@/lib/qc-presets";
+import { UnleashedSyncPanel } from "@/components/settings/UnleashedSyncPanel";
 
 export const Route = createFileRoute("/settings")({
   component: SettingsPage,
@@ -85,6 +86,8 @@ function SettingsPage() {
             Configure presets and defaults used across the production app.
           </p>
         </div>
+
+        <UnleashedSyncPanel />
 
         <Card>
           <CardHeader className="flex flex-row items-start justify-between gap-3">
