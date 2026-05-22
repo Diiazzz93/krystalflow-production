@@ -87,6 +87,8 @@ function SettingsPage() {
           </p>
         </div>
 
+        <UnleashedSyncPanel />
+
         <Card>
           <CardHeader className="flex flex-row items-start justify-between gap-3">
             <div>
