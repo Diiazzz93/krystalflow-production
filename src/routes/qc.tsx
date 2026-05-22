@@ -282,14 +282,23 @@ function QCPage() {
                       </div>
                       {e.notes && <p className="text-xs mt-1">{e.notes}</p>}
                       {job && (
-                        <Button
-                          variant="link"
-                          size="sm"
-                          className="px-0 h-auto"
-                          onClick={() => setJobId(job.id)}
-                        >
-                          View job QC
-                        </Button>
+                        <div className="flex flex-wrap items-center gap-3 mt-1">
+                          <Button
+                            variant="link"
+                            size="sm"
+                            className="px-0 h-auto"
+                            onClick={() => setJobId(job.id)}
+                          >
+                            View job QC
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setPalletEntryId(e.id)}
+                          >
+                            <Package className="size-4 mr-1" /> View pallet info
+                          </Button>
+                        </div>
                       )}
                     </li>
                   );
