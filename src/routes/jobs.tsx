@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { JobDialog } from "@/components/jobs/JobDialog";
 import { QCDialog } from "@/components/jobs/QCDialog";
+import { JobStockDialog } from "@/components/jobs/JobStockDialog";
 import { useStore } from "@/lib/store";
 import {
   ALL_STATUSES,
@@ -30,7 +31,8 @@ import {
   fmtTime,
   progressPct,
 } from "@/lib/utils-domain";
-import { Plus, Search, ShieldCheck, LayoutList, Building2 } from "lucide-react";
+import { Plus, Search, ShieldCheck, LayoutList, Building2, Eye } from "lucide-react";
+
 import { Progress } from "@/components/ui/progress";
 import type { Job } from "@/lib/types";
 
@@ -47,6 +49,8 @@ function JobsPage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [qcId, setQcId] = useState<string | null>(null);
+  const [stockJobId, setStockJobId] = useState<string | null>(null);
+
 
   const customers = useMemo(() => {
     const map = new Map<string, string>();
@@ -174,7 +178,7 @@ function JobsPage() {
 
         {view === "list" ? (
           <div className="rounded-lg border border-border bg-card overflow-x-auto">
-            <JobsTable jobs={filtered} onEdit={openEdit} onQC={setQcId} />
+            <JobsTable jobs={filtered} onEdit={openEdit} onQC={setQcId} onViewStock={setStockJobId} />
           </div>
         ) : (
           <div className="space-y-3">
@@ -205,7 +209,7 @@ function JobsPage() {
                     {upcoming > 0 && <Badge variant="outline">{upcoming} upcoming</Badge>}
                   </header>
                   <div className="overflow-x-auto">
-                    <JobsTable jobs={g.jobs} onEdit={openEdit} onQC={setQcId} hideCustomer />
+                    <JobsTable jobs={g.jobs} onEdit={openEdit} onQC={setQcId} onViewStock={setStockJobId} hideCustomer />
                   </div>
                 </section>
               );
@@ -218,21 +222,30 @@ function JobsPage() {
       {qcId && (
         <QCDialog jobId={qcId} open={!!qcId} onOpenChange={(v) => !v && setQcId(null)} />
       )}
+      <JobStockDialog
+        job={jobs.find((j) => j.id === stockJobId) ?? null}
+        open={!!stockJobId}
+        onOpenChange={(v) => !v && setStockJobId(null)}
+      />
     </AppShell>
   );
 }
+
 
 function JobsTable({
   jobs,
   onEdit,
   onQC,
+  onViewStock,
   hideCustomer = false,
 }: {
   jobs: Job[];
   onEdit: (id: string) => void;
   onQC: (id: string) => void;
+  onViewStock: (id: string) => void;
   hideCustomer?: boolean;
 }) {
+
   return (
     <Table>
       <TableHeader>
@@ -286,17 +299,30 @@ function JobsTable({
               </div>
             </TableCell>
             <TableCell className="text-right">
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onQC(j.id);
-                }}
-              >
-                <ShieldCheck className="size-4 mr-1" /> QC
-              </Button>
+              <div className="flex justify-end gap-1">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onViewStock(j.id);
+                  }}
+                >
+                  <Eye className="size-4 mr-1" /> View Job
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onQC(j.id);
+                  }}
+                >
+                  <ShieldCheck className="size-4 mr-1" /> QC
+                </Button>
+              </div>
             </TableCell>
+
           </TableRow>
         ))}
         {jobs.length === 0 && (
