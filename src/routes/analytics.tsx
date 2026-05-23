@@ -468,3 +468,28 @@ function Stat({ label, value }: { label: string; value: string | number }) {
     </Card>
   );
 }
+
+function PerfStat({
+  label,
+  value,
+  tone = "neutral",
+}: {
+  label: string;
+  value: string | number;
+  tone?: "good" | "bad" | "neutral";
+}) {
+  const color =
+    tone === "good"
+      ? "text-emerald-500"
+      : tone === "bad"
+        ? "text-red-500"
+        : "text-foreground";
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <div className="text-xs text-muted-foreground">{label}</div>
+        <div className={`text-xl font-bold tabular-nums ${color}`}>{value}</div>
+      </CardContent>
+    </Card>
+  );
+}
