@@ -25,28 +25,38 @@ const M = 40; // page margin
 
 function header(doc: jsPDF, title: string, subtitle: string, b: Branding) {
   const w = doc.internal.pageSize.getWidth();
+  const primary = hexToRgb(b.primaryColor);
+  const accent = hexToRgb(b.secondaryColor);
   // Brand band
-  doc.setFillColor(...BRAND.primary);
+  doc.setFillColor(primary[0], primary[1], primary[2]);
   doc.rect(0, 0, w, 60, "F");
-  doc.setFillColor(...BRAND.accent);
+  doc.setFillColor(accent[0], accent[1], accent[2]);
   doc.rect(0, 60, w, 4, "F");
 
   // Logo mark
-  doc.setFillColor(255, 255, 255);
-  doc.circle(M + 12, 30, 12, "F");
-  doc.setTextColor(...BRAND.primary);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(14);
-  doc.text("KF", M + 12, 34, { align: "center" });
+  if (b.pdfLogo) {
+    try {
+      doc.addImage(b.pdfLogo, "PNG", M, 12, 36, 36);
+    } catch {
+      /* ignore bad image */
+    }
+  } else {
+    doc.setFillColor(255, 255, 255);
+    doc.circle(M + 12, 30, 12, "F");
+    doc.setTextColor(primary[0], primary[1], primary[2]);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.text(b.companyName.slice(0, 2).toUpperCase(), M + 12, 34, { align: "center" });
+  }
 
   // Wordmark
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(18);
-  doc.text("KrystalFlow", M + 32, 28);
+  doc.text(b.appName, M + 48, 28);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
-  doc.text("Production Run Sheet", M + 32, 44);
+  doc.text(`${b.companyName} · Production Run Sheet`, M + 48, 44);
 
   // Title (right side)
   doc.setFontSize(11);
@@ -55,7 +65,7 @@ function header(doc: jsPDF, title: string, subtitle: string, b: Branding) {
   doc.text(subtitle, w - M, 44, { align: "right" });
 }
 
-function footer(doc: jsPDF, jobId: string, page: number, total: number) {
+function footer(doc: jsPDF, jobId: string, page: number, total: number, b: Branding) {
   const w = doc.internal.pageSize.getWidth();
   const h = doc.internal.pageSize.getHeight();
   doc.setDrawColor(...BRAND.line);
@@ -63,7 +73,7 @@ function footer(doc: jsPDF, jobId: string, page: number, total: number) {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(...BRAND.muted);
-  doc.text(`KrystalFlow · Job ${jobId} · Generated ${fmtDateTime(new Date())}`, M, h - 22);
+  doc.text(`${b.appName} · Job ${jobId} · Generated ${fmtDateTime(new Date())}`, M, h - 22);
   doc.text(`Page ${page} of ${total}`, w - M, h - 22, { align: "right" });
 }
 
