@@ -253,6 +253,16 @@ function JobsTable({
   onViewStock: (id: string) => void;
   hideCustomer?: boolean;
 }) {
+  const { presets } = useLineSetups();
+  const handlePdf = (job: Job) => {
+    try {
+      downloadJobPdf(job, presets);
+      toast.success(`Run sheet PDF generated for ${job.id}`);
+    } catch (e) {
+      console.error(e);
+      toast.error("Could not generate PDF");
+    }
+  };
 
   return (
     <Table>
