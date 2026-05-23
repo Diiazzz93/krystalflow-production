@@ -295,6 +295,164 @@ function AnalyticsPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* ---------- Production Performance ---------- */}
+        <div className="pt-2">
+          <h2 className="text-xl md:text-2xl font-bold tracking-tight">Production Performance</h2>
+          <p className="text-sm text-muted-foreground">
+            Planned vs actual job duration across completed jobs.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <PerfStat label="Avg job completion" value={perfRows.length ? fmtDurationMs(avgActualMs) : "—"} />
+          <PerfStat label="Jobs completed early" value={earlyJobs.length} tone="good" />
+          <PerfStat label="Jobs completed late" value={lateJobs.length} tone="bad" />
+          <PerfStat label="On-time completion" value={`${onTimePct}%`} tone={onTimePct >= 80 ? "good" : onTimePct >= 50 ? "neutral" : "bad"} />
+          <PerfStat label="Total time saved" value={totalSavedMs ? fmtDurationMs(totalSavedMs) : "0h"} tone="good" />
+          <PerfStat label="Total delayed time" value={totalLateMs ? fmtDurationMs(totalLateMs) : "0h"} tone="bad" />
+          <PerfStat label="Production efficiency" value={`${prodEfficiency}%`} tone={prodEfficiency >= 95 ? "good" : prodEfficiency >= 75 ? "neutral" : "bad"} />
+          <PerfStat label="Jobs measured" value={perfRows.length} />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Planned vs actual duration (hours)</CardTitle>
+            </CardHeader>
+            <CardContent className="h-64">
+              {plannedVsActualData.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No completed jobs with actuals yet.</p>
+              ) : (
+                <ResponsiveContainer>
+                  <BarChart data={plannedVsActualData}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                    <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 12 }} unit="h" />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="planned" fill="#22c55e" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="actual" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Monthly production performance</CardTitle>
+            </CardHeader>
+            <CardContent className="h-64">
+              {monthlyPerf.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No data yet.</p>
+              ) : (
+                <ResponsiveContainer>
+                  <BarChart data={monthlyPerf}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                    <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                    <YAxis tick={{ fontSize: 12 }} unit="h" />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="planned" fill="#94a3b8" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="actual" fill="#a855f7" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle>On-time completion trend</CardTitle>
+            </CardHeader>
+            <CardContent className="h-64">
+              {onTimeTrend.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No data yet.</p>
+              ) : (
+                <ResponsiveContainer>
+                  <LineChart data={onTimeTrend}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                    <XAxis dataKey="week" tick={{ fontSize: 12 }} />
+                    <YAxis tick={{ fontSize: 12 }} unit="%" domain={[0, 100]} />
+                    <Tooltip />
+                    <Line type="monotone" dataKey="onTimePct" stroke="#22c55e" strokeWidth={2} />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle>Recent jobs — planned vs actual</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {perfRows.length === 0 && (
+                <p className="text-sm text-muted-foreground">
+                  No completed jobs yet. Performance will populate once jobs finish.
+                </p>
+              )}
+              {perfRows
+                .slice()
+                .reverse()
+                .map(({ job, perf }) => {
+                  const tone =
+                    perf.status === "early"
+                      ? "bg-emerald-600"
+                      : perf.status === "on-time"
+                        ? "bg-emerald-500"
+                        : perf.status === "late"
+                          ? "bg-red-600"
+                          : "bg-slate-500";
+                  const diffLabel =
+                    perf.diffMs === null
+                      ? "—"
+                      : perf.status === "on-time"
+                        ? "On schedule"
+                        : perf.status === "early"
+                          ? `${fmtDurationMs(perf.diffMs)} early`
+                          : `${fmtDurationMs(perf.diffMs)} late`;
+                  return (
+                    <div
+                      key={job.id}
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border/60 px-3 py-2 text-sm"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Badge className={`${tone} text-white`}>{perf.status}</Badge>
+                        <div className="min-w-0">
+                          <div className="font-medium truncate">{job.customer}</div>
+                          <div className="text-xs text-muted-foreground truncate">{job.product}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4 tabular-nums text-xs">
+                        <span className="text-muted-foreground">
+                          Planned <span className="text-foreground">{fmtDurationMs(perf.plannedMs)}</span>
+                        </span>
+                        <span className="text-muted-foreground">
+                          Actual{" "}
+                          <span className="text-foreground">
+                            {perf.actualMs !== null ? fmtDurationMs(perf.actualMs) : "—"}
+                          </span>
+                        </span>
+                        <span
+                          className={
+                            perf.status === "late"
+                              ? "text-red-500 font-medium"
+                              : perf.status === "early"
+                                ? "text-emerald-500 font-medium"
+                                : "text-foreground font-medium"
+                          }
+                        >
+                          {diffLabel}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </AppShell>
   );
