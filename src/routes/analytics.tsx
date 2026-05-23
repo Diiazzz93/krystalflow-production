@@ -110,7 +110,71 @@ function AnalyticsPage() {
     return Object.entries(days).map(([day, bottles]) => ({ day, bottles }));
   }, [jobs]);
 
-  const COLORS = ["#0ea5e9", "#22c55e", "#f97316", "#a855f7", "#ec4899"];
+  // ---------- Production Performance (planned vs actual) ----------
+  const perfRows = useMemo(
+    () =>
+      jobs
+        .map((j) => ({ job: j, perf: getJobPerformance(j) }))
+        .filter((r) => r.perf.actualEnd !== null),
+    [jobs],
+  );
+  const earlyJobs = perfRows.filter((r) => r.perf.status === "early");
+  const onTimeJobs = perfRows.filter((r) => r.perf.status === "on-time");
+  const lateJobs = perfRows.filter((r) => r.perf.status === "late");
+  const totalSavedMs = earlyJobs.reduce((s, r) => s + Math.abs(r.perf.diffMs ?? 0), 0);
+  const totalLateMs = lateJobs.reduce((s, r) => s + (r.perf.diffMs ?? 0), 0);
+  const avgActualMs = perfRows.length
+    ? perfRows.reduce((s, r) => s + (r.perf.actualMs ?? 0), 0) / perfRows.length
+    : 0;
+  const onTimePct = perfRows.length
+    ? Math.round(((earlyJobs.length + onTimeJobs.length) / perfRows.length) * 100)
+    : 0;
+  const prodEfficiency = (() => {
+    const planned = perfRows.reduce((s, r) => s + r.perf.plannedMs, 0);
+    const actual = perfRows.reduce((s, r) => s + (r.perf.actualMs ?? 0), 0);
+    return actual ? Math.round((planned / actual) * 100) : 100;
+  })();
+
+  const plannedVsActualData = perfRows.slice(-8).map((r) => ({
+    name: r.job.customer.slice(0, 12),
+    planned: +(r.perf.plannedMs / 3_600_000).toFixed(1),
+    actual: +((r.perf.actualMs ?? 0) / 3_600_000).toFixed(1),
+  }));
+
+  const monthlyPerf = useMemo(() => {
+    const buckets: Record<string, { month: string; planned: number; actual: number }> = {};
+    perfRows.forEach((r) => {
+      const d = r.perf.actualEnd!;
+      const key = d.toLocaleDateString(undefined, { month: "short", year: "2-digit" });
+      if (!buckets[key]) buckets[key] = { month: key, planned: 0, actual: 0 };
+      buckets[key].planned += r.perf.plannedMs / 3_600_000;
+      buckets[key].actual += (r.perf.actualMs ?? 0) / 3_600_000;
+    });
+    return Object.values(buckets).map((b) => ({
+      month: b.month,
+      planned: +b.planned.toFixed(1),
+      actual: +b.actual.toFixed(1),
+    }));
+  }, [perfRows]);
+
+  const onTimeTrend = useMemo(() => {
+    const buckets: Record<string, { week: string; total: number; onTime: number }> = {};
+    perfRows.forEach((r) => {
+      const d = r.perf.actualEnd!;
+      const week = new Date(d);
+      week.setDate(d.getDate() - d.getDay());
+      const key = week.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+      if (!buckets[key]) buckets[key] = { week: key, total: 0, onTime: 0 };
+      buckets[key].total += 1;
+      if (r.perf.status === "early" || r.perf.status === "on-time") buckets[key].onTime += 1;
+    });
+    return Object.values(buckets).map((b) => ({
+      week: b.week,
+      onTimePct: Math.round((b.onTime / b.total) * 100),
+    }));
+  }, [perfRows]);
+
+
 
   return (
     <AppShell>
