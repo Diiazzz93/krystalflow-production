@@ -1,10 +1,14 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { AlertTriangle, CheckCircle2, FileDown, Printer } from "lucide-react";
 import type { Job } from "@/lib/types";
 import { computeJobStockCheck } from "@/lib/job-stock";
 import { JobStockCheck } from "./JobStockCheck";
 import { cn } from "@/lib/utils";
+import { downloadJobPdf, printJobPdf } from "@/lib/job-pdf";
+import { useLineSetups } from "@/lib/line-setups";
+import { toast } from "sonner";
 
 interface Props {
   job: Job | null;
@@ -24,9 +28,28 @@ function fmtDate(iso?: string) {
 }
 
 export function JobStockDialog({ job, open, onOpenChange }: Props) {
+  const { presets } = useLineSetups();
   if (!job) return null;
   const check = computeJobStockCheck(job);
   const totalMissing = check.requirements.reduce((s, r) => s + r.missing, 0);
+
+  const handleDownload = () => {
+    try {
+      downloadJobPdf(job, presets);
+      toast.success(`Run sheet PDF generated for ${job.id}`);
+    } catch (e) {
+      console.error(e);
+      toast.error("Could not generate PDF");
+    }
+  };
+  const handlePrint = () => {
+    try {
+      printJobPdf(job, presets);
+    } catch (e) {
+      console.error(e);
+      toast.error("Could not open print preview");
+    }
+  };
 
   const summaryTone = check.hasShort
     ? "border-red-500/40 bg-red-500/10 text-red-600 dark:text-red-400"
@@ -36,7 +59,17 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Stock requirements — {job.id}</DialogTitle>
+          <div className="flex items-start justify-between gap-3">
+            <DialogTitle>Stock requirements — {job.id}</DialogTitle>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={handlePrint}>
+                <Printer className="size-4 mr-1" /> Print
+              </Button>
+              <Button size="sm" onClick={handleDownload}>
+                <FileDown className="size-4 mr-1" /> Generate Job PDF
+              </Button>
+            </div>
+          </div>
         </DialogHeader>
 
         <div className={cn("rounded-lg border p-3 flex items-center gap-3", summaryTone)}>

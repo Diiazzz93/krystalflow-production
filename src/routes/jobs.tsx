@@ -32,10 +32,13 @@ import {
   fmtTime,
   progressPct,
 } from "@/lib/utils-domain";
-import { Plus, Search, ShieldCheck, LayoutList, Building2, Eye } from "lucide-react";
+import { Plus, Search, ShieldCheck, LayoutList, Building2, Eye, FileDown } from "lucide-react";
 
 import { Progress } from "@/components/ui/progress";
 import type { Job } from "@/lib/types";
+import { downloadJobPdf } from "@/lib/job-pdf";
+import { useLineSetups } from "@/lib/line-setups";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/jobs")({
   component: JobsPage,
@@ -250,6 +253,16 @@ function JobsTable({
   onViewStock: (id: string) => void;
   hideCustomer?: boolean;
 }) {
+  const { presets } = useLineSetups();
+  const handlePdf = (job: Job) => {
+    try {
+      downloadJobPdf(job, presets);
+      toast.success(`Run sheet PDF generated for ${job.id}`);
+    } catch (e) {
+      console.error(e);
+      toast.error("Could not generate PDF");
+    }
+  };
 
   return (
     <Table>
@@ -314,6 +327,17 @@ function JobsTable({
                   }}
                 >
                   <Eye className="size-4 mr-1" /> View Job
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handlePdf(j);
+                  }}
+                  title="Generate Job PDF run sheet"
+                >
+                  <FileDown className="size-4 mr-1" /> PDF
                 </Button>
                 <Button
                   size="sm"
