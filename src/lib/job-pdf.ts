@@ -10,7 +10,7 @@ import { computeJobStockCheck } from "@/lib/job-stock";
 import { findSetupForJob, type LineSetupPreset } from "@/lib/line-setups";
 import { fmtDate, fmtDateTime } from "@/lib/utils-domain";
 import { getBranding, hexToRgb, type Branding } from "@/lib/branding";
-import { getSpecForCustomerSync, type CustomerSpec } from "@/lib/customer-specs";
+import { getSpecForJobSync, type ResolvedSpec } from "@/lib/customer-specs";
 
 // Default brand (overridden per-call by tenant branding)
 const BRAND = {
