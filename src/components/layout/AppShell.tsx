@@ -4,6 +4,7 @@ import {
   Boxes,
   CalendarDays,
   ClipboardList,
+  ClipboardCheck,
   Factory,
   LayoutDashboard,
   LogOut,
