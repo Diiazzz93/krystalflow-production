@@ -318,8 +318,55 @@ export function generateJobPdf(job: Job, presets: LineSetupPreset[], branding?: 
     "Pull QC samples every pallet. Record fill weight, cap torque, label alignment and leak check in the QC log.",
   );
 
-  footer(doc, job.id, 2, 2, b);
+  footer(doc, job.id, 2, totalPages, b);
+
+  // ===== Page 3: Customer Production Specs (when on file) =====
+  if (customerSpec) {
+    doc.addPage();
+    header(doc, `Job ${job.id} · Customer Specs`, subtitle, b);
+    let y3 = 90;
+    y3 = renderCustomerSpecs(doc, y3, customerSpec);
+    footer(doc, job.id, 3, totalPages, b);
+  }
+
   return doc;
+}
+
+function renderCustomerSpecs(doc: jsPDF, yStart: number, spec: CustomerSpec): number {
+  let y = yStart;
+  y = sectionTitle(doc, y, `${spec.customer} — filling instructions`);
+  y = kvGrid(doc, y, [
+    ["Product type", spec.filling.productType],
+    ["Bottle / container", spec.filling.containerType],
+    ["Fill size", spec.filling.fillSize],
+    ["Cap type", spec.filling.capType],
+    ["Trigger / sprayer", spec.filling.triggerSprayer],
+    ["Label positioning", spec.filling.labelPositioning],
+  ]);
+  y = paragraph(doc, y, "Label requirements", spec.filling.labelRequirements);
+  y = paragraph(doc, y, "Hazard / SDS notes", spec.filling.hazardSdsNotes);
+
+  y = sectionTitle(doc, y, "Packing instructions");
+  y = kvGrid(doc, y, [
+    ["Units per carton", String(spec.packing.unitsPerCarton)],
+    ["Carton type", spec.packing.cartonType],
+    ["Carton label required", spec.packing.cartonLabelRequired ? "Yes" : "No"],
+    ["Trigger packed in carton", spec.packing.triggerInCarton ? "Yes" : "No"],
+  ]);
+  y = paragraph(doc, y, "Special packing notes", spec.packing.packingNotes);
+
+  y = sectionTitle(doc, y, "Palletising instructions");
+  y = kvGrid(doc, y, [
+    ["Pallet type", spec.palletising.palletType],
+    ["Cartons per layer", String(spec.palletising.cartonsPerLayer)],
+    ["Layers high", String(spec.palletising.layersHigh)],
+  ], 3);
+  y = paragraph(doc, y, "Configuration notes", spec.palletising.configurationNotes);
+  y = paragraph(doc, y, "Wrap requirements", spec.palletising.wrapRequirements);
+  y = paragraph(doc, y, "Pallet label requirements", spec.palletising.palletLabelRequirements);
+  y = paragraph(doc, y, "Special customer requirements", spec.palletising.specialRequirements);
+
+  return y;
 }
 
 export function downloadJobPdf(job: Job, presets: LineSetupPreset[]) {
