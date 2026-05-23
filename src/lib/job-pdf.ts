@@ -9,8 +9,9 @@ import type { Job } from "@/lib/types";
 import { computeJobStockCheck } from "@/lib/job-stock";
 import { findSetupForJob, type LineSetupPreset } from "@/lib/line-setups";
 import { fmtDate, fmtDateTime } from "@/lib/utils-domain";
+import { getBranding, hexToRgb, type Branding } from "@/lib/branding";
 
-// KrystalFlow brand
+// Default brand (overridden per-call by tenant branding)
 const BRAND = {
   primary: [14, 116, 144] as [number, number, number], // teal-ish
   accent: [56, 189, 248] as [number, number, number],
@@ -22,30 +23,40 @@ const BRAND = {
 
 const M = 40; // page margin
 
-function header(doc: jsPDF, title: string, subtitle: string) {
+function header(doc: jsPDF, title: string, subtitle: string, b: Branding) {
   const w = doc.internal.pageSize.getWidth();
+  const primary = hexToRgb(b.primaryColor);
+  const accent = hexToRgb(b.secondaryColor);
   // Brand band
-  doc.setFillColor(...BRAND.primary);
+  doc.setFillColor(primary[0], primary[1], primary[2]);
   doc.rect(0, 0, w, 60, "F");
-  doc.setFillColor(...BRAND.accent);
+  doc.setFillColor(accent[0], accent[1], accent[2]);
   doc.rect(0, 60, w, 4, "F");
 
   // Logo mark
-  doc.setFillColor(255, 255, 255);
-  doc.circle(M + 12, 30, 12, "F");
-  doc.setTextColor(...BRAND.primary);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(14);
-  doc.text("KF", M + 12, 34, { align: "center" });
+  if (b.pdfLogo) {
+    try {
+      doc.addImage(b.pdfLogo, "PNG", M, 12, 36, 36);
+    } catch {
+      /* ignore bad image */
+    }
+  } else {
+    doc.setFillColor(255, 255, 255);
+    doc.circle(M + 12, 30, 12, "F");
+    doc.setTextColor(primary[0], primary[1], primary[2]);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.text(b.companyName.slice(0, 2).toUpperCase(), M + 12, 34, { align: "center" });
+  }
 
   // Wordmark
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(18);
-  doc.text("KrystalFlow", M + 32, 28);
+  doc.text(b.appName, M + 48, 28);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
-  doc.text("Production Run Sheet", M + 32, 44);
+  doc.text(`${b.companyName} · Production Run Sheet`, M + 48, 44);
 
   // Title (right side)
   doc.setFontSize(11);
@@ -54,7 +65,7 @@ function header(doc: jsPDF, title: string, subtitle: string) {
   doc.text(subtitle, w - M, 44, { align: "right" });
 }
 
-function footer(doc: jsPDF, jobId: string, page: number, total: number) {
+function footer(doc: jsPDF, jobId: string, page: number, total: number, b: Branding) {
   const w = doc.internal.pageSize.getWidth();
   const h = doc.internal.pageSize.getHeight();
   doc.setDrawColor(...BRAND.line);
@@ -62,7 +73,7 @@ function footer(doc: jsPDF, jobId: string, page: number, total: number) {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(...BRAND.muted);
-  doc.text(`KrystalFlow · Job ${jobId} · Generated ${fmtDateTime(new Date())}`, M, h - 22);
+  doc.text(`${b.appName} · Job ${jobId} · Generated ${fmtDateTime(new Date())}`, M, h - 22);
   doc.text(`Page ${page} of ${total}`, w - M, h - 22, { align: "right" });
 }
 
@@ -161,7 +172,8 @@ function paragraph(doc: jsPDF, y: number, label: string, body: string): number {
   return y + 14 + lines.length * 12 + 8;
 }
 
-export function generateJobPdf(job: Job, presets: LineSetupPreset[]): jsPDF {
+export function generateJobPdf(job: Job, presets: LineSetupPreset[], branding?: Branding): jsPDF {
+  const b = branding ?? getBranding();
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const check = computeJobStockCheck(job);
   const setup = findSetupForJob(presets, job.product, job.bottleSize);
@@ -169,7 +181,7 @@ export function generateJobPdf(job: Job, presets: LineSetupPreset[]): jsPDF {
   const subtitle = `${job.customer} · ${job.product}`;
 
   // ===== Page 1: Job Details =====
-  header(doc, `Job ${job.id}`, subtitle);
+  header(doc, `Job ${job.id}`, subtitle, b);
 
   let y = 90;
   y = sectionTitle(doc, y, "Job details");
@@ -224,11 +236,11 @@ export function generateJobPdf(job: Job, presets: LineSetupPreset[]): jsPDF {
     y + 30,
   );
 
-  footer(doc, job.id, 1, 2);
+  footer(doc, job.id, 1, 2, b);
 
   // ===== Page 2: Line Setup & Notes =====
   doc.addPage();
-  header(doc, `Job ${job.id} · Setup`, subtitle);
+  header(doc, `Job ${job.id} · Setup`, subtitle, b);
 
   y = 90;
   y = sectionTitle(doc, y, "Materials selected");
@@ -303,13 +315,14 @@ export function generateJobPdf(job: Job, presets: LineSetupPreset[]): jsPDF {
     "Pull QC samples every pallet. Record fill weight, cap torque, label alignment and leak check in the QC log.",
   );
 
-  footer(doc, job.id, 2, 2);
+  footer(doc, job.id, 2, 2, b);
   return doc;
 }
 
 export function downloadJobPdf(job: Job, presets: LineSetupPreset[]) {
-  const doc = generateJobPdf(job, presets);
-  doc.save(`KrystalFlow_${job.id}_${job.customer.replace(/\s+/g, "-")}.pdf`);
+  const b = getBranding();
+  const doc = generateJobPdf(job, presets, b);
+  doc.save(`${b.appName}_${job.id}_${job.customer.replace(/\s+/g, "-")}.pdf`);
 }
 
 export function printJobPdf(job: Job, presets: LineSetupPreset[]) {

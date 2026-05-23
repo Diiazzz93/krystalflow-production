@@ -7,9 +7,11 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { LogIn, AlertCircle, CheckCircle2, UserPlus } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { useBranding } from "@/lib/branding";
 
 export function LoginScreen() {
   const { signIn, signUp } = useAuth();
+  const { branding } = useBranding();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
 
   const [email, setEmail] = useState("");
@@ -62,12 +64,19 @@ export function LoginScreen() {
         <Card>
           <CardHeader className="space-y-3">
             <div className="flex items-center gap-3">
-              <div className="size-10 rounded-md bg-primary text-primary-foreground grid place-items-center font-bold">
-                K
-              </div>
+              {branding.loginLogo ? (
+                <img src={branding.loginLogo} alt="" className="size-10 rounded-md object-contain bg-muted p-1" />
+              ) : (
+                <div
+                  className="size-10 rounded-md grid place-items-center font-bold text-white"
+                  style={{ background: branding.primaryColor }}
+                >
+                  {branding.companyName.slice(0, 1).toUpperCase()}
+                </div>
+              )}
               <div>
-                <CardTitle className="text-xl">Krystalshield</CardTitle>
-                <CardDescription>Production scheduler access</CardDescription>
+                <CardTitle className="text-xl">{branding.companyName}</CardTitle>
+                <CardDescription>{branding.appName} access</CardDescription>
               </div>
             </div>
           </CardHeader>

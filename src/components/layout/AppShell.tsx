@@ -21,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { ROLE_LABELS, useAuth, type Permission } from "@/lib/auth";
+import { useBranding } from "@/lib/branding";
 
 const NAV: Array<{
   to: string;
@@ -43,6 +44,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { theme, toggle } = useTheme();
   const location = useLocation();
   const { user, signOut, can } = useAuth();
+  const { branding } = useBranding();
 
   const visibleNav = NAV.filter((n) => can(n.permission));
   const currentNav = NAV.find((n) =>
@@ -54,12 +56,19 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="min-h-screen flex bg-background text-foreground">
       <aside className="hidden md:flex md:w-60 lg:w-64 flex-col border-r border-border bg-sidebar text-sidebar-foreground">
         <div className="px-5 py-5 border-b border-sidebar-border flex items-center gap-3">
-          <div className="size-9 rounded-md bg-primary text-primary-foreground grid place-items-center font-bold">
-            K
-          </div>
+          {branding.sidebarLogo ? (
+            <img src={branding.sidebarLogo} alt="" className="size-9 rounded-md object-contain bg-white/5 p-0.5" />
+          ) : (
+            <div
+              className="size-9 rounded-md grid place-items-center font-bold text-white"
+              style={{ background: branding.primaryColor }}
+            >
+              {branding.companyName.slice(0, 1).toUpperCase()}
+            </div>
+          )}
           <div className="leading-tight">
-            <div className="font-semibold tracking-tight">Krystalshield</div>
-            <div className="text-xs text-muted-foreground">Production Scheduler</div>
+            <div className="font-semibold tracking-tight">{branding.companyName}</div>
+            <div className="text-xs text-muted-foreground">{branding.appName}</div>
           </div>
         </div>
 
@@ -114,10 +123,17 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="flex-1 flex flex-col min-w-0">
         <header className="h-14 border-b border-border flex items-center justify-between px-4 md:px-6 sticky top-0 bg-background/85 backdrop-blur z-20">
           <div className="md:hidden flex items-center gap-2 font-semibold">
-            <div className="size-7 rounded-md bg-primary text-primary-foreground grid place-items-center text-sm font-bold">
-              K
-            </div>
-            Krystalshield
+            {branding.sidebarLogo ? (
+              <img src={branding.sidebarLogo} alt="" className="size-7 rounded-md object-contain" />
+            ) : (
+              <div
+                className="size-7 rounded-md grid place-items-center text-sm font-bold text-white"
+                style={{ background: branding.primaryColor }}
+              >
+                {branding.companyName.slice(0, 1).toUpperCase()}
+              </div>
+            )}
+            {branding.companyName}
           </div>
           <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground">
             <span className="size-2 rounded-full bg-emerald-500" />
