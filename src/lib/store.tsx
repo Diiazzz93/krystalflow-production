@@ -22,6 +22,9 @@ interface StoreContextValue extends PersistedState {
   addJob: (job: Job) => void;
   updateJob: (id: string, patch: Partial<Job>) => void;
   deleteJob: (id: string) => void;
+  addLine: (line: Line) => void;
+  updateLine: (id: string, patch: Partial<Line>) => void;
+  deleteLine: (id: string) => void;
   addQC: (entry: QCEntry) => void;
   reset: () => void;
 }
@@ -75,6 +78,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       })),
     [],
   );
+  const addLine = useCallback(
+    (line: Line) => setState((s) => ({ ...s, lines: [...s.lines, line] })),
+    [],
+  );
+  const updateLine = useCallback(
+    (id: string, patch: Partial<Line>) =>
+      setState((s) => ({
+        ...s,
+        lines: s.lines.map((l) => (l.id === id ? { ...l, ...patch } : l)),
+      })),
+    [],
+  );
+  const deleteLine = useCallback(
+    (id: string) => setState((s) => ({ ...s, lines: s.lines.filter((l) => l.id !== id) })),
+    [],
+  );
   const addQC = useCallback(
     (entry: QCEntry) =>
       setState((s) => {
@@ -96,8 +115,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<StoreContextValue>(
-    () => ({ ...state, addJob, updateJob, deleteJob, addQC, reset }),
-    [state, addJob, updateJob, deleteJob, addQC, reset],
+    () => ({ ...state, addJob, updateJob, deleteJob, addLine, updateLine, deleteLine, addQC, reset }),
+    [state, addJob, updateJob, deleteJob, addLine, updateLine, deleteLine, addQC, reset],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
