@@ -315,13 +315,14 @@ export function generateJobPdf(job: Job, presets: LineSetupPreset[], branding?: 
     "Pull QC samples every pallet. Record fill weight, cap torque, label alignment and leak check in the QC log.",
   );
 
-  footer(doc, job.id, 2, 2);
+  footer(doc, job.id, 2, 2, b);
   return doc;
 }
 
 export function downloadJobPdf(job: Job, presets: LineSetupPreset[]) {
-  const doc = generateJobPdf(job, presets);
-  doc.save(`KrystalFlow_${job.id}_${job.customer.replace(/\s+/g, "-")}.pdf`);
+  const b = getBranding();
+  const doc = generateJobPdf(job, presets, b);
+  doc.save(`${b.appName}_${job.id}_${job.customer.replace(/\s+/g, "-")}.pdf`);
 }
 
 export function printJobPdf(job: Job, presets: LineSetupPreset[]) {
