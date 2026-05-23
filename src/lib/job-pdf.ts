@@ -172,7 +172,8 @@ function paragraph(doc: jsPDF, y: number, label: string, body: string): number {
   return y + 14 + lines.length * 12 + 8;
 }
 
-export function generateJobPdf(job: Job, presets: LineSetupPreset[]): jsPDF {
+export function generateJobPdf(job: Job, presets: LineSetupPreset[], branding?: Branding): jsPDF {
+  const b = branding ?? getBranding();
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const check = computeJobStockCheck(job);
   const setup = findSetupForJob(presets, job.product, job.bottleSize);
@@ -180,7 +181,7 @@ export function generateJobPdf(job: Job, presets: LineSetupPreset[]): jsPDF {
   const subtitle = `${job.customer} · ${job.product}`;
 
   // ===== Page 1: Job Details =====
-  header(doc, `Job ${job.id}`, subtitle);
+  header(doc, `Job ${job.id}`, subtitle, b);
 
   let y = 90;
   y = sectionTitle(doc, y, "Job details");
@@ -235,11 +236,11 @@ export function generateJobPdf(job: Job, presets: LineSetupPreset[]): jsPDF {
     y + 30,
   );
 
-  footer(doc, job.id, 1, 2);
+  footer(doc, job.id, 1, 2, b);
 
   // ===== Page 2: Line Setup & Notes =====
   doc.addPage();
-  header(doc, `Job ${job.id} · Setup`, subtitle);
+  header(doc, `Job ${job.id} · Setup`, subtitle, b);
 
   y = 90;
   y = sectionTitle(doc, y, "Materials selected");
