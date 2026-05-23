@@ -32,9 +32,11 @@ function fmtDate(iso?: string) {
 
 export function JobStockDialog({ job, open, onOpenChange }: Props) {
   const { presets } = useLineSetups();
+  const { getSpecForCustomer } = useCustomerSpecs();
   if (!job) return null;
   const check = computeJobStockCheck(job);
   const totalMissing = check.requirements.reduce((s, r) => s + r.missing, 0);
+  const customerSpec = getSpecForCustomer(job.customer);
 
   const handleDownload = () => {
     try {
