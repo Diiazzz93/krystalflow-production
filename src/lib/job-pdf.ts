@@ -10,7 +10,7 @@ import { computeJobStockCheck } from "@/lib/job-stock";
 import { findSetupForJob, type LineSetupPreset } from "@/lib/line-setups";
 import { fmtDate, fmtDateTime } from "@/lib/utils-domain";
 import { getBranding, hexToRgb, type Branding } from "@/lib/branding";
-import { getSpecForCustomerSync, type CustomerSpec } from "@/lib/customer-specs";
+import { getSpecForJobSync, type ResolvedSpec } from "@/lib/customer-specs";
 
 // Default brand (overridden per-call by tenant branding)
 const BRAND = {
@@ -178,8 +178,8 @@ export function generateJobPdf(job: Job, presets: LineSetupPreset[], branding?: 
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const check = computeJobStockCheck(job);
   const setup = findSetupForJob(presets, job.product, job.bottleSize);
-  const customerSpec = getSpecForCustomerSync(job.customer);
-  const totalPages = customerSpec ? 3 : 2;
+  const resolvedSpec = getSpecForJobSync(job.customer, `${job.product} ${job.bottleSize}`.trim());
+  const totalPages = resolvedSpec ? 3 : 2;
 
   const subtitle = `${job.customer} · ${job.product}`;
 
@@ -321,20 +321,28 @@ export function generateJobPdf(job: Job, presets: LineSetupPreset[], branding?: 
   footer(doc, job.id, 2, totalPages, b);
 
   // ===== Page 3: Customer Production Specs (when on file) =====
-  if (customerSpec) {
+  if (resolvedSpec) {
     doc.addPage();
-    header(doc, `Job ${job.id} · Customer Specs`, subtitle, b);
+    const specSubtitle =
+      resolvedSpec.source === "product"
+        ? `${resolvedSpec.customer} · ${resolvedSpec.productName}`
+        : `${resolvedSpec.customer} · customer default`;
+    header(doc, `Job ${job.id} · Production Specs`, specSubtitle, b);
     let y3 = 90;
-    y3 = renderCustomerSpecs(doc, y3, customerSpec);
+    y3 = renderResolvedSpec(doc, y3, resolvedSpec);
     footer(doc, job.id, 3, totalPages, b);
   }
 
   return doc;
 }
 
-function renderCustomerSpecs(doc: jsPDF, yStart: number, spec: CustomerSpec): number {
+function renderResolvedSpec(doc: jsPDF, yStart: number, spec: ResolvedSpec): number {
   let y = yStart;
-  y = sectionTitle(doc, y, `${spec.customer} — filling instructions`);
+  const heading =
+    spec.source === "product"
+      ? `${spec.customer} — ${spec.productName} (product spec)`
+      : `${spec.customer} — customer default`;
+  y = sectionTitle(doc, y, heading);
   y = kvGrid(doc, y, [
     ["Product type", spec.filling.productType],
     ["Bottle / container", spec.filling.containerType],
@@ -365,6 +373,9 @@ function renderCustomerSpecs(doc: jsPDF, yStart: number, spec: CustomerSpec): nu
   y = paragraph(doc, y, "Wrap requirements", spec.palletising.wrapRequirements);
   y = paragraph(doc, y, "Pallet label requirements", spec.palletising.palletLabelRequirements);
   y = paragraph(doc, y, "Special customer requirements", spec.palletising.specialRequirements);
+
+  if (spec.lineSetupNotes) y = paragraph(doc, y, "Line setup notes", spec.lineSetupNotes);
+  if (spec.specialInstructions) y = paragraph(doc, y, "Special instructions", spec.specialInstructions);
 
   return y;
 }

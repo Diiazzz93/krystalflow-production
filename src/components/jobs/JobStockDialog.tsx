@@ -32,11 +32,12 @@ function fmtDate(iso?: string) {
 
 export function JobStockDialog({ job, open, onOpenChange }: Props) {
   const { presets } = useLineSetups();
-  const { getSpecForCustomer } = useCustomerSpecs();
+  const { getSpecForJob } = useCustomerSpecs();
   if (!job) return null;
   const check = computeJobStockCheck(job);
   const totalMissing = check.requirements.reduce((s, r) => s + r.missing, 0);
-  const customerSpec = getSpecForCustomer(job.customer);
+  const productLabel = `${job.product} ${job.bottleSize}`.trim();
+  const resolvedSpec = getSpecForJob(job.customer, productLabel);
 
   const handleDownload = () => {
     try {
@@ -102,7 +103,11 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
             <TabsTrigger value="stock">Stock</TabsTrigger>
             <TabsTrigger value="specs">
               Production Specs
-              {customerSpec && <Badge variant="secondary" className="ml-2">on file</Badge>}
+              {resolvedSpec && (
+                <Badge variant="secondary" className="ml-2">
+                  {resolvedSpec.source === "product" ? "product" : "default"}
+                </Badge>
+              )}
             </TabsTrigger>
           </TabsList>
 
@@ -125,9 +130,40 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
             <JobStockCheck job={job} />
           </TabsContent>
 
-          <TabsContent value="specs">
-            {customerSpec ? (
-              <CustomerSpecsView spec={customerSpec} compact />
+          <TabsContent value="specs" className="space-y-3">
+            {resolvedSpec ? (
+              <>
+                <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs flex flex-wrap items-center gap-2">
+                  <span className="font-medium">Showing:</span>
+                  {resolvedSpec.source === "product" ? (
+                    <>
+                      <Badge variant="default">Product spec</Badge>
+                      <span className="font-medium">{resolvedSpec.productName}</span>
+                      <span className="text-muted-foreground">· {resolvedSpec.customer}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Badge variant="secondary">Customer default</Badge>
+                      <span className="text-muted-foreground">
+                        No product-specific override for "{productLabel}" — falling back to {resolvedSpec.customer} defaults.
+                      </span>
+                    </>
+                  )}
+                </div>
+                <CustomerSpecsView spec={resolvedSpec} compact />
+                {(resolvedSpec.lineSetupNotes || resolvedSpec.specialInstructions) && (
+                  <div className="rounded-md border border-border p-3 grid md:grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Line setup notes</div>
+                      <div className="whitespace-pre-wrap">{resolvedSpec.lineSetupNotes || "—"}</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Special instructions</div>
+                      <div className="whitespace-pre-wrap">{resolvedSpec.specialInstructions || "—"}</div>
+                    </div>
+                  </div>
+                )}
+              </>
             ) : (
               <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
                 No production specs saved for <strong>{job.customer}</strong>.
