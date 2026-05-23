@@ -59,7 +59,17 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Stock requirements — {job.id}</DialogTitle>
+          <div className="flex items-start justify-between gap-3">
+            <DialogTitle>Stock requirements — {job.id}</DialogTitle>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={handlePrint}>
+                <Printer className="size-4 mr-1" /> Print
+              </Button>
+              <Button size="sm" onClick={handleDownload}>
+                <FileDown className="size-4 mr-1" /> Generate Job PDF
+              </Button>
+            </div>
+          </div>
         </DialogHeader>
 
         <div className={cn("rounded-lg border p-3 flex items-center gap-3", summaryTone)}>
