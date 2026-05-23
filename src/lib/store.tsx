@@ -115,8 +115,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<StoreContextValue>(
-    () => ({ ...state, addJob, updateJob, deleteJob, addQC, reset }),
-    [state, addJob, updateJob, deleteJob, addQC, reset],
+    () => ({ ...state, addJob, updateJob, deleteJob, addLine, updateLine, deleteLine, addQC, reset }),
+    [state, addJob, updateJob, deleteJob, addLine, updateLine, deleteLine, addQC, reset],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
