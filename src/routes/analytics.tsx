@@ -16,7 +16,8 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { runtimeMinutes } from "@/lib/utils-domain";
+import { runtimeMinutes, getJobPerformance, fmtDurationMs } from "@/lib/utils-domain";
+import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/analytics")({
   component: AnalyticsPage,
@@ -110,6 +111,72 @@ function AnalyticsPage() {
   }, [jobs]);
 
   const COLORS = ["#0ea5e9", "#22c55e", "#f97316", "#a855f7", "#ec4899"];
+
+  // ---------- Production Performance (planned vs actual) ----------
+  const perfRows = useMemo(
+    () =>
+      jobs
+        .map((j) => ({ job: j, perf: getJobPerformance(j) }))
+        .filter((r) => r.perf.actualEnd !== null),
+    [jobs],
+  );
+  const earlyJobs = perfRows.filter((r) => r.perf.status === "early");
+  const onTimeJobs = perfRows.filter((r) => r.perf.status === "on-time");
+  const lateJobs = perfRows.filter((r) => r.perf.status === "late");
+  const totalSavedMs = earlyJobs.reduce((s, r) => s + Math.abs(r.perf.diffMs ?? 0), 0);
+  const totalLateMs = lateJobs.reduce((s, r) => s + (r.perf.diffMs ?? 0), 0);
+  const avgActualMs = perfRows.length
+    ? perfRows.reduce((s, r) => s + (r.perf.actualMs ?? 0), 0) / perfRows.length
+    : 0;
+  const onTimePct = perfRows.length
+    ? Math.round(((earlyJobs.length + onTimeJobs.length) / perfRows.length) * 100)
+    : 0;
+  const prodEfficiency = (() => {
+    const planned = perfRows.reduce((s, r) => s + r.perf.plannedMs, 0);
+    const actual = perfRows.reduce((s, r) => s + (r.perf.actualMs ?? 0), 0);
+    return actual ? Math.round((planned / actual) * 100) : 100;
+  })();
+
+  const plannedVsActualData = perfRows.slice(-8).map((r) => ({
+    name: r.job.customer.slice(0, 12),
+    planned: +(r.perf.plannedMs / 3_600_000).toFixed(1),
+    actual: +((r.perf.actualMs ?? 0) / 3_600_000).toFixed(1),
+  }));
+
+  const monthlyPerf = useMemo(() => {
+    const buckets: Record<string, { month: string; planned: number; actual: number }> = {};
+    perfRows.forEach((r) => {
+      const d = r.perf.actualEnd!;
+      const key = d.toLocaleDateString(undefined, { month: "short", year: "2-digit" });
+      if (!buckets[key]) buckets[key] = { month: key, planned: 0, actual: 0 };
+      buckets[key].planned += r.perf.plannedMs / 3_600_000;
+      buckets[key].actual += (r.perf.actualMs ?? 0) / 3_600_000;
+    });
+    return Object.values(buckets).map((b) => ({
+      month: b.month,
+      planned: +b.planned.toFixed(1),
+      actual: +b.actual.toFixed(1),
+    }));
+  }, [perfRows]);
+
+  const onTimeTrend = useMemo(() => {
+    const buckets: Record<string, { week: string; total: number; onTime: number }> = {};
+    perfRows.forEach((r) => {
+      const d = r.perf.actualEnd!;
+      const week = new Date(d);
+      week.setDate(d.getDate() - d.getDay());
+      const key = week.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+      if (!buckets[key]) buckets[key] = { week: key, total: 0, onTime: 0 };
+      buckets[key].total += 1;
+      if (r.perf.status === "early" || r.perf.status === "on-time") buckets[key].onTime += 1;
+    });
+    return Object.values(buckets).map((b) => ({
+      week: b.week,
+      onTimePct: Math.round((b.onTime / b.total) * 100),
+    }));
+  }, [perfRows]);
+
+
 
   return (
     <AppShell>
@@ -228,6 +295,164 @@ function AnalyticsPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* ---------- Production Performance ---------- */}
+        <div className="pt-2">
+          <h2 className="text-xl md:text-2xl font-bold tracking-tight">Production Performance</h2>
+          <p className="text-sm text-muted-foreground">
+            Planned vs actual job duration across completed jobs.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <PerfStat label="Avg job completion" value={perfRows.length ? fmtDurationMs(avgActualMs) : "—"} />
+          <PerfStat label="Jobs completed early" value={earlyJobs.length} tone="good" />
+          <PerfStat label="Jobs completed late" value={lateJobs.length} tone="bad" />
+          <PerfStat label="On-time completion" value={`${onTimePct}%`} tone={onTimePct >= 80 ? "good" : onTimePct >= 50 ? "neutral" : "bad"} />
+          <PerfStat label="Total time saved" value={totalSavedMs ? fmtDurationMs(totalSavedMs) : "0h"} tone="good" />
+          <PerfStat label="Total delayed time" value={totalLateMs ? fmtDurationMs(totalLateMs) : "0h"} tone="bad" />
+          <PerfStat label="Production efficiency" value={`${prodEfficiency}%`} tone={prodEfficiency >= 95 ? "good" : prodEfficiency >= 75 ? "neutral" : "bad"} />
+          <PerfStat label="Jobs measured" value={perfRows.length} />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Planned vs actual duration (hours)</CardTitle>
+            </CardHeader>
+            <CardContent className="h-64">
+              {plannedVsActualData.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No completed jobs with actuals yet.</p>
+              ) : (
+                <ResponsiveContainer>
+                  <BarChart data={plannedVsActualData}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                    <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 12 }} unit="h" />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="planned" fill="#22c55e" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="actual" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Monthly production performance</CardTitle>
+            </CardHeader>
+            <CardContent className="h-64">
+              {monthlyPerf.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No data yet.</p>
+              ) : (
+                <ResponsiveContainer>
+                  <BarChart data={monthlyPerf}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                    <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                    <YAxis tick={{ fontSize: 12 }} unit="h" />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="planned" fill="#94a3b8" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="actual" fill="#a855f7" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle>On-time completion trend</CardTitle>
+            </CardHeader>
+            <CardContent className="h-64">
+              {onTimeTrend.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No data yet.</p>
+              ) : (
+                <ResponsiveContainer>
+                  <LineChart data={onTimeTrend}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                    <XAxis dataKey="week" tick={{ fontSize: 12 }} />
+                    <YAxis tick={{ fontSize: 12 }} unit="%" domain={[0, 100]} />
+                    <Tooltip />
+                    <Line type="monotone" dataKey="onTimePct" stroke="#22c55e" strokeWidth={2} />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle>Recent jobs — planned vs actual</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {perfRows.length === 0 && (
+                <p className="text-sm text-muted-foreground">
+                  No completed jobs yet. Performance will populate once jobs finish.
+                </p>
+              )}
+              {perfRows
+                .slice()
+                .reverse()
+                .map(({ job, perf }) => {
+                  const tone =
+                    perf.status === "early"
+                      ? "bg-emerald-600"
+                      : perf.status === "on-time"
+                        ? "bg-emerald-500"
+                        : perf.status === "late"
+                          ? "bg-red-600"
+                          : "bg-slate-500";
+                  const diffLabel =
+                    perf.diffMs === null
+                      ? "—"
+                      : perf.status === "on-time"
+                        ? "On schedule"
+                        : perf.status === "early"
+                          ? `${fmtDurationMs(perf.diffMs)} early`
+                          : `${fmtDurationMs(perf.diffMs)} late`;
+                  return (
+                    <div
+                      key={job.id}
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border/60 px-3 py-2 text-sm"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Badge className={`${tone} text-white`}>{perf.status}</Badge>
+                        <div className="min-w-0">
+                          <div className="font-medium truncate">{job.customer}</div>
+                          <div className="text-xs text-muted-foreground truncate">{job.product}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4 tabular-nums text-xs">
+                        <span className="text-muted-foreground">
+                          Planned <span className="text-foreground">{fmtDurationMs(perf.plannedMs)}</span>
+                        </span>
+                        <span className="text-muted-foreground">
+                          Actual{" "}
+                          <span className="text-foreground">
+                            {perf.actualMs !== null ? fmtDurationMs(perf.actualMs) : "—"}
+                          </span>
+                        </span>
+                        <span
+                          className={
+                            perf.status === "late"
+                              ? "text-red-500 font-medium"
+                              : perf.status === "early"
+                                ? "text-emerald-500 font-medium"
+                                : "text-foreground font-medium"
+                          }
+                        >
+                          {diffLabel}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </AppShell>
   );
@@ -239,6 +464,31 @@ function Stat({ label, value }: { label: string; value: string | number }) {
       <CardContent className="p-4">
         <div className="text-xs text-muted-foreground">{label}</div>
         <div className="text-xl font-bold tabular-nums">{value}</div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function PerfStat({
+  label,
+  value,
+  tone = "neutral",
+}: {
+  label: string;
+  value: string | number;
+  tone?: "good" | "bad" | "neutral";
+}) {
+  const color =
+    tone === "good"
+      ? "text-emerald-500"
+      : tone === "bad"
+        ? "text-red-500"
+        : "text-foreground";
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <div className="text-xs text-muted-foreground">{label}</div>
+        <div className={`text-xl font-bold tabular-nums ${color}`}>{value}</div>
       </CardContent>
     </Card>
   );

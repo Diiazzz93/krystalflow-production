@@ -10,7 +10,7 @@ import {
 import type { Job, Line, QCEntry } from "./types";
 import { buildSeedJobs, buildSeedQC, SEED_LINES } from "./seed";
 
-const STORAGE_KEY = "krystalshield.v1";
+const STORAGE_KEY = "krystalshield.v2";
 
 interface PersistedState {
   jobs: Job[];

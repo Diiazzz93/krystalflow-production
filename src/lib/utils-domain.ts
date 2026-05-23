@@ -19,6 +19,51 @@ export function jobEnd(job: Job): Date {
   return estimatedFinish(job);
 }
 
+export type PerfStatus = "early" | "on-time" | "late" | "pending";
+
+export interface JobPerformance {
+  plannedStart: Date;
+  plannedEnd: Date;
+  actualStart: Date | null;
+  actualEnd: Date | null;
+  plannedMs: number;
+  actualMs: number | null;
+  diffMs: number | null; // actual - planned (positive = late)
+  status: PerfStatus;
+}
+
+const ON_TIME_TOLERANCE_MS = 30 * 60_000; // ±30 min counts as on-time
+
+export function getJobPerformance(job: Job): JobPerformance {
+  const plannedStart = new Date(job.plannedStart ?? job.scheduledStart);
+  const plannedEnd = new Date(job.plannedEnd ?? job.scheduledEnd ?? estimatedFinish(job));
+  const actualStart = job.actualStart ? new Date(job.actualStart) : null;
+  const actualEnd = job.actualEnd ? new Date(job.actualEnd) : null;
+  const plannedMs = Math.max(0, plannedEnd.getTime() - plannedStart.getTime());
+  const actualMs =
+    actualStart && actualEnd ? Math.max(0, actualEnd.getTime() - actualStart.getTime()) : null;
+  const diffMs = actualEnd ? actualEnd.getTime() - plannedEnd.getTime() : null;
+  let status: PerfStatus = "pending";
+  if (diffMs !== null) {
+    if (diffMs < -ON_TIME_TOLERANCE_MS) status = "early";
+    else if (diffMs > ON_TIME_TOLERANCE_MS) status = "late";
+    else status = "on-time";
+  }
+  return { plannedStart, plannedEnd, actualStart, actualEnd, plannedMs, actualMs, diffMs, status };
+}
+
+export function fmtDurationMs(ms: number) {
+  const abs = Math.abs(ms);
+  const h = abs / 3_600_000;
+  if (h >= 24) {
+    const d = h / 24;
+    return `${d.toFixed(d >= 10 ? 0 : 1)}d`;
+  }
+  if (h >= 1) return `${h.toFixed(h >= 10 ? 0 : 1)}h`;
+  const m = Math.round(abs / 60_000);
+  return `${m}m`;
+}
+
 export function progressPct(job: Job) {
   if (!job.quantity) return 0;
   return Math.min(100, Math.round((job.bottlesCompleted / job.quantity) * 100));
