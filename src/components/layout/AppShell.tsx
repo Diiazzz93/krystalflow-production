@@ -37,6 +37,7 @@ const NAV: Array<{
   { to: "/qc", label: "Quality", icon: ShieldCheck, permission: "page:qc" },
   { to: "/stock", label: "Stock", icon: Boxes, permission: "page:stock" },
   { to: "/line-setup", label: "Line Setup", icon: SlidersHorizontal, permission: "page:line-setup" },
+  { to: "/customer-specs", label: "Customer Specs", icon: ClipboardCheck, permission: "page:customer-specs" },
   { to: "/analytics", label: "Analytics", icon: TrendingUp, permission: "page:analytics" },
   { to: "/settings", label: "Settings", icon: Settings, permission: "page:settings" },
 ];
