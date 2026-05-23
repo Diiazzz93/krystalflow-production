@@ -239,7 +239,7 @@ export function generateJobPdf(job: Job, presets: LineSetupPreset[], branding?: 
     y + 30,
   );
 
-  footer(doc, job.id, 1, 2, b);
+  footer(doc, job.id, 1, totalPages, b);
 
   // ===== Page 2: Line Setup & Notes =====
   doc.addPage();
