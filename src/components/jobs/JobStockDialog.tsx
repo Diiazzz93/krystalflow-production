@@ -1,6 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertTriangle, CheckCircle2, FileDown, Printer } from "lucide-react";
 import type { Job } from "@/lib/types";
 import { computeJobStockCheck } from "@/lib/job-stock";
@@ -8,6 +9,8 @@ import { JobStockCheck } from "./JobStockCheck";
 import { cn } from "@/lib/utils";
 import { downloadJobPdf, printJobPdf } from "@/lib/job-pdf";
 import { useLineSetups } from "@/lib/line-setups";
+import { useCustomerSpecs } from "@/lib/customer-specs";
+import { CustomerSpecsView } from "@/components/customer-specs/CustomerSpecsView";
 import { toast } from "sonner";
 
 interface Props {
@@ -29,9 +32,11 @@ function fmtDate(iso?: string) {
 
 export function JobStockDialog({ job, open, onOpenChange }: Props) {
   const { presets } = useLineSetups();
+  const { getSpecForCustomer } = useCustomerSpecs();
   if (!job) return null;
   const check = computeJobStockCheck(job);
   const totalMissing = check.requirements.reduce((s, r) => s + r.missing, 0);
+  const customerSpec = getSpecForCustomer(job.customer);
 
   const handleDownload = () => {
     try {
@@ -91,19 +96,47 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
           </div>
         </div>
 
-        <div className="rounded-lg border p-3 space-y-2">
-          <div className="font-medium text-sm">Job details</div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2 text-sm">
-            <Detail label="Job number" value={job.id} />
-            <Detail label="Product" value={`${job.product} ${job.bottleSize}`} />
-            <Detail label="Planned quantity" value={`${job.quantity.toLocaleString()} bottles`} />
-            <Detail label="Scheduled run" value={fmtDate(job.scheduledStart)} />
-            <Detail label="Filling line" value={job.line} />
-            <Detail label="Status" value={<Badge variant="outline">{job.status}</Badge>} />
-          </div>
-        </div>
+        <Tabs defaultValue="overview" className="w-full">
+          <TabsList>
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="stock">Stock</TabsTrigger>
+            <TabsTrigger value="specs">
+              Production Specs
+              {customerSpec && <Badge variant="secondary" className="ml-2">on file</Badge>}
+            </TabsTrigger>
+          </TabsList>
 
-        <JobStockCheck job={job} />
+          <TabsContent value="overview" className="space-y-3">
+            <div className="rounded-lg border p-3 space-y-2">
+              <div className="font-medium text-sm">Job details</div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2 text-sm">
+                <Detail label="Job number" value={job.id} />
+                <Detail label="Customer" value={job.customer} />
+                <Detail label="Product" value={`${job.product} ${job.bottleSize}`} />
+                <Detail label="Planned quantity" value={`${job.quantity.toLocaleString()} bottles`} />
+                <Detail label="Scheduled run" value={fmtDate(job.scheduledStart)} />
+                <Detail label="Filling line" value={job.line} />
+                <Detail label="Status" value={<Badge variant="outline">{job.status}</Badge>} />
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="stock">
+            <JobStockCheck job={job} />
+          </TabsContent>
+
+          <TabsContent value="specs">
+            {customerSpec ? (
+              <CustomerSpecsView spec={customerSpec} compact />
+            ) : (
+              <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+                No production specs saved for <strong>{job.customer}</strong>.
+                <br />
+                Add them in the <strong>Customer Specs</strong> section.
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );

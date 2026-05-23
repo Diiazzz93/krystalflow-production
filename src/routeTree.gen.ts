@@ -15,6 +15,7 @@ import { Route as QcRouteImport } from './routes/qc'
 import { Route as LiveRouteImport } from './routes/live'
 import { Route as LineSetupRouteImport } from './routes/line-setup'
 import { Route as JobsRouteImport } from './routes/jobs'
+import { Route as CustomerSpecsRouteImport } from './routes/customer-specs'
 import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as IndexRouteImport } from './routes/index'
@@ -49,6 +50,11 @@ const JobsRoute = JobsRouteImport.update({
   path: '/jobs',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CustomerSpecsRoute = CustomerSpecsRouteImport.update({
+  id: '/customer-specs',
+  path: '/customer-specs',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CalendarRoute = CalendarRouteImport.update({
   id: '/calendar',
   path: '/calendar',
@@ -69,6 +75,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
   '/calendar': typeof CalendarRoute
+  '/customer-specs': typeof CustomerSpecsRoute
   '/jobs': typeof JobsRoute
   '/line-setup': typeof LineSetupRoute
   '/live': typeof LiveRoute
@@ -80,6 +87,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
   '/calendar': typeof CalendarRoute
+  '/customer-specs': typeof CustomerSpecsRoute
   '/jobs': typeof JobsRoute
   '/line-setup': typeof LineSetupRoute
   '/live': typeof LiveRoute
@@ -92,6 +100,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
   '/calendar': typeof CalendarRoute
+  '/customer-specs': typeof CustomerSpecsRoute
   '/jobs': typeof JobsRoute
   '/line-setup': typeof LineSetupRoute
   '/live': typeof LiveRoute
@@ -105,6 +114,7 @@ export interface FileRouteTypes {
     | '/'
     | '/analytics'
     | '/calendar'
+    | '/customer-specs'
     | '/jobs'
     | '/line-setup'
     | '/live'
@@ -116,6 +126,7 @@ export interface FileRouteTypes {
     | '/'
     | '/analytics'
     | '/calendar'
+    | '/customer-specs'
     | '/jobs'
     | '/line-setup'
     | '/live'
@@ -127,6 +138,7 @@ export interface FileRouteTypes {
     | '/'
     | '/analytics'
     | '/calendar'
+    | '/customer-specs'
     | '/jobs'
     | '/line-setup'
     | '/live'
@@ -139,6 +151,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AnalyticsRoute: typeof AnalyticsRoute
   CalendarRoute: typeof CalendarRoute
+  CustomerSpecsRoute: typeof CustomerSpecsRoute
   JobsRoute: typeof JobsRoute
   LineSetupRoute: typeof LineSetupRoute
   LiveRoute: typeof LiveRoute
@@ -191,6 +204,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof JobsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/customer-specs': {
+      id: '/customer-specs'
+      path: '/customer-specs'
+      fullPath: '/customer-specs'
+      preLoaderRoute: typeof CustomerSpecsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/calendar': {
       id: '/calendar'
       path: '/calendar'
@@ -219,6 +239,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AnalyticsRoute: AnalyticsRoute,
   CalendarRoute: CalendarRoute,
+  CustomerSpecsRoute: CustomerSpecsRoute,
   JobsRoute: JobsRoute,
   LineSetupRoute: LineSetupRoute,
   LiveRoute: LiveRoute,
