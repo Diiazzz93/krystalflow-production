@@ -15,19 +15,37 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Save, Plus, Trash2, Upload, ClipboardList } from "lucide-react";
+import { Save, Plus, Trash2, Upload, ClipboardList, Package2, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { useStore } from "@/lib/store";
-import { useCustomerSpecs, type CustomerSpec } from "@/lib/customer-specs";
+import {
+  useCustomerSpecs,
+  type CustomerSpec,
+  type ProductSpec,
+  type SpecPayload,
+} from "@/lib/customer-specs";
 import { CustomerSpecsView } from "@/components/customer-specs/CustomerSpecsView";
 
 export const Route = createFileRoute("/customer-specs")({
   component: CustomerSpecsPage,
 });
 
+type EditMode =
+  | { kind: "none" }
+  | { kind: "customer"; draft: CustomerSpec }
+  | { kind: "product"; customerId: string; draft: ProductSpec };
+
 function CustomerSpecsPage() {
   const { jobs } = useStore();
-  const { specs, upsertSpec, deleteSpec, createEmpty } = useCustomerSpecs();
+  const {
+    specs,
+    upsertSpec,
+    deleteSpec,
+    upsertProduct,
+    deleteProduct,
+    createEmpty,
+    createEmptyProduct,
+  } = useCustomerSpecs();
 
   const allCustomers = useMemo(() => {
     const set = new Set<string>(specs.map((s) => s.customer));
@@ -36,35 +54,65 @@ function CustomerSpecsPage() {
   }, [specs, jobs]);
 
   const [selected, setSelected] = useState<string>(specs[0]?.customer ?? allCustomers[0] ?? "");
-  const [draft, setDraft] = useState<CustomerSpec | null>(null);
   const [newCustomerName, setNewCustomerName] = useState("");
+  const [newProductName, setNewProductName] = useState("");
+  const [edit, setEdit] = useState<EditMode>({ kind: "none" });
+  const [viewingProductId, setViewingProductId] = useState<string | null>(null);
 
   const existing = useMemo(
     () => specs.find((s) => s.customer === selected),
     [specs, selected],
   );
 
-  const active = draft ?? existing ?? null;
+  const viewingProduct = useMemo(
+    () => (existing && viewingProductId ? existing.products.find((p) => p.id === viewingProductId) : undefined),
+    [existing, viewingProductId],
+  );
 
-  function startEdit() {
-    const base = existing ?? createEmpty(selected || "New customer");
-    setDraft(JSON.parse(JSON.stringify(base)));
+  function startEditCustomer() {
+    if (!existing && !selected) return;
+    const base = existing ?? createEmpty(selected);
+    setEdit({ kind: "customer", draft: JSON.parse(JSON.stringify(base)) });
   }
-
-  function cancelEdit() {
-    setDraft(null);
+  function startEditProduct(p: ProductSpec) {
+    if (!existing) return;
+    setEdit({ kind: "product", customerId: existing.id, draft: JSON.parse(JSON.stringify(p)) });
   }
-
-  function save() {
-    if (!draft) return;
-    if (!draft.customer.trim()) {
-      toast.error("Customer name is required");
+  function startNewProduct() {
+    if (!existing) return;
+    const name = newProductName.trim();
+    if (!name) {
+      toast.error("Enter a product name first");
       return;
     }
-    upsertSpec(draft);
-    setSelected(draft.customer);
-    setDraft(null);
-    toast.success(`Saved specs for ${draft.customer}`);
+    if (existing.products.some((p) => p.productName.toLowerCase() === name.toLowerCase())) {
+      toast.error("That product already exists for this customer");
+      return;
+    }
+    const draft = createEmptyProduct(name);
+    // Seed product overrides from customer defaults so the editor isn't empty
+    draft.filling = { ...existing.filling };
+    draft.packing = { ...existing.packing };
+    draft.palletising = { ...existing.palletising };
+    setNewProductName("");
+    setEdit({ kind: "product", customerId: existing.id, draft });
+  }
+  function cancelEdit() {
+    setEdit({ kind: "none" });
+  }
+  function save() {
+    if (edit.kind === "customer") {
+      if (!edit.draft.customer.trim()) return toast.error("Customer name is required");
+      upsertSpec(edit.draft);
+      setSelected(edit.draft.customer);
+      toast.success(`Saved customer defaults for ${edit.draft.customer}`);
+      setEdit({ kind: "none" });
+    } else if (edit.kind === "product") {
+      if (!edit.draft.productName.trim()) return toast.error("Product name is required");
+      upsertProduct(edit.customerId, edit.draft);
+      toast.success(`Saved product specs for ${edit.draft.productName}`);
+      setEdit({ kind: "none" });
+    }
   }
 
   function addCustomer() {
@@ -78,15 +126,23 @@ function CustomerSpecsPage() {
     upsertSpec(spec);
     setSelected(name);
     setNewCustomerName("");
-    setDraft(JSON.parse(JSON.stringify(spec)));
+    setEdit({ kind: "customer", draft: JSON.parse(JSON.stringify(spec)) });
   }
 
   function removeSelected() {
     if (!existing) return;
-    if (!confirm(`Delete production specs for ${existing.customer}?`)) return;
+    if (!confirm(`Delete all specs for ${existing.customer}?`)) return;
     deleteSpec(existing.id);
     setSelected(specs.find((s) => s.id !== existing.id)?.customer ?? "");
-    setDraft(null);
+    setEdit({ kind: "none" });
+    setViewingProductId(null);
+  }
+
+  function removeProduct(p: ProductSpec) {
+    if (!existing) return;
+    if (!confirm(`Delete product specs for ${p.productName}?`)) return;
+    deleteProduct(existing.id, p.id);
+    if (viewingProductId === p.id) setViewingProductId(null);
   }
 
   return (
@@ -99,7 +155,7 @@ function CustomerSpecsPage() {
               Customer Specs
             </h1>
             <p className="text-sm text-muted-foreground">
-              Saved filling, packing and palletising instructions that flow automatically into every job.
+              Customer defaults and per-product overrides that flow automatically into every job.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -123,14 +179,15 @@ function CustomerSpecsPage() {
             </CardHeader>
             <CardContent className="p-2 space-y-1 max-h-[60vh] overflow-y-auto">
               {allCustomers.map((c) => {
-                const hasSpec = specs.some((s) => s.customer === c);
+                const cs = specs.find((s) => s.customer === c);
                 const active = c === selected;
                 return (
                   <button
                     key={c}
                     onClick={() => {
                       setSelected(c);
-                      setDraft(null);
+                      setEdit({ kind: "none" });
+                      setViewingProductId(null);
                     }}
                     className={
                       "w-full text-left px-3 py-2 rounded-md text-sm flex items-center justify-between gap-2 transition-colors " +
@@ -140,8 +197,10 @@ function CustomerSpecsPage() {
                     }
                   >
                     <span className="truncate">{c}</span>
-                    {hasSpec ? (
-                      <Badge variant="secondary" className="shrink-0">specs</Badge>
+                    {cs ? (
+                      <Badge variant="secondary" className="shrink-0">
+                        {cs.products.length > 0 ? `${cs.products.length}p` : "specs"}
+                      </Badge>
                     ) : (
                       <Badge variant="outline" className="shrink-0">none</Badge>
                     )}
@@ -158,46 +217,177 @@ function CustomerSpecsPage() {
 
           <div className="space-y-4 min-w-0">
             {!selected ? (
-              <Card>
-                <CardContent className="py-12 text-center text-muted-foreground">
-                  Select a customer to view or edit their production specs.
-                </CardContent>
-              </Card>
-            ) : !active ? (
-              <Card>
-                <CardContent className="py-8 text-center space-y-3">
-                  <p className="text-sm text-muted-foreground">
-                    No specs saved for <strong>{selected}</strong> yet.
-                  </p>
-                  <Button onClick={startEdit}>
-                    <Plus className="size-4 mr-1" /> Create specs
-                  </Button>
-                </CardContent>
-              </Card>
-            ) : draft ? (
+              <Card><CardContent className="py-12 text-center text-muted-foreground">
+                Select a customer to view or edit their production specs.
+              </CardContent></Card>
+            ) : !existing ? (
+              <Card><CardContent className="py-8 text-center space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  No specs saved for <strong>{selected}</strong> yet.
+                </p>
+                <Button onClick={startEditCustomer}>
+                  <Plus className="size-4 mr-1" /> Create specs
+                </Button>
+              </CardContent></Card>
+            ) : edit.kind === "customer" ? (
               <SpecEditor
-                spec={draft}
-                onChange={setDraft}
+                title={`${edit.draft.customer || "Customer"} — defaults`}
+                payload={edit.draft}
+                onPayload={(p) => setEdit({ ...edit, draft: { ...edit.draft, ...p } })}
+                headerExtra={
+                  <Input
+                    value={edit.draft.customer}
+                    onChange={(e) => setEdit({ ...edit, draft: { ...edit.draft, customer: e.target.value } })}
+                    placeholder="Customer name"
+                    className="max-w-sm text-lg font-semibold"
+                  />
+                }
                 onCancel={cancelEdit}
                 onSave={save}
               />
+            ) : edit.kind === "product" ? (
+              <SpecEditor
+                title={`Product — ${edit.draft.productName || "(unnamed)"}`}
+                payload={edit.draft}
+                onPayload={(p) => setEdit({ ...edit, draft: { ...edit.draft, ...p } })}
+                headerExtra={
+                  <Input
+                    value={edit.draft.productName}
+                    onChange={(e) => setEdit({ ...edit, draft: { ...edit.draft, productName: e.target.value } })}
+                    placeholder="Product name (e.g. Purple Power Wash 1L)"
+                    className="max-w-sm text-lg font-semibold"
+                  />
+                }
+                productExtras={{
+                  lineSetupNotes: edit.draft.lineSetupNotes,
+                  specialInstructions: edit.draft.specialInstructions,
+                  onLineSetup: (v) => setEdit({ ...edit, draft: { ...edit.draft, lineSetupNotes: v } }),
+                  onSpecial: (v) => setEdit({ ...edit, draft: { ...edit.draft, specialInstructions: v } }),
+                }}
+                onCancel={cancelEdit}
+                onSave={save}
+              />
+            ) : viewingProduct ? (
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Button variant="ghost" size="sm" onClick={() => setViewingProductId(null)}>
+                      <ArrowLeft className="size-4 mr-1" /> Back to {existing.customer}
+                    </Button>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => removeProduct(viewingProduct)}>
+                      <Trash2 className="size-4 mr-1" /> Delete product
+                    </Button>
+                    <Button onClick={() => startEditProduct(viewingProduct)}>Edit product</Button>
+                  </div>
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold flex items-center gap-2">
+                    <Package2 className="size-5 text-primary" />
+                    {viewingProduct.productName}
+                  </h2>
+                  <p className="text-xs text-muted-foreground">
+                    {existing.customer} · updated {new Date(viewingProduct.updatedAt).toLocaleString()}
+                  </p>
+                </div>
+                <CustomerSpecsView spec={viewingProduct} />
+                {(viewingProduct.lineSetupNotes || viewingProduct.specialInstructions) && (
+                  <Card>
+                    <CardHeader className="py-3">
+                      <CardTitle className="text-base">Line setup & special instructions</CardTitle>
+                    </CardHeader>
+                    <CardContent className="grid md:grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Line setup notes</div>
+                        <div className="whitespace-pre-wrap">{viewingProduct.lineSetupNotes || "—"}</div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Special instructions</div>
+                        <div className="whitespace-pre-wrap">{viewingProduct.specialInstructions || "—"}</div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
             ) : (
               <>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <h2 className="text-xl font-semibold">{existing!.customer}</h2>
+                    <h2 className="text-xl font-semibold">{existing.customer}</h2>
                     <p className="text-xs text-muted-foreground">
-                      Updated {new Date(existing!.updatedAt).toLocaleString()}
+                      Customer defaults · updated {new Date(existing.updatedAt).toLocaleString()}
                     </p>
                   </div>
                   <div className="flex gap-2">
                     <Button variant="outline" onClick={removeSelected}>
-                      <Trash2 className="size-4 mr-1" /> Delete
+                      <Trash2 className="size-4 mr-1" /> Delete customer
                     </Button>
-                    <Button onClick={startEdit}>Edit specs</Button>
+                    <Button onClick={startEditCustomer}>Edit defaults</Button>
                   </div>
                 </div>
-                <CustomerSpecsView spec={existing!} />
+
+                <Card>
+                  <CardHeader className="py-3 flex flex-row items-center justify-between gap-2">
+                    <div>
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Package2 className="size-4 text-primary" />
+                        Product specifications ({existing.products.length})
+                      </CardTitle>
+                      <CardDescription>
+                        Per-product overrides — used automatically when a job matches.
+                      </CardDescription>
+                    </div>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="New product name"
+                        value={newProductName}
+                        onChange={(e) => setNewProductName(e.target.value)}
+                        className="w-64"
+                      />
+                      <Button onClick={startNewProduct}>
+                        <Plus className="size-4 mr-1" /> Add product
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {existing.products.length === 0 ? (
+                      <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
+                        No product overrides yet. Jobs for this customer use the defaults below.
+                      </div>
+                    ) : (
+                      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {existing.products.map((p) => (
+                          <button
+                            key={p.id}
+                            onClick={() => setViewingProductId(p.id)}
+                            className="text-left rounded-md border border-border bg-card/60 hover:bg-accent/40 transition-colors p-3 space-y-2"
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="font-medium truncate">{p.productName}</div>
+                              <Badge variant="secondary" className="shrink-0">product</Badge>
+                            </div>
+                            <div className="text-xs text-muted-foreground space-x-2">
+                              <span>{p.packing.unitsPerCarton}/ctn</span>
+                              <span>·</span>
+                              <span>{p.palletising.cartonsPerLayer}×{p.palletising.layersHigh} pallet</span>
+                            </div>
+                            {p.specialInstructions && (
+                              <div className="text-xs line-clamp-2 text-muted-foreground">{p.specialInstructions}</div>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <div>
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                    Customer defaults
+                  </h3>
+                  <CustomerSpecsView spec={existing} />
+                </div>
               </>
             )}
           </div>
@@ -207,181 +397,117 @@ function CustomerSpecsPage() {
   );
 }
 
-function SpecEditor({
-  spec,
-  onChange,
-  onCancel,
-  onSave,
-}: {
-  spec: CustomerSpec;
-  onChange: (s: CustomerSpec) => void;
+// ----- Spec editor (shared between customer-defaults and product overrides) -----
+
+interface SpecEditorProps {
+  title: string;
+  payload: SpecPayload;
+  onPayload: (patch: Partial<SpecPayload>) => void;
+  headerExtra?: React.ReactNode;
   onCancel: () => void;
   onSave: () => void;
-}) {
-  function patch<K extends keyof CustomerSpec>(key: K, value: CustomerSpec[K]) {
-    onChange({ ...spec, [key]: value });
-  }
+  productExtras?: {
+    lineSetupNotes: string;
+    specialInstructions: string;
+    onLineSetup: (v: string) => void;
+    onSpecial: (v: string) => void;
+  };
+}
+
+function SpecEditor({ title, payload, onPayload, headerExtra, onCancel, onSave, productExtras }: SpecEditorProps) {
   function patchSection<S extends "filling" | "packing" | "palletising">(
     section: S,
-    value: Partial<CustomerSpec[S]>,
+    value: Partial<SpecPayload[S]>,
   ) {
-    onChange({ ...spec, [section]: { ...spec[section], ...value } } as CustomerSpec);
+    onPayload({ [section]: { ...payload[section], ...value } } as Partial<SpecPayload>);
   }
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <Input
-          value={spec.customer}
-          onChange={(e) => patch("customer", e.target.value)}
-          placeholder="Customer name"
-          className="max-w-sm text-lg font-semibold"
-        />
+        <div className="space-y-1">
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">{title}</div>
+          {headerExtra}
+        </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={onCancel}>Cancel</Button>
           <Button onClick={onSave}>
-            <Save className="size-4 mr-1" /> Save specs
+            <Save className="size-4 mr-1" /> Save
           </Button>
         </div>
       </div>
 
       <Card>
-        <CardHeader className="py-3">
-          <CardTitle className="text-base">Filling instructions</CardTitle>
-        </CardHeader>
+        <CardHeader className="py-3"><CardTitle className="text-base">Filling instructions</CardTitle></CardHeader>
         <CardContent className="grid md:grid-cols-2 gap-3">
-          <Field label="Product type">
-            <Input value={spec.filling.productType} onChange={(e) => patchSection("filling", { productType: e.target.value })} />
-          </Field>
-          <Field label="Bottle / container type">
-            <Input value={spec.filling.containerType} onChange={(e) => patchSection("filling", { containerType: e.target.value })} />
-          </Field>
-          <Field label="Fill size">
-            <Input value={spec.filling.fillSize} onChange={(e) => patchSection("filling", { fillSize: e.target.value })} />
-          </Field>
-          <Field label="Cap type">
-            <Input value={spec.filling.capType} onChange={(e) => patchSection("filling", { capType: e.target.value })} />
-          </Field>
-          <Field label="Trigger / sprayer requirements">
-            <Input value={spec.filling.triggerSprayer} onChange={(e) => patchSection("filling", { triggerSprayer: e.target.value })} />
-          </Field>
-          <Field label="Label positioning notes">
-            <Input value={spec.filling.labelPositioning} onChange={(e) => patchSection("filling", { labelPositioning: e.target.value })} />
-          </Field>
-          <div className="md:col-span-2">
-            <Field label="Label requirements">
-              <Textarea rows={2} value={spec.filling.labelRequirements} onChange={(e) => patchSection("filling", { labelRequirements: e.target.value })} />
-            </Field>
-          </div>
-          <div className="md:col-span-2">
-            <Field label="Hazard / SDS notes">
-              <Textarea rows={2} value={spec.filling.hazardSdsNotes} onChange={(e) => patchSection("filling", { hazardSdsNotes: e.target.value })} />
-            </Field>
-          </div>
+          <Field label="Product type"><Input value={payload.filling.productType} onChange={(e) => patchSection("filling", { productType: e.target.value })} /></Field>
+          <Field label="Bottle / container type"><Input value={payload.filling.containerType} onChange={(e) => patchSection("filling", { containerType: e.target.value })} /></Field>
+          <Field label="Fill size"><Input value={payload.filling.fillSize} onChange={(e) => patchSection("filling", { fillSize: e.target.value })} /></Field>
+          <Field label="Cap type"><Input value={payload.filling.capType} onChange={(e) => patchSection("filling", { capType: e.target.value })} /></Field>
+          <Field label="Trigger / sprayer requirements"><Input value={payload.filling.triggerSprayer} onChange={(e) => patchSection("filling", { triggerSprayer: e.target.value })} /></Field>
+          <Field label="Label positioning notes"><Input value={payload.filling.labelPositioning} onChange={(e) => patchSection("filling", { labelPositioning: e.target.value })} /></Field>
+          <div className="md:col-span-2"><Field label="Label requirements"><Textarea rows={2} value={payload.filling.labelRequirements} onChange={(e) => patchSection("filling", { labelRequirements: e.target.value })} /></Field></div>
+          <div className="md:col-span-2"><Field label="Hazard / SDS notes"><Textarea rows={2} value={payload.filling.hazardSdsNotes} onChange={(e) => patchSection("filling", { hazardSdsNotes: e.target.value })} /></Field></div>
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader className="py-3">
-          <CardTitle className="text-base">Packing instructions</CardTitle>
-        </CardHeader>
+        <CardHeader className="py-3"><CardTitle className="text-base">Packing instructions</CardTitle></CardHeader>
         <CardContent className="grid md:grid-cols-2 gap-3">
-          <Field label="Units per carton">
-            <Input
-              type="number"
-              value={spec.packing.unitsPerCarton}
-              onChange={(e) => patchSection("packing", { unitsPerCarton: Number(e.target.value) || 0 })}
-            />
-          </Field>
-          <Field label="Carton type">
-            <Input value={spec.packing.cartonType} onChange={(e) => patchSection("packing", { cartonType: e.target.value })} />
-          </Field>
+          <Field label="Units per carton"><Input type="number" value={payload.packing.unitsPerCarton} onChange={(e) => patchSection("packing", { unitsPerCarton: Number(e.target.value) || 0 })} /></Field>
+          <Field label="Carton type"><Input value={payload.packing.cartonType} onChange={(e) => patchSection("packing", { cartonType: e.target.value })} /></Field>
           <div className="flex items-center justify-between rounded-md border border-border px-3 py-2">
             <Label className="text-sm">Carton label required</Label>
-            <Switch
-              checked={spec.packing.cartonLabelRequired}
-              onCheckedChange={(v) => patchSection("packing", { cartonLabelRequired: v })}
-            />
+            <Switch checked={payload.packing.cartonLabelRequired} onCheckedChange={(v) => patchSection("packing", { cartonLabelRequired: v })} />
           </div>
           <div className="flex items-center justify-between rounded-md border border-border px-3 py-2">
             <Label className="text-sm">Trigger / sprayer packed in carton</Label>
-            <Switch
-              checked={spec.packing.triggerInCarton}
-              onCheckedChange={(v) => patchSection("packing", { triggerInCarton: v })}
-            />
+            <Switch checked={payload.packing.triggerInCarton} onCheckedChange={(v) => patchSection("packing", { triggerInCarton: v })} />
           </div>
-          <div className="md:col-span-2">
-            <Field label="Special packing notes">
-              <Textarea rows={2} value={spec.packing.packingNotes} onChange={(e) => patchSection("packing", { packingNotes: e.target.value })} />
-            </Field>
-          </div>
+          <div className="md:col-span-2"><Field label="Special packing notes"><Textarea rows={2} value={payload.packing.packingNotes} onChange={(e) => patchSection("packing", { packingNotes: e.target.value })} /></Field></div>
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader className="py-3">
-          <CardTitle className="text-base">Palletising instructions</CardTitle>
-        </CardHeader>
+        <CardHeader className="py-3"><CardTitle className="text-base">Palletising instructions</CardTitle></CardHeader>
         <CardContent className="grid md:grid-cols-2 gap-3">
           <Field label="Pallet type">
-            <Select
-              value={spec.palletising.palletType || ""}
-              onValueChange={(v) => patchSection("palletising", { palletType: v })}
-            >
+            <Select value={payload.palletising.palletType || ""} onValueChange={(v) => patchSection("palletising", { palletType: v })}>
               <SelectTrigger><SelectValue placeholder="Select pallet" /></SelectTrigger>
               <SelectContent>
-                {[
-                  "Standard CHEP",
-                  "CHEP 1165 x 1165",
-                  "CHEP 1165",
-                  "Euro 1200 x 800",
-                  "Heat-treated softwood 1200 x 1000",
-                  "Heat-treated hardwood 1200 x 1000",
-                  "Plastic export pallet",
-                ].map((p) => (
+                {["Standard CHEP","CHEP 1165 x 1165","CHEP 1165","Euro 1200 x 800","Heat-treated softwood 1200 x 1000","Heat-treated hardwood 1200 x 1000","Plastic export pallet"].map((p) => (
                   <SelectItem key={p} value={p}>{p}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Cartons per layer">
-              <Input
-                type="number"
-                value={spec.palletising.cartonsPerLayer}
-                onChange={(e) => patchSection("palletising", { cartonsPerLayer: Number(e.target.value) || 0 })}
-              />
-            </Field>
-            <Field label="Layers high">
-              <Input
-                type="number"
-                value={spec.palletising.layersHigh}
-                onChange={(e) => patchSection("palletising", { layersHigh: Number(e.target.value) || 0 })}
-              />
-            </Field>
+            <Field label="Cartons per layer"><Input type="number" value={payload.palletising.cartonsPerLayer} onChange={(e) => patchSection("palletising", { cartonsPerLayer: Number(e.target.value) || 0 })} /></Field>
+            <Field label="Layers high"><Input type="number" value={payload.palletising.layersHigh} onChange={(e) => patchSection("palletising", { layersHigh: Number(e.target.value) || 0 })} /></Field>
           </div>
-          <div className="md:col-span-2">
-            <Field label="Pallet configuration notes">
-              <Textarea rows={2} value={spec.palletising.configurationNotes} onChange={(e) => patchSection("palletising", { configurationNotes: e.target.value })} />
-            </Field>
-          </div>
-          <div className="md:col-span-2">
-            <Field label="Wrap requirements">
-              <Textarea rows={2} value={spec.palletising.wrapRequirements} onChange={(e) => patchSection("palletising", { wrapRequirements: e.target.value })} />
-            </Field>
-          </div>
-          <div className="md:col-span-2">
-            <Field label="Pallet label requirements">
-              <Textarea rows={2} value={spec.palletising.palletLabelRequirements} onChange={(e) => patchSection("palletising", { palletLabelRequirements: e.target.value })} />
-            </Field>
-          </div>
-          <div className="md:col-span-2">
-            <Field label="Special customer requirements">
-              <Textarea rows={2} value={spec.palletising.specialRequirements} onChange={(e) => patchSection("palletising", { specialRequirements: e.target.value })} />
-            </Field>
-          </div>
+          <div className="md:col-span-2"><Field label="Pallet configuration notes"><Textarea rows={2} value={payload.palletising.configurationNotes} onChange={(e) => patchSection("palletising", { configurationNotes: e.target.value })} /></Field></div>
+          <div className="md:col-span-2"><Field label="Wrap requirements"><Textarea rows={2} value={payload.palletising.wrapRequirements} onChange={(e) => patchSection("palletising", { wrapRequirements: e.target.value })} /></Field></div>
+          <div className="md:col-span-2"><Field label="Pallet label requirements"><Textarea rows={2} value={payload.palletising.palletLabelRequirements} onChange={(e) => patchSection("palletising", { palletLabelRequirements: e.target.value })} /></Field></div>
+          <div className="md:col-span-2"><Field label="Special customer requirements"><Textarea rows={2} value={payload.palletising.specialRequirements} onChange={(e) => patchSection("palletising", { specialRequirements: e.target.value })} /></Field></div>
         </CardContent>
       </Card>
+
+      {productExtras && (
+        <Card>
+          <CardHeader className="py-3">
+            <CardTitle className="text-base">Line setup & special instructions</CardTitle>
+            <CardDescription>Product-specific line setup and operator notes.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid md:grid-cols-2 gap-3">
+            <Field label="Line setup notes">
+              <Textarea rows={3} value={productExtras.lineSetupNotes} onChange={(e) => productExtras.onLineSetup(e.target.value)} />
+            </Field>
+            <Field label="Special instructions">
+              <Textarea rows={3} value={productExtras.specialInstructions} onChange={(e) => productExtras.onSpecial(e.target.value)} />
+            </Field>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader className="py-3">
@@ -389,21 +515,9 @@ function SpecEditor({
           <CardDescription>Mock upload — will move to cloud storage later.</CardDescription>
         </CardHeader>
         <CardContent className="grid md:grid-cols-3 gap-3">
-          <PhotoUpload
-            label="Example pallet photo"
-            value={spec.references.palletPhoto}
-            onChange={(v) => onChange({ ...spec, references: { ...spec.references, palletPhoto: v } })}
-          />
-          <PhotoUpload
-            label="Example carton photo"
-            value={spec.references.cartonPhoto}
-            onChange={(v) => onChange({ ...spec, references: { ...spec.references, cartonPhoto: v } })}
-          />
-          <PhotoUpload
-            label="Example label placement"
-            value={spec.references.labelPhoto}
-            onChange={(v) => onChange({ ...spec, references: { ...spec.references, labelPhoto: v } })}
-          />
+          <PhotoUpload label="Example pallet photo" value={payload.references.palletPhoto} onChange={(v) => onPayload({ references: { ...payload.references, palletPhoto: v } })} />
+          <PhotoUpload label="Example carton photo" value={payload.references.cartonPhoto} onChange={(v) => onPayload({ references: { ...payload.references, cartonPhoto: v } })} />
+          <PhotoUpload label="Example label placement" value={payload.references.labelPhoto} onChange={(v) => onPayload({ references: { ...payload.references, labelPhoto: v } })} />
         </CardContent>
       </Card>
     </div>
@@ -455,13 +569,7 @@ function PhotoUpload({
             Remove
           </Button>
         )}
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={onFile}
-        />
+        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onFile} />
       </div>
     </div>
   );
