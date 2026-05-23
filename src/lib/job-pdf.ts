@@ -178,6 +178,8 @@ export function generateJobPdf(job: Job, presets: LineSetupPreset[], branding?: 
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const check = computeJobStockCheck(job);
   const setup = findSetupForJob(presets, job.product, job.bottleSize);
+  const customerSpec = getSpecForCustomerSync(job.customer);
+  const totalPages = customerSpec ? 3 : 2;
 
   const subtitle = `${job.customer} · ${job.product}`;
 
