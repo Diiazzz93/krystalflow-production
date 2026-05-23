@@ -1,6 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertTriangle, CheckCircle2, FileDown, Printer } from "lucide-react";
 import type { Job } from "@/lib/types";
 import { computeJobStockCheck } from "@/lib/job-stock";
@@ -8,6 +9,8 @@ import { JobStockCheck } from "./JobStockCheck";
 import { cn } from "@/lib/utils";
 import { downloadJobPdf, printJobPdf } from "@/lib/job-pdf";
 import { useLineSetups } from "@/lib/line-setups";
+import { useCustomerSpecs } from "@/lib/customer-specs";
+import { CustomerSpecsView } from "@/components/customer-specs/CustomerSpecsView";
 import { toast } from "sonner";
 
 interface Props {
