@@ -16,7 +16,8 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { runtimeMinutes } from "@/lib/utils-domain";
+import { runtimeMinutes, getJobPerformance, fmtDurationMs } from "@/lib/utils-domain";
+import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/analytics")({
   component: AnalyticsPage,
