@@ -79,6 +79,10 @@ export interface Job {
   status: JobStatus;
   scheduledStart: string; // ISO datetime
   scheduledEnd?: string; // ISO datetime - optional explicit end (for multi-day jobs)
+  plannedStart?: string; // ISO - planned start (defaults to scheduledStart)
+  plannedEnd?: string; // ISO - planned finish (defaults to scheduledEnd/estimatedFinish)
+  actualStart?: string; // ISO - actual start when job entered production
+  actualEnd?: string; // ISO - actual completion timestamp
   bottlesCompleted: number;
   palletsCompleted: number;
   downtimeMinutes: number;
