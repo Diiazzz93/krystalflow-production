@@ -103,7 +103,11 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
             <TabsTrigger value="stock">Stock</TabsTrigger>
             <TabsTrigger value="specs">
               Production Specs
-              {customerSpec && <Badge variant="secondary" className="ml-2">on file</Badge>}
+              {resolvedSpec && (
+                <Badge variant="secondary" className="ml-2">
+                  {resolvedSpec.source === "product" ? "product" : "default"}
+                </Badge>
+              )}
             </TabsTrigger>
           </TabsList>
 
