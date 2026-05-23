@@ -1,10 +1,10 @@
-import type { CustomerSpec } from "@/lib/customer-specs";
+import type { SpecPayload } from "@/lib/customer-specs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Beaker, Package, Layers, Image as ImageIcon } from "lucide-react";
 
 interface Props {
-  spec: CustomerSpec;
+  spec: SpecPayload;
   compact?: boolean;
 }
 
