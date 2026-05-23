@@ -9,8 +9,9 @@ import type { Job } from "@/lib/types";
 import { computeJobStockCheck } from "@/lib/job-stock";
 import { findSetupForJob, type LineSetupPreset } from "@/lib/line-setups";
 import { fmtDate, fmtDateTime } from "@/lib/utils-domain";
+import { getBranding, hexToRgb, type Branding } from "@/lib/branding";
 
-// KrystalFlow brand
+// Default brand (overridden per-call by tenant branding)
 const BRAND = {
   primary: [14, 116, 144] as [number, number, number], // teal-ish
   accent: [56, 189, 248] as [number, number, number],
@@ -22,7 +23,7 @@ const BRAND = {
 
 const M = 40; // page margin
 
-function header(doc: jsPDF, title: string, subtitle: string) {
+function header(doc: jsPDF, title: string, subtitle: string, b: Branding) {
   const w = doc.internal.pageSize.getWidth();
   // Brand band
   doc.setFillColor(...BRAND.primary);
