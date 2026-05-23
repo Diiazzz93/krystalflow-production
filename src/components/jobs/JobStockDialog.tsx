@@ -28,9 +28,28 @@ function fmtDate(iso?: string) {
 }
 
 export function JobStockDialog({ job, open, onOpenChange }: Props) {
+  const { presets } = useLineSetups();
   if (!job) return null;
   const check = computeJobStockCheck(job);
   const totalMissing = check.requirements.reduce((s, r) => s + r.missing, 0);
+
+  const handleDownload = () => {
+    try {
+      downloadJobPdf(job, presets);
+      toast.success(`Run sheet PDF generated for ${job.id}`);
+    } catch (e) {
+      console.error(e);
+      toast.error("Could not generate PDF");
+    }
+  };
+  const handlePrint = () => {
+    try {
+      printJobPdf(job, presets);
+    } catch (e) {
+      console.error(e);
+      toast.error("Could not open print preview");
+    }
+  };
 
   const summaryTone = check.hasShort
     ? "border-red-500/40 bg-red-500/10 text-red-600 dark:text-red-400"
