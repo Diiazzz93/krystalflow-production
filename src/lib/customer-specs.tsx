@@ -1,10 +1,17 @@
 // Customer Production Specifications.
 //
-// Each customer can have saved filling, packing, palletising instructions
-// and reference photos that automatically appear inside their jobs.
+// Specs are now saved at TWO levels:
+//   1. Customer-level defaults  (the legacy shape — kept as fallback)
+//   2. Per-product overrides    (CustomerSpec.products[])
 //
-// Storage: localStorage today, structured to swap for a Supabase table later.
-// Shape kept flat & serializable so a `customer_specs` table maps 1:1.
+// Resolution for a job:
+//   findEffectiveSpec(customer, productLabel)
+//     → matches by product name (case-insensitive contains both ways)
+//     → returns customer-level if no product match
+//
+// Storage: localStorage today, structured to map cleanly to:
+//   customer_specs(customer_id, …customer defaults…)
+//   customer_product_specs(customer_id, product_name, …overrides…)
 
 import {
   createContext,
@@ -51,22 +58,44 @@ export interface SpecReferenceFiles {
   labelPhoto?: string;
 }
 
-export interface CustomerSpec {
-  id: string; // = customer name slug
-  customer: string;
+/** Subset of fields visible in CustomerSpecsView. */
+export interface SpecPayload {
   filling: FillingInstructions;
   packing: PackingInstructions;
   palletising: PalletisingInstructions;
   references: SpecReferenceFiles;
-  updatedAt: string; // ISO
 }
 
-const STORAGE_KEY = "krystalshield.customer-specs.v1";
+/** Product-level override under a customer. */
+export interface ProductSpec extends SpecPayload {
+  id: string; // stable within the customer
+  productName: string; // e.g. "Purple Power Wash 1L"
+  lineSetupNotes: string; // line setup requirements specific to this product
+  specialInstructions: string;
+  updatedAt: string;
+}
 
-function emptySpec(customer: string): CustomerSpec {
+export interface CustomerSpec extends SpecPayload {
+  id: string; // = customer name slug
+  customer: string;
+  products: ProductSpec[];
+  updatedAt: string;
+}
+
+/** Resolved spec returned to the UI / PDF for a specific job. */
+export interface ResolvedSpec extends SpecPayload {
+  customer: string;
+  productName?: string; // present if matched to a product override
+  source: "product" | "customer-default";
+  lineSetupNotes?: string;
+  specialInstructions?: string;
+}
+
+const STORAGE_KEY = "krystalshield.customer-specs.v2";
+const LEGACY_KEY_V1 = "krystalshield.customer-specs.v1";
+
+function emptyPayload(): SpecPayload {
   return {
-    id: customer.toLowerCase().replace(/\s+/g, "-"),
-    customer,
     filling: {
       productType: "",
       containerType: "",
@@ -94,13 +123,33 @@ function emptySpec(customer: string): CustomerSpec {
       specialRequirements: "",
     },
     references: {},
+  };
+}
+
+export function emptyCustomerSpec(customer: string): CustomerSpec {
+  return {
+    id: customer.toLowerCase().replace(/\s+/g, "-") || `customer-${Date.now().toString(36)}`,
+    customer,
+    ...emptyPayload(),
+    products: [],
     updatedAt: new Date().toISOString(),
   };
 }
 
-// Seed mock data so the feature is useful immediately.
+export function emptyProductSpec(productName: string): ProductSpec {
+  return {
+    id: `prod-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+    productName,
+    ...emptyPayload(),
+    lineSetupNotes: "",
+    specialInstructions: "",
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+// ----- Seed mock data (with one product override per customer) -----
 function seedSpecs(): CustomerSpec[] {
-  const aqua = emptySpec("AquaPure Industries");
+  const aqua = emptyCustomerSpec("AquaPure Industries");
   aqua.filling = {
     productType: "Pool sanitiser concentrate",
     containerType: "HDPE bottle, blue tint",
@@ -128,7 +177,7 @@ function seedSpecs(): CustomerSpec[] {
     specialRequirements: "Do not double-stack pallets in transit.",
   };
 
-  const greenleaf = emptySpec("GreenLeaf Agro");
+  const greenleaf = emptyCustomerSpec("GreenLeaf Agro");
   greenleaf.filling = {
     productType: "Agricultural surfactant",
     containerType: "Natural HDPE",
@@ -156,7 +205,7 @@ function seedSpecs(): CustomerSpec[] {
     specialRequirements: "Photograph each finished pallet before dispatch.",
   };
 
-  const marina = emptySpec("MarinaCare");
+  const marina = emptyCustomerSpec("MarinaCare");
   marina.filling = {
     productType: "Marine surface cleaner",
     containerType: "750ml trigger-spray bottle",
@@ -184,7 +233,7 @@ function seedSpecs(): CustomerSpec[] {
     specialRequirements: "Tail-lift delivery only. Pallets must clear 1.6m height.",
   };
 
-  const nova = emptySpec("NovaChem");
+  const nova = emptyCustomerSpec("NovaChem");
   nova.filling = {
     productType: "Industrial degreaser",
     containerType: "Black HDPE jerry can",
@@ -212,7 +261,7 @@ function seedSpecs(): CustomerSpec[] {
     specialRequirements: "Dispatch only with ADR-trained driver.",
   };
 
-  const pure = emptySpec("PureHome Brands");
+  const pure = emptyCustomerSpec("PureHome Brands");
   pure.filling = {
     productType: "Household multi-surface cleaner",
     containerType: "Frosted PET bottle",
@@ -240,26 +289,174 @@ function seedSpecs(): CustomerSpec[] {
     specialRequirements: "Retail-ready: no markings on cartons except printed branding.",
   };
 
+  // ----- Per-product overrides (mock examples) -----
+  aqua.products = [
+    {
+      ...emptyProductSpec("Pool Shock 1L"),
+      filling: {
+        ...aqua.filling,
+        fillSize: "1L",
+        containerType: "Blue-tinted HDPE 1L",
+      },
+      packing: { ...aqua.packing, unitsPerCarton: 8 },
+      palletising: { ...aqua.palletising, cartonsPerLayer: 10, layersHigh: 5 },
+      lineSetupNotes: "Line 1 only. Set fill nozzle to 80mm. Slow ramp for foaming product.",
+      specialInstructions: "QC every 4th pallet — sample fill weight and cap torque.",
+    },
+    {
+      ...emptyProductSpec("Pool Shock 5L"),
+      filling: { ...aqua.filling, fillSize: "5L", containerType: "Blue-tinted HDPE 5L jug with handle" },
+      packing: {
+        ...aqua.packing,
+        unitsPerCarton: 4,
+        cartonType: "Heavy-duty AquaPure 5L shipper",
+        packingNotes: "Handles aligned to short side. Foam corner inserts mandatory.",
+      },
+      palletising: { ...aqua.palletising, cartonsPerLayer: 6, layersHigh: 3, configurationNotes: "Column stack only — do not interlock 5L jugs." },
+      lineSetupNotes: "Line 3 (heavy fill). Conveyor at 35Hz max.",
+      specialInstructions: "Forklift only — do not hand-stack 5L pallets.",
+    },
+  ];
+
+  marina.products = [
+    {
+      ...emptyProductSpec("Marine Hull Wash 750ml"),
+      filling: { ...marina.filling, fillSize: "750ml" },
+      packing: { ...marina.packing, packingNotes: "Triggers OFF, divider grid mandatory, hull wash leaflet on top." },
+      palletising: marina.palletising,
+      lineSetupNotes: "Line 2. Trigger sprayer assembly station active.",
+      specialInstructions: "Salt-water exposure rated — verify cap torque 1.4–1.8 Nm.",
+    },
+  ];
+
+  pure.products = [
+    {
+      ...emptyProductSpec("Multi-Surface Cleaner 500ml"),
+      filling: { ...pure.filling, fillSize: "500ml", triggerSprayer: "Required — white trigger" },
+      packing: { ...pure.packing, unitsPerCarton: 12, triggerInCarton: true },
+      palletising: pure.palletising,
+      lineSetupNotes: "Line 2 with trigger station enabled.",
+      specialInstructions: "Retail audit pallet — must be photographed front and back before wrap.",
+    },
+    {
+      ...emptyProductSpec("Multi-Surface Cleaner 1L"),
+      filling: { ...pure.filling, fillSize: "1L", triggerSprayer: "Optional — disc-top default" },
+      packing: { ...pure.packing, unitsPerCarton: 8 },
+      palletising: { ...pure.palletising, cartonsPerLayer: 7, layersHigh: 5 },
+      lineSetupNotes: "Line 1 or 2. Disc-top cap torque target 1.2 Nm.",
+      specialInstructions: "Retail-ready — no shipper markings except print.",
+    },
+  ];
+
   return [aqua, greenleaf, marina, nova, pure];
+}
+
+// ----- Migration & load -----
+
+interface LegacyV1Spec {
+  id: string;
+  customer: string;
+  filling: FillingInstructions;
+  packing: PackingInstructions;
+  palletising: PalletisingInstructions;
+  references: SpecReferenceFiles;
+  updatedAt: string;
+}
+
+function migrateFromV1(): CustomerSpec[] | null {
+  try {
+    const raw = localStorage.getItem(LEGACY_KEY_V1);
+    if (!raw) return null;
+    const v1 = JSON.parse(raw) as LegacyV1Spec[];
+    return v1.map((s) => ({ ...s, products: [] }));
+  } catch {
+    return null;
+  }
 }
 
 function load(): CustomerSpec[] {
   if (typeof window === "undefined") return seedSpecs();
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw) as CustomerSpec[];
+    if (raw) {
+      const parsed = JSON.parse(raw) as CustomerSpec[];
+      // belt-and-braces: ensure products array exists on every entry
+      return parsed.map((s) => ({ ...s, products: s.products ?? [] }));
+    }
   } catch {
     /* ignore */
   }
+  const migrated = migrateFromV1();
+  if (migrated && migrated.length) return migrated;
   return seedSpecs();
 }
+
+// ----- Resolution helpers -----
+
+function norm(s: string) {
+  return s.toLowerCase().trim();
+}
+
+/** Find product override under a customer, matching loosely against product label. */
+export function findProductMatch(
+  spec: CustomerSpec,
+  productLabel: string,
+): ProductSpec | undefined {
+  if (!productLabel) return undefined;
+  const needle = norm(productLabel);
+  // Exact name match wins
+  const exact = spec.products.find((p) => norm(p.productName) === needle);
+  if (exact) return exact;
+  // Then contains either way (e.g. "Pool Shock 1L" matches job "Pool Shock 1L 12pk")
+  return spec.products.find(
+    (p) => needle.includes(norm(p.productName)) || norm(p.productName).includes(needle),
+  );
+}
+
+/** Resolve the effective spec for a (customer, product) combination. */
+export function resolveSpec(
+  specs: CustomerSpec[],
+  customer: string,
+  productLabel?: string,
+): ResolvedSpec | undefined {
+  const cust = specs.find((s) => norm(s.customer) === norm(customer));
+  if (!cust) return undefined;
+  const product = productLabel ? findProductMatch(cust, productLabel) : undefined;
+  if (product) {
+    return {
+      customer: cust.customer,
+      productName: product.productName,
+      source: "product",
+      filling: product.filling,
+      packing: product.packing,
+      palletising: product.palletising,
+      references: product.references,
+      lineSetupNotes: product.lineSetupNotes,
+      specialInstructions: product.specialInstructions,
+    };
+  }
+  return {
+    customer: cust.customer,
+    source: "customer-default",
+    filling: cust.filling,
+    packing: cust.packing,
+    palletising: cust.palletising,
+    references: cust.references,
+  };
+}
+
+// ----- Provider -----
 
 interface CustomerSpecsValue {
   specs: CustomerSpec[];
   getSpecForCustomer: (customer: string) => CustomerSpec | undefined;
+  getSpecForJob: (customer: string, product?: string) => ResolvedSpec | undefined;
   upsertSpec: (spec: CustomerSpec) => void;
   deleteSpec: (id: string) => void;
+  upsertProduct: (customerId: string, product: ProductSpec) => void;
+  deleteProduct: (customerId: string, productId: string) => void;
   createEmpty: (customer: string) => CustomerSpec;
+  createEmptyProduct: (productName: string) => ProductSpec;
   resetToSeed: () => void;
 }
 
@@ -277,14 +474,22 @@ export function CustomerSpecsProvider({ children }: { children: ReactNode }) {
   }, [specs]);
 
   const getSpecForCustomer = useCallback(
-    (customer: string) =>
-      specs.find((s) => s.customer.toLowerCase() === customer.toLowerCase()),
+    (customer: string) => specs.find((s) => norm(s.customer) === norm(customer)),
+    [specs],
+  );
+
+  const getSpecForJob = useCallback(
+    (customer: string, product?: string) => resolveSpec(specs, customer, product),
     [specs],
   );
 
   const upsertSpec = useCallback((spec: CustomerSpec) => {
     setSpecs((curr) => {
-      const next = { ...spec, updatedAt: new Date().toISOString() };
+      const next: CustomerSpec = {
+        ...spec,
+        products: spec.products ?? [],
+        updatedAt: new Date().toISOString(),
+      };
       const idx = curr.findIndex((s) => s.id === spec.id);
       if (idx === -1) return [...curr, next];
       const copy = [...curr];
@@ -297,16 +502,44 @@ export function CustomerSpecsProvider({ children }: { children: ReactNode }) {
     setSpecs((curr) => curr.filter((s) => s.id !== id));
   }, []);
 
+  const upsertProduct = useCallback((customerId: string, product: ProductSpec) => {
+    setSpecs((curr) =>
+      curr.map((c) => {
+        if (c.id !== customerId) return c;
+        const products = [...c.products];
+        const idx = products.findIndex((p) => p.id === product.id);
+        const stamped: ProductSpec = { ...product, updatedAt: new Date().toISOString() };
+        if (idx === -1) products.push(stamped);
+        else products[idx] = stamped;
+        return { ...c, products, updatedAt: new Date().toISOString() };
+      }),
+    );
+  }, []);
+
+  const deleteProduct = useCallback((customerId: string, productId: string) => {
+    setSpecs((curr) =>
+      curr.map((c) =>
+        c.id === customerId
+          ? { ...c, products: c.products.filter((p) => p.id !== productId), updatedAt: new Date().toISOString() }
+          : c,
+      ),
+    );
+  }, []);
+
   const value = useMemo<CustomerSpecsValue>(
     () => ({
       specs,
       getSpecForCustomer,
+      getSpecForJob,
       upsertSpec,
       deleteSpec,
-      createEmpty: emptySpec,
+      upsertProduct,
+      deleteProduct,
+      createEmpty: emptyCustomerSpec,
+      createEmptyProduct: emptyProductSpec,
       resetToSeed: () => setSpecs(seedSpecs()),
     }),
-    [specs, getSpecForCustomer, upsertSpec, deleteSpec],
+    [specs, getSpecForCustomer, getSpecForJob, upsertSpec, deleteSpec, upsertProduct, deleteProduct],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
@@ -318,11 +551,19 @@ export function useCustomerSpecs() {
   return ctx;
 }
 
-// Non-hook accessor for PDF generation (called outside React tree).
+// ----- Non-hook accessors (for PDF and other module-scope callers) -----
+
 export function getCustomerSpecsSync(): CustomerSpec[] {
   return load();
 }
 
 export function getSpecForCustomerSync(customer: string): CustomerSpec | undefined {
-  return load().find((s) => s.customer.toLowerCase() === customer.toLowerCase());
+  return load().find((s) => norm(s.customer) === norm(customer));
+}
+
+export function getSpecForJobSync(
+  customer: string,
+  product?: string,
+): ResolvedSpec | undefined {
+  return resolveSpec(load(), customer, product);
 }
