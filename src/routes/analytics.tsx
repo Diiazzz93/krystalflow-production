@@ -110,6 +110,8 @@ function AnalyticsPage() {
     return Object.entries(days).map(([day, bottles]) => ({ day, bottles }));
   }, [jobs]);
 
+  const COLORS = ["#0ea5e9", "#22c55e", "#f97316", "#a855f7", "#ec4899"];
+
   // ---------- Production Performance (planned vs actual) ----------
   const perfRows = useMemo(
     () =>
