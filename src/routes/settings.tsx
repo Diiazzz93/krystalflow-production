@@ -19,6 +19,7 @@ import {
 } from "@/lib/qc-presets";
 import { UnleashedSyncPanel } from "@/components/settings/UnleashedSyncPanel";
 import { UserManagementPanel } from "@/components/settings/UserManagementPanel";
+import { BrandingPanel } from "@/components/settings/BrandingPanel";
 import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/settings")({
@@ -92,6 +93,8 @@ function SettingsPage() {
         </div>
 
         {isAdmin && <UserManagementPanel />}
+
+        <BrandingPanel />
 
         <UnleashedSyncPanel />
 
