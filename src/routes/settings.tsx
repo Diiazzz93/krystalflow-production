@@ -97,6 +97,9 @@ function SettingsPage() {
 
         <BrandingPanel />
 
+        <LinesPanel />
+
+
         <UnleashedSyncPanel />
 
         <Card>
