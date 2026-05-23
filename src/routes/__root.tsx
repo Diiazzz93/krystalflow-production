@@ -12,6 +12,7 @@ import appCss from "../styles.css?url";
 import { ThemeProvider } from "@/lib/theme";
 import { StoreProvider } from "@/lib/store";
 import { LineSetupProvider } from "@/lib/line-setups";
+import { BrandingProvider } from "@/lib/branding";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { LoginScreen } from "@/components/auth/LoginScreen";
 
@@ -123,15 +124,17 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <AuthProvider>
-          <StoreProvider>
-            <LineSetupProvider>
-              <AuthGate>
-                <Outlet />
-              </AuthGate>
-            </LineSetupProvider>
-          </StoreProvider>
-        </AuthProvider>
+        <BrandingProvider>
+          <AuthProvider>
+            <StoreProvider>
+              <LineSetupProvider>
+                <AuthGate>
+                  <Outlet />
+                </AuthGate>
+              </LineSetupProvider>
+            </StoreProvider>
+          </AuthProvider>
+        </BrandingProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );
