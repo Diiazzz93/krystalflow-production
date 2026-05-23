@@ -32,10 +32,13 @@ import {
   fmtTime,
   progressPct,
 } from "@/lib/utils-domain";
-import { Plus, Search, ShieldCheck, LayoutList, Building2, Eye } from "lucide-react";
+import { Plus, Search, ShieldCheck, LayoutList, Building2, Eye, FileDown } from "lucide-react";
 
 import { Progress } from "@/components/ui/progress";
 import type { Job } from "@/lib/types";
+import { downloadJobPdf } from "@/lib/job-pdf";
+import { useLineSetups } from "@/lib/line-setups";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/jobs")({
   component: JobsPage,
