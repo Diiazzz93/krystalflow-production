@@ -333,6 +333,17 @@ function JobsTable({
                   variant="ghost"
                   onClick={(e) => {
                     e.stopPropagation();
+                    handlePdf(j);
+                  }}
+                  title="Generate Job PDF run sheet"
+                >
+                  <FileDown className="size-4 mr-1" /> PDF
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={(e) => {
+                    e.stopPropagation();
                     onQC(j.id);
                   }}
                 >
