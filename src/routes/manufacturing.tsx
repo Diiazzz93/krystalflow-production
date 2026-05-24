@@ -1122,7 +1122,13 @@ function RequirementsCard({
                   <TableCell className="text-right">
                     {l.required.toLocaleString()} {l.unit}
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right text-muted-foreground">
+                    {l.onHand.toLocaleString()} {l.unit}
+                  </TableCell>
+                  <TableCell className="text-right text-amber-500/90">
+                    {l.allocatedOther > 0 ? `${l.allocatedOther.toLocaleString()} ${l.unit}` : "—"}
+                  </TableCell>
+                  <TableCell className="text-right font-medium">
                     {l.available.toLocaleString()} {l.unit}
                   </TableCell>
                   <TableCell className="text-right">
