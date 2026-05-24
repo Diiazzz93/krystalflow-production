@@ -56,50 +56,67 @@ export function AppShell({ children }: { children: ReactNode }) {
   );
   const allowed = currentNav ? can(currentNav.permission) : true;
 
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  const brandMark = (size: "sm" | "md" = "md") => {
+    const cls = size === "sm" ? "size-8" : "size-9";
+    return branding.sidebarLogo ? (
+      <img
+        src={branding.sidebarLogo}
+        alt=""
+        className={cn(cls, "rounded-md object-contain bg-white/5 p-0.5")}
+      />
+    ) : (
+      <div
+        className={cn(cls, "rounded-md grid place-items-center font-bold text-white")}
+        style={{ background: branding.primaryColor }}
+      >
+        {branding.companyName.slice(0, 1).toUpperCase()}
+      </div>
+    );
+  };
+
+  const NavList = ({ touch = false, onNavigate }: { touch?: boolean; onNavigate?: () => void }) => (
+    <nav className="flex-1 px-3 py-3 space-y-1 overflow-y-auto">
+      {visibleNav.map((item) => {
+        const active =
+          item.to === "/"
+            ? location.pathname === "/"
+            : location.pathname.startsWith(item.to);
+        const Icon = item.icon;
+        return (
+          <Link
+            key={item.to}
+            to={item.to}
+            onClick={onNavigate}
+            className={cn(
+              "flex items-center gap-3 rounded-md font-medium transition-colors",
+              touch ? "px-4 py-3 text-base min-h-12" : "px-3 py-2 text-sm",
+              active
+                ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
+            )}
+          >
+            <Icon className={touch ? "size-5" : "size-4"} />
+            {item.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+
   return (
     <div className="min-h-screen flex bg-background text-foreground">
       <aside className="hidden md:flex md:w-60 lg:w-64 flex-col border-r border-border bg-sidebar text-sidebar-foreground">
         <div className="px-5 py-5 border-b border-sidebar-border flex items-center gap-3">
-          {branding.sidebarLogo ? (
-            <img src={branding.sidebarLogo} alt="" className="size-9 rounded-md object-contain bg-white/5 p-0.5" />
-          ) : (
-            <div
-              className="size-9 rounded-md grid place-items-center font-bold text-white"
-              style={{ background: branding.primaryColor }}
-            >
-              {branding.companyName.slice(0, 1).toUpperCase()}
-            </div>
-          )}
+          {brandMark("md")}
           <div className="leading-tight">
             <div className="font-semibold tracking-tight">{branding.companyName}</div>
             <div className="text-xs text-muted-foreground">{branding.appName}</div>
           </div>
         </div>
 
-        <nav className="flex-1 px-3 py-4 space-y-1">
-          {visibleNav.map((item) => {
-            const active =
-              item.to === "/"
-                ? location.pathname === "/"
-                : location.pathname.startsWith(item.to);
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.to}
-                to={item.to}
-                className={cn(
-                  "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                  active
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
-                )}
-              >
-                <Icon className="size-4" />
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
+        <NavList />
 
         {user && (
           <div className="px-3 py-3 border-t border-sidebar-border space-y-2">
@@ -125,61 +142,99 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
 
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-14 border-b border-border flex items-center justify-between px-4 md:px-6 sticky top-0 bg-background/85 backdrop-blur z-20">
-          <div className="md:hidden flex items-center gap-2 font-semibold">
-            {branding.sidebarLogo ? (
-              <img src={branding.sidebarLogo} alt="" className="size-7 rounded-md object-contain" />
-            ) : (
-              <div
-                className="size-7 rounded-md grid place-items-center text-sm font-bold text-white"
-                style={{ background: branding.primaryColor }}
+        <header
+          className="border-b border-border flex items-center justify-between gap-2 px-3 md:px-6 sticky top-0 bg-background/85 backdrop-blur z-20"
+          style={{
+            paddingTop: "max(0.5rem, env(safe-area-inset-top))",
+            paddingBottom: "0.5rem",
+          }}
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
+              <SheetTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Open navigation"
+                  className="md:hidden min-h-11 min-w-11"
+                >
+                  <Menu className="size-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent
+                side="left"
+                className="w-72 p-0 flex flex-col bg-sidebar text-sidebar-foreground"
               >
-                {branding.companyName.slice(0, 1).toUpperCase()}
-              </div>
-            )}
-            {branding.companyName}
+                <div className="px-5 py-5 border-b border-sidebar-border flex items-center gap-3">
+                  {brandMark("md")}
+                  <div className="leading-tight">
+                    <div className="font-semibold tracking-tight">{branding.companyName}</div>
+                    <div className="text-xs text-muted-foreground">{branding.appName}</div>
+                  </div>
+                </div>
+                <NavList touch onNavigate={() => setMobileNavOpen(false)} />
+                {user && (
+                  <div className="px-3 py-3 border-t border-sidebar-border space-y-2">
+                    <div className="px-2">
+                      <div className="text-sm font-medium truncate">{user.name}</div>
+                      <div className="text-xs text-muted-foreground truncate">{user.email}</div>
+                      <Badge variant="secondary" className="mt-1.5">
+                        {ROLE_LABELS[user.role]}
+                      </Badge>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full min-h-11"
+                      onClick={() => {
+                        setMobileNavOpen(false);
+                        signOut();
+                      }}
+                    >
+                      <LogOut className="size-4" /> Sign out
+                    </Button>
+                  </div>
+                )}
+              </SheetContent>
+            </Sheet>
+
+            <div className="md:hidden flex items-center gap-2 font-semibold min-w-0 truncate">
+              {brandMark("sm")}
+              <span className="truncate">{branding.appName}</span>
+            </div>
+            <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground">
+              <span className="size-2 rounded-full bg-emerald-500" />
+              Production systems nominal
+            </div>
           </div>
-          <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground">
-            <span className="size-2 rounded-full bg-emerald-500" />
-            Production systems nominal
-          </div>
-          <div className="flex items-center gap-2">
+
+          <div className="flex items-center gap-1 sm:gap-2">
             {user && (
               <Badge variant="secondary" className="hidden sm:inline-flex">
                 {ROLE_LABELS[user.role]}
               </Badge>
             )}
-            <Button variant="ghost" size="icon" onClick={toggle} aria-label="Toggle theme">
-              {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggle}
+              aria-label="Toggle theme"
+              className="min-h-11 min-w-11"
+            >
+              {theme === "dark" ? <Sun className="size-5" /> : <Moon className="size-5" />}
             </Button>
-            <Button variant="ghost" size="icon" onClick={() => signOut()} aria-label="Sign out" className="md:hidden">
-              <LogOut className="size-4" />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => signOut()}
+              aria-label="Sign out"
+              className="md:hidden min-h-11 min-w-11"
+            >
+              <LogOut className="size-5" />
             </Button>
           </div>
         </header>
 
-        <nav className="md:hidden border-b border-border bg-background overflow-x-auto">
-          <div className="flex gap-1 px-2 py-2">
-            {visibleNav.map((item) => {
-              const active =
-                item.to === "/" ? location.pathname === "/" : location.pathname.startsWith(item.to);
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  className={cn(
-                    "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium whitespace-nowrap",
-                    active ? "bg-accent text-accent-foreground" : "text-muted-foreground",
-                  )}
-                >
-                  <Icon className="size-3.5" />
-                  {item.label}
-                </Link>
-              );
-            })}
-          </div>
-        </nav>
 
         <motion.main
           key={location.pathname}
