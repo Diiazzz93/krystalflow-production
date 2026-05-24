@@ -57,7 +57,7 @@ const PERMISSIONS: Record<Role, Permission[]> = {
   admin: [
     "page:dashboard", "page:calendar", "page:jobs", "page:live",
     "page:qc", "page:stock", "page:analytics", "page:line-setup",
-    "page:customer-specs", "page:settings",
+    "page:customer-specs", "page:manufacturing", "page:settings",
     "jobs:create", "jobs:edit", "jobs:delete", "jobs:reschedule",
     "jobs:update-progress", "qc:complete",
     "settings:manage", "integrations:manage", "users:manage", "presets:manage",
@@ -66,7 +66,7 @@ const PERMISSIONS: Record<Role, Permission[]> = {
   manager: [
     "page:dashboard", "page:calendar", "page:jobs", "page:live",
     "page:qc", "page:stock", "page:analytics", "page:line-setup",
-    "page:customer-specs",
+    "page:customer-specs", "page:manufacturing",
     "jobs:create", "jobs:edit", "jobs:reschedule",
     "jobs:update-progress", "qc:complete",
     "line-setup:manage", "customer-specs:manage",
@@ -74,12 +74,14 @@ const PERMISSIONS: Record<Role, Permission[]> = {
   operator: [
     "page:dashboard", "page:calendar", "page:jobs", "page:live",
     "page:qc", "page:stock", "page:line-setup", "page:customer-specs",
+    "page:manufacturing",
     "jobs:update-progress", "qc:complete",
     "line-setup:manage",
   ],
   viewer: [
     "page:dashboard", "page:calendar", "page:jobs", "page:live",
     "page:qc", "page:stock", "page:line-setup", "page:customer-specs",
+    "page:manufacturing",
   ],
 };
 
