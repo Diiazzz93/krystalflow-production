@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   LogOut,
   Lock,
+  Menu,
   Moon,
   Settings,
   ShieldCheck,
@@ -16,7 +17,14 @@ import {
   Sun,
   TrendingUp,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { useTheme } from "@/lib/theme";
+import { cn } from "@/lib/utils";
+import { ROLE_LABELS, useAuth, type Permission } from "@/lib/auth";
+import { useBranding } from "@/lib/branding";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useTheme } from "@/lib/theme";
