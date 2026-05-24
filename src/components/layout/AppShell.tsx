@@ -36,7 +36,7 @@ const NAV: Array<{
   { to: "/calendar", label: "Calendar", icon: CalendarDays, permission: "page:calendar" },
   { to: "/jobs", label: "Jobs", icon: ClipboardList, permission: "page:jobs" },
   { to: "/live", label: "Live Board", icon: Factory, permission: "page:live" },
-  { to: "/qc", label: "Quality", icon: ShieldCheck, permission: "page:qc" },
+  { to: "/qc", label: "Quality Control", icon: ShieldCheck, permission: "page:qc" },
   { to: "/stock", label: "Stock", icon: Boxes, permission: "page:stock" },
   { to: "/line-setup", label: "Line Setup", icon: SlidersHorizontal, permission: "page:line-setup" },
   { to: "/customer-specs", label: "Customer Specs", icon: ClipboardCheck, permission: "page:customer-specs" },
