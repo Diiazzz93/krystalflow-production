@@ -1054,20 +1054,22 @@ function StockCheckTab() {
 function RequirementsCard({
   calc,
   stock,
+  allocations,
   compact = false,
 }: {
   calc: ReturnType<typeof calculateAssembly>;
   stock: { sku: string; name: string; availableStock: number }[];
+  allocations?: Map<string, number>;
   compact?: boolean;
 }) {
-  const lines = checkStock(calc, stock as never);
+  const lines = checkStock(calc, stock as never, allocations);
   const blockers = lines.filter((l) => l.status !== "ok").length;
 
   return (
     <Card>
       {!compact && (
         <CardHeader className="py-3">
-          <CardTitle className="text-base">Requirements & stock check</CardTitle>
+          <CardTitle className="text-base">Live stock readiness</CardTitle>
           <CardDescription>
             {calc.unitsToProduce.toLocaleString()} units · {calc.bulkLitresRequired.toLocaleString()} L bulk ·{" "}
             {calc.cartonsRequired.toLocaleString()} cartons
@@ -1088,6 +1090,8 @@ function RequirementsCard({
                 <TableHead>Item</TableHead>
                 <TableHead>SKU</TableHead>
                 <TableHead className="text-right">Required</TableHead>
+                <TableHead className="text-right">On hand</TableHead>
+                <TableHead className="text-right">Allocated</TableHead>
                 <TableHead className="text-right">Available</TableHead>
                 <TableHead className="text-right">Missing</TableHead>
                 <TableHead>Status</TableHead>
