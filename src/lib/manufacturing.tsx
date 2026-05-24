@@ -342,9 +342,8 @@ export function ManufacturingProvider({ children }: { children: ReactNode }) {
     }
   }, [data]);
 
-  const update = useCallback(<K extends keyof PersistShape>(key: K, list: PersistShape[K]) => {
-    setData((d) => ({ ...d, [key]: list }));
-  }, []);
+
+
 
   const upsertBulk = useCallback((bom: BulkFormulaBOM) => {
     setData((d) => {
