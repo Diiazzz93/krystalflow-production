@@ -801,8 +801,6 @@ function AssembliesTab() {
           </Card>
         )}
       </div>
-      {/* allAllocations used inside otherAlloc map per row; reference to silence unused */}
-      <span className="hidden">{allAllocations.size}</span>
     </div>
   );
 }
