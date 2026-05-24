@@ -451,4 +451,3 @@ export function useManufacturing() {
 }
 
 // silence "update unused" linter noise if any
-void update;
