@@ -226,7 +226,9 @@ export interface RequirementLine {
 }
 
 export interface StockCheckLine extends RequirementLine {
-  available: number;
+  onHand: number;
+  allocatedOther: number;
+  available: number; // onHand - allocatedOther
   missing: number;
   status: "ok" | "low" | "missing";
 }
