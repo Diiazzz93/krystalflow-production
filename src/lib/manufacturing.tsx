@@ -203,9 +203,11 @@ function seedAssemblies(): ProductionAssembly[] {
     {
       id: "asm-001",
       reference: "ASM-001",
+      customer: "AquaPure Industries",
       finishedProductId: "fin-degr-5l",
       unitsToProduce: 1000,
       status: "Planned",
+      qcStatus: "Pending",
       scheduledFor: new Date(Date.now() + 1000 * 60 * 60 * 48).toISOString(),
       notes: "First production run of Q3 — verify formula with QC before fill.",
       createdAt: new Date().toISOString(),
