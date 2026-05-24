@@ -6,6 +6,7 @@ import {
   ClipboardList,
   ClipboardCheck,
   Factory,
+  FlaskConical,
   LayoutDashboard,
   LogOut,
   Lock,
