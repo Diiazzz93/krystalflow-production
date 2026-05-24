@@ -1044,7 +1044,7 @@ function StockCheckTab() {
           </CardContent>
         </Card>
       ) : (
-        <RequirementsCard calc={calc} stock={stock} />
+        <RequirementsCard calc={calc} stock={stock} allocations={allocations} />
       )}
     </div>
   );
