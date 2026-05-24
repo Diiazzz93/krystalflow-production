@@ -486,6 +486,7 @@ export function ManufacturingProvider({ children }: { children: ReactNode }) {
       finishedProductId: "",
       unitsToProduce: 100,
       status: "Draft",
+      qcStatus: "Pending",
       createdAt: new Date().toISOString(),
     }),
     [],
