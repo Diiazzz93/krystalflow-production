@@ -38,14 +38,20 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import {
+  ALLOCATING_STATUSES,
+  ASSEMBLY_STATUSES,
   calculateAssembly,
   checkStock,
+  computeAllocations,
   useManufacturing,
+  type AssemblyQcStatus,
+  type AssemblyStatus,
   type BulkFormulaBOM,
   type BulkIngredient,
   type FinishedProductBOM,
   type ProductionAssembly,
 } from "@/lib/manufacturing";
+import { useCustomerSpecs, type ResolvedSpec } from "@/lib/customer-specs";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/manufacturing")({
