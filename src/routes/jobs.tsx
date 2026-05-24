@@ -185,9 +185,14 @@ function JobsPage() {
         </div>
 
         {view === "list" ? (
-          <div className="rounded-lg border border-border bg-card overflow-x-auto">
-            <JobsTable jobs={filtered} onEdit={openEdit} onQC={setQcId} onViewStock={setStockJobId} />
-          </div>
+          <>
+            <div className="hidden md:block rounded-lg border border-border bg-card overflow-x-auto">
+              <JobsTable jobs={filtered} onEdit={openEdit} onQC={setQcId} onViewStock={setStockJobId} />
+            </div>
+            <div className="md:hidden">
+              <JobsCardList jobs={filtered} onEdit={openEdit} onQC={setQcId} onViewStock={setStockJobId} />
+            </div>
+          </>
         ) : (
           <div className="space-y-3">
             {grouped.length === 0 && (
@@ -216,8 +221,11 @@ function JobsPage() {
                     <Badge variant="secondary">{g.jobs.length} jobs</Badge>
                     {upcoming > 0 && <Badge variant="outline">{upcoming} upcoming</Badge>}
                   </header>
-                  <div className="overflow-x-auto">
+                  <div className="hidden md:block overflow-x-auto">
                     <JobsTable jobs={g.jobs} onEdit={openEdit} onQC={setQcId} onViewStock={setStockJobId} hideCustomer />
+                  </div>
+                  <div className="md:hidden p-3">
+                    <JobsCardList jobs={g.jobs} onEdit={openEdit} onQC={setQcId} onViewStock={setStockJobId} hideCustomer />
                   </div>
                 </section>
               );
@@ -363,5 +371,116 @@ function JobsTable({
         )}
       </TableBody>
     </Table>
+  );
+}
+
+function JobsCardList({
+  jobs,
+  onEdit,
+  onQC,
+  onViewStock,
+  hideCustomer = false,
+}: {
+  jobs: Job[];
+  onEdit: (id: string) => void;
+  onQC: (id: string) => void;
+  onViewStock: (id: string) => void;
+  hideCustomer?: boolean;
+}) {
+  const { presets } = useLineSetups();
+  const handlePdf = (job: Job) => {
+    try {
+      downloadJobPdf(job, presets);
+      toast.success(`Run sheet PDF generated for ${job.id}`);
+    } catch (e) {
+      console.error(e);
+      toast.error("Could not generate PDF");
+    }
+  };
+
+  if (jobs.length === 0) {
+    return (
+      <div className="rounded-lg border border-border bg-card py-10 text-center text-muted-foreground text-sm">
+        No jobs.
+      </div>
+    );
+  }
+
+  return (
+    <ul className="space-y-2">
+      {jobs.map((j) => (
+        <li
+          key={j.id}
+          className="rounded-lg border border-border bg-card p-3 active:bg-accent/40 transition-colors"
+          style={{ borderLeft: `4px solid ${j.customerColor}` }}
+        >
+          <button
+            type="button"
+            onClick={() => onEdit(j.id)}
+            className="w-full text-left space-y-1"
+          >
+            {!hideCustomer && (
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <span
+                  className="size-2.5 rounded-full"
+                  style={{ backgroundColor: j.customerColor }}
+                />
+                {j.customer}
+              </div>
+            )}
+            <div className="font-medium text-sm leading-snug">
+              {j.product}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {j.sku} · {j.bottleSize} · Line {j.line}
+            </div>
+          </button>
+
+          <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
+            <Badge className={STATUS_COLORS[j.status]}>{j.status}</Badge>
+            <Badge variant="outline" className={PRIORITY_COLOR[j.priority]}>
+              {j.priority}
+            </Badge>
+            <span className="text-muted-foreground ml-auto whitespace-nowrap">
+              Due {fmtDate(j.dueDate)}
+            </span>
+          </div>
+
+          <div className="mt-2 flex items-center gap-2">
+            <Progress value={progressPct(j)} className="h-1.5 flex-1" />
+            <span className="text-xs tabular-nums text-muted-foreground">
+              {progressPct(j)}%
+            </span>
+          </div>
+
+          <div className="mt-3 grid grid-cols-3 gap-1.5">
+            <Button
+              size="sm"
+              variant="secondary"
+              className="min-h-11"
+              onClick={() => onViewStock(j.id)}
+            >
+              <Eye className="size-4" /> View
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              className="min-h-11"
+              onClick={() => handlePdf(j)}
+            >
+              <FileDown className="size-4" /> PDF
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              className="min-h-11"
+              onClick={() => onQC(j.id)}
+            >
+              <ShieldCheck className="size-4" /> QC
+            </Button>
+          </div>
+        </li>
+      ))}
+    </ul>
   );
 }

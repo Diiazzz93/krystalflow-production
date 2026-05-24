@@ -173,7 +173,7 @@ function StockPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="rounded-md border border-border overflow-hidden">
+            <div className="hidden md:block rounded-md border border-border overflow-hidden">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -236,6 +236,63 @@ function StockPage() {
                 </TableBody>
               </Table>
             </div>
+
+            <ul className="md:hidden space-y-2">
+              {filtered.length === 0 && (
+                <li className="rounded-md border border-border bg-card py-8 text-center text-muted-foreground text-sm">
+                  No stock items match your filters.
+                </li>
+              )}
+              {filtered.map((i) => (
+                <li
+                  key={i.id}
+                  className={cn(
+                    "rounded-md border border-border bg-card p-3 space-y-2",
+                    i.status === "low-stock" && "bg-amber-500/5",
+                    i.status === "out-of-stock" && "bg-red-500/5",
+                  )}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="font-medium text-sm leading-snug">{i.name}</div>
+                      <div className="font-mono text-xs text-muted-foreground">{i.sku}</div>
+                    </div>
+                    {statusBadge(i.status)}
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-xs">
+                    <div>
+                      <div className="text-muted-foreground">On hand</div>
+                      <div className="tabular-nums font-medium">
+                        {i.quantityOnHand.toLocaleString()}
+                        <span className="text-muted-foreground"> {i.unit}</span>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground">Available</div>
+                      <div
+                        className={cn(
+                          "tabular-nums font-medium",
+                          i.status === "low-stock" && "text-amber-600 dark:text-amber-400",
+                          i.status === "out-of-stock" && "text-red-600 dark:text-red-400",
+                        )}
+                      >
+                        {i.availableStock.toLocaleString()}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground">Allocated</div>
+                      <div className="tabular-nums">
+                        {i.allocatedStock.toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>{i.location}</span>
+                    <span>{fmtDateTime(i.lastUpdated)}</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
           </CardContent>
         </Card>
 
