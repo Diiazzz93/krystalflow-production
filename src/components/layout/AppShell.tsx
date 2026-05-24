@@ -241,7 +241,8 @@ export function AppShell({ children }: { children: ReactNode }) {
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.2 }}
-          className="flex-1 min-w-0 p-4 md:p-6"
+          className="flex-1 min-w-0 p-3 sm:p-4 md:p-6"
+          style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
         >
           {allowed ? children : <AccessDenied />}
         </motion.main>
