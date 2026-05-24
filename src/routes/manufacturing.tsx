@@ -858,9 +858,9 @@ function AssemblyDetail({
   assembly: ProductionAssembly;
   finished?: FinishedProductBOM;
   bulk?: BulkFormulaBOM;
-  customerSpec?: ResolvedSpec; // accepted for back-compat but resolved live below
   onPatch: (patch: Partial<ProductionAssembly>) => void;
 }) {
+  void 0;
   const { getSpecForJob } = useCustomerSpecs();
   const spec = assembly.customer && finished
     ? getSpecForJob(assembly.customer, finished.productName)
