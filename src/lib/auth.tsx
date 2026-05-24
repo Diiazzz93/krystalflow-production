@@ -37,6 +37,7 @@ export type Permission =
   | "page:analytics"
   | "page:line-setup"
   | "page:customer-specs"
+  | "page:manufacturing"
   | "page:settings"
   // Actions
   | "jobs:create"
