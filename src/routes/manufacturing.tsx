@@ -51,7 +51,7 @@ import {
   type FinishedProductBOM,
   type ProductionAssembly,
 } from "@/lib/manufacturing";
-import { useCustomerSpecs, type ResolvedSpec } from "@/lib/customer-specs";
+import { useCustomerSpecs } from "@/lib/customer-specs";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/manufacturing")({
