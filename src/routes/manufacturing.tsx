@@ -1019,6 +1019,7 @@ function StockCheckTab() {
   const fin = asm ? finishedBOMs.find((f) => f.id === asm.finishedProductId) : undefined;
   const blk = fin ? bulkBOMs.find((b) => b.id === fin.bulkFormulaId) : undefined;
   const calc = asm ? calculateAssembly(asm.unitsToProduce, fin, blk) : null;
+  const allocations = asm ? computeAllocations(assemblies, finishedBOMs, bulkBOMs, asm.id) : undefined;
 
   return (
     <div className="space-y-4">
