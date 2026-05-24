@@ -305,17 +305,46 @@ function round(n: number) {
   return Math.round(n * 100) / 100;
 }
 
+/**
+ * Sum stock allocated by all active assemblies (excluding `excludeAssemblyId`).
+ * Returns Map<sku, qty>. Aggregates across raw materials AND packaging SKUs.
+ */
+export function computeAllocations(
+  assemblies: ProductionAssembly[],
+  finishedBOMs: FinishedProductBOM[],
+  bulkBOMs: BulkFormulaBOM[],
+  excludeAssemblyId?: string,
+): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const a of assemblies) {
+    if (a.id === excludeAssemblyId) continue;
+    if (!ALLOCATING_STATUSES.includes(a.status)) continue;
+    const fin = finishedBOMs.find((f) => f.id === a.finishedProductId);
+    if (!fin) continue;
+    const blk = bulkBOMs.find((b) => b.id === fin.bulkFormulaId);
+    const calc = calculateAssembly(a.unitsToProduce, fin, blk);
+    for (const l of calc.lines) {
+      if (!l.sku) continue;
+      map.set(l.sku, (map.get(l.sku) ?? 0) + l.required);
+    }
+  }
+  return map;
+}
+
 export function checkStock(
   calc: AssemblyCalculation,
   stock: StockItem[],
+  allocations?: Map<string, number>,
 ): StockCheckLine[] {
   return calc.lines.map((line) => {
     const item = line.sku ? stock.find((s) => s.sku === line.sku) : undefined;
-    const available = item?.availableStock ?? 0;
+    const onHand = item?.availableStock ?? 0;
+    const allocatedOther = line.sku ? (allocations?.get(line.sku) ?? 0) : 0;
+    const available = Math.max(0, onHand - allocatedOther);
     const missing = Math.max(0, line.required - available);
     const status: StockCheckLine["status"] =
       missing <= 0 ? "ok" : available <= 0 ? "missing" : "low";
-    return { ...line, available, missing, status };
+    return { ...line, onHand, allocatedOther, available, missing, status };
   });
 }
 
