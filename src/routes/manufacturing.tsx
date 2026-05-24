@@ -860,7 +860,6 @@ function AssemblyDetail({
   bulk?: BulkFormulaBOM;
   onPatch: (patch: Partial<ProductionAssembly>) => void;
 }) {
-  void 0;
   const { getSpecForJob } = useCustomerSpecs();
   const spec = assembly.customer && finished
     ? getSpecForJob(assembly.customer, finished.productName)
