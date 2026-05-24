@@ -735,15 +735,6 @@ function AssembliesTab() {
           const readiness = checkStock(calc, stock, otherAlloc);
           const ready = readiness.every((l) => l.status === "ok");
           const expanded = expandedId === a.id;
-          const resolvedSpec = a.customer
-            ? customerSpecs && fin
-              ? // resolve via context helper
-                (function () {
-                  // inline call — avoid re-renders
-                  return null;
-                })()
-              : null
-            : null;
           return (
             <Card key={a.id}>
               <CardHeader className="py-3 flex flex-row items-start justify-between gap-2 flex-wrap">
