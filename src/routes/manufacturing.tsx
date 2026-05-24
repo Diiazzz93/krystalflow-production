@@ -715,7 +715,7 @@ function AssembliesTab() {
     );
   }
 
-  const allAllocations = computeAllocations(assemblies, finishedBOMs, bulkBOMs);
+  
 
   return (
     <div className="space-y-4">
