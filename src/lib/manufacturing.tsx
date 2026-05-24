@@ -62,14 +62,48 @@ export interface FinishedProductBOM {
   updatedAt: string;
 }
 
+export type AssemblyStatus =
+  | "Draft"
+  | "Planned"
+  | "Ready"
+  | "Mixing"
+  | "Filling"
+  | "QC Hold"
+  | "Completed";
+
+export const ASSEMBLY_STATUSES: AssemblyStatus[] = [
+  "Draft",
+  "Planned",
+  "Ready",
+  "Mixing",
+  "Filling",
+  "QC Hold",
+  "Completed",
+];
+
+/** Statuses that consume / reserve stock. Draft and Completed do not allocate. */
+export const ALLOCATING_STATUSES: AssemblyStatus[] = [
+  "Planned",
+  "Ready",
+  "Mixing",
+  "Filling",
+  "QC Hold",
+];
+
+export type AssemblyQcStatus = "Pending" | "Pass" | "Fail" | "Hold";
+
 export interface ProductionAssembly {
   id: string;
   reference: string;
+  customer?: string;
   finishedProductId: string; // -> FinishedProductBOM.id
   unitsToProduce: number;
   scheduledFor?: string; // ISO date
   notes?: string;
-  status: "Draft" | "Planned" | "In Progress" | "Complete";
+  status: AssemblyStatus;
+  qcStatus?: AssemblyQcStatus;
+  actualStart?: string; // ISO
+  actualEnd?: string; // ISO
   createdAt: string;
 }
 
