@@ -1,0 +1,26 @@
+{
+  "name": "KrystalFlow — Production Scheduler",
+  "short_name": "KrystalFlow",
+  "description": "Production scheduling, live factory floor monitoring, QC and stock for Krystalshield filling lines.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0b1220",
+  "theme_color": "#0c2340",
+  "categories": ["productivity", "business"],
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
