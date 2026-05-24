@@ -6,6 +6,7 @@ import {
   ClipboardList,
   ClipboardCheck,
   Factory,
+  FlaskConical,
   LayoutDashboard,
   LogOut,
   Lock,
@@ -40,6 +41,7 @@ const NAV: Array<{
   { to: "/stock", label: "Stock", icon: Boxes, permission: "page:stock" },
   { to: "/line-setup", label: "Line Setup", icon: SlidersHorizontal, permission: "page:line-setup" },
   { to: "/customer-specs", label: "Customer Specs", icon: ClipboardCheck, permission: "page:customer-specs" },
+  { to: "/manufacturing", label: "Manufacturing", icon: FlaskConical, permission: "page:manufacturing" },
   { to: "/analytics", label: "Analytics", icon: TrendingUp, permission: "page:analytics" },
   { to: "/settings", label: "Settings", icon: Settings, permission: "page:settings" },
 ];

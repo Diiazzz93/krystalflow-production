@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as StockRouteImport } from './routes/stock'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as QcRouteImport } from './routes/qc'
+import { Route as ManufacturingRouteImport } from './routes/manufacturing'
 import { Route as LiveRouteImport } from './routes/live'
 import { Route as LineSetupRouteImport } from './routes/line-setup'
 import { Route as JobsRouteImport } from './routes/jobs'
@@ -33,6 +34,11 @@ const SettingsRoute = SettingsRouteImport.update({
 const QcRoute = QcRouteImport.update({
   id: '/qc',
   path: '/qc',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ManufacturingRoute = ManufacturingRouteImport.update({
+  id: '/manufacturing',
+  path: '/manufacturing',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LiveRoute = LiveRouteImport.update({
@@ -79,6 +85,7 @@ export interface FileRoutesByFullPath {
   '/jobs': typeof JobsRoute
   '/line-setup': typeof LineSetupRoute
   '/live': typeof LiveRoute
+  '/manufacturing': typeof ManufacturingRoute
   '/qc': typeof QcRoute
   '/settings': typeof SettingsRoute
   '/stock': typeof StockRoute
@@ -91,6 +98,7 @@ export interface FileRoutesByTo {
   '/jobs': typeof JobsRoute
   '/line-setup': typeof LineSetupRoute
   '/live': typeof LiveRoute
+  '/manufacturing': typeof ManufacturingRoute
   '/qc': typeof QcRoute
   '/settings': typeof SettingsRoute
   '/stock': typeof StockRoute
@@ -104,6 +112,7 @@ export interface FileRoutesById {
   '/jobs': typeof JobsRoute
   '/line-setup': typeof LineSetupRoute
   '/live': typeof LiveRoute
+  '/manufacturing': typeof ManufacturingRoute
   '/qc': typeof QcRoute
   '/settings': typeof SettingsRoute
   '/stock': typeof StockRoute
@@ -118,6 +127,7 @@ export interface FileRouteTypes {
     | '/jobs'
     | '/line-setup'
     | '/live'
+    | '/manufacturing'
     | '/qc'
     | '/settings'
     | '/stock'
@@ -130,6 +140,7 @@ export interface FileRouteTypes {
     | '/jobs'
     | '/line-setup'
     | '/live'
+    | '/manufacturing'
     | '/qc'
     | '/settings'
     | '/stock'
@@ -142,6 +153,7 @@ export interface FileRouteTypes {
     | '/jobs'
     | '/line-setup'
     | '/live'
+    | '/manufacturing'
     | '/qc'
     | '/settings'
     | '/stock'
@@ -155,6 +167,7 @@ export interface RootRouteChildren {
   JobsRoute: typeof JobsRoute
   LineSetupRoute: typeof LineSetupRoute
   LiveRoute: typeof LiveRoute
+  ManufacturingRoute: typeof ManufacturingRoute
   QcRoute: typeof QcRoute
   SettingsRoute: typeof SettingsRoute
   StockRoute: typeof StockRoute
@@ -181,6 +194,13 @@ declare module '@tanstack/react-router' {
       path: '/qc'
       fullPath: '/qc'
       preLoaderRoute: typeof QcRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/manufacturing': {
+      id: '/manufacturing'
+      path: '/manufacturing'
+      fullPath: '/manufacturing'
+      preLoaderRoute: typeof ManufacturingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/live': {
@@ -243,6 +263,7 @@ const rootRouteChildren: RootRouteChildren = {
   JobsRoute: JobsRoute,
   LineSetupRoute: LineSetupRoute,
   LiveRoute: LiveRoute,
+  ManufacturingRoute: ManufacturingRoute,
   QcRoute: QcRoute,
   SettingsRoute: SettingsRoute,
   StockRoute: StockRoute,

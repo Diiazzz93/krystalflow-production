@@ -14,6 +14,7 @@ import { StoreProvider } from "@/lib/store";
 import { LineSetupProvider } from "@/lib/line-setups";
 import { BrandingProvider } from "@/lib/branding";
 import { CustomerSpecsProvider } from "@/lib/customer-specs";
+import { ManufacturingProvider } from "@/lib/manufacturing";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { LoginScreen } from "@/components/auth/LoginScreen";
 
@@ -142,9 +143,11 @@ function RootComponent() {
             <StoreProvider>
               <LineSetupProvider>
                 <CustomerSpecsProvider>
-                  <AuthGate>
-                    <Outlet />
-                  </AuthGate>
+                  <ManufacturingProvider>
+                    <AuthGate>
+                      <Outlet />
+                    </AuthGate>
+                  </ManufacturingProvider>
                 </CustomerSpecsProvider>
               </LineSetupProvider>
             </StoreProvider>
