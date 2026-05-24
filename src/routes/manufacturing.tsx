@@ -38,14 +38,20 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import {
+  ALLOCATING_STATUSES,
+  ASSEMBLY_STATUSES,
   calculateAssembly,
   checkStock,
+  computeAllocations,
   useManufacturing,
+  type AssemblyQcStatus,
+  type AssemblyStatus,
   type BulkFormulaBOM,
   type BulkIngredient,
   type FinishedProductBOM,
   type ProductionAssembly,
 } from "@/lib/manufacturing";
+import { useCustomerSpecs } from "@/lib/customer-specs";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/manufacturing")({
@@ -576,9 +582,18 @@ function FinishedEditor({
 // ============= Assemblies =============
 
 function AssembliesTab() {
-  const { assemblies, finishedBOMs, bulkBOMs, upsertAssembly, deleteAssembly, newAssembly, stock } =
-    useManufacturing();
+  const {
+    assemblies,
+    finishedBOMs,
+    bulkBOMs,
+    upsertAssembly,
+    deleteAssembly,
+    newAssembly,
+    stock,
+  } = useManufacturing();
+  const { specs: customerSpecs } = useCustomerSpecs();
   const [editing, setEditing] = useState<ProductionAssembly | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   function save() {
     if (!editing) return;
@@ -591,12 +606,22 @@ function AssembliesTab() {
     setEditing(null);
   }
 
+  const customerOptions = useMemo(
+    () => Array.from(new Set(customerSpecs.map((s) => s.customer))).sort(),
+    [customerSpecs],
+  );
+
   const previewCalc = useMemo(() => {
     if (!editing) return null;
     const fin = finishedBOMs.find((f) => f.id === editing.finishedProductId);
     const blk = fin ? bulkBOMs.find((b) => b.id === fin.bulkFormulaId) : undefined;
     return calculateAssembly(editing.unitsToProduce, fin, blk);
   }, [editing, finishedBOMs, bulkBOMs]);
+
+  const previewAllocations = useMemo(
+    () => (editing ? computeAllocations(assemblies, finishedBOMs, bulkBOMs, editing.id) : new Map()),
+    [editing, assemblies, finishedBOMs, bulkBOMs],
+  );
 
   if (editing) {
     return (
@@ -607,6 +632,20 @@ function AssembliesTab() {
             <div className="grid md:grid-cols-3 gap-3">
               <Field label="Reference">
                 <Input value={editing.reference} onChange={(e) => setEditing({ ...editing, reference: e.target.value })} />
+              </Field>
+              <Field label="Customer">
+                <Select
+                  value={editing.customer || "_none"}
+                  onValueChange={(v) => setEditing({ ...editing, customer: v === "_none" ? undefined : v })}
+                >
+                  <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">(none)</SelectItem>
+                    {customerOptions.map((c) => (
+                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </Field>
               <Field label="Finished product">
                 <Select
@@ -644,14 +683,13 @@ function AssembliesTab() {
               <Field label="Status">
                 <Select
                   value={editing.status}
-                  onValueChange={(v) => setEditing({ ...editing, status: v as ProductionAssembly["status"] })}
+                  onValueChange={(v) => setEditing({ ...editing, status: v as AssemblyStatus })}
                 >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Draft">Draft</SelectItem>
-                    <SelectItem value="Planned">Planned</SelectItem>
-                    <SelectItem value="In Progress">In Progress</SelectItem>
-                    <SelectItem value="Complete">Complete</SelectItem>
+                    {ASSEMBLY_STATUSES.map((s) => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </Field>
@@ -671,11 +709,13 @@ function AssembliesTab() {
         </Card>
 
         {previewCalc && previewCalc.finished && (
-          <RequirementsCard calc={previewCalc} stock={stock} />
+          <RequirementsCard calc={previewCalc} stock={stock} allocations={previewAllocations} />
         )}
       </div>
     );
   }
+
+  
 
   return (
     <div className="space-y-4">
@@ -690,21 +730,41 @@ function AssembliesTab() {
           const fin = finishedBOMs.find((f) => f.id === a.finishedProductId);
           const blk = fin ? bulkBOMs.find((b) => b.id === fin.bulkFormulaId) : undefined;
           const calc = calculateAssembly(a.unitsToProduce, fin, blk);
+          // Allocations of OTHER assemblies — for this card's readiness view
+          const otherAlloc = computeAllocations(assemblies, finishedBOMs, bulkBOMs, a.id);
+          const readiness = checkStock(calc, stock, otherAlloc);
+          const ready = readiness.every((l) => l.status === "ok");
+          const expanded = expandedId === a.id;
           return (
             <Card key={a.id}>
-              <CardHeader className="py-3 flex flex-row items-start justify-between gap-2">
-                <div>
-                  <CardTitle className="text-base flex items-center gap-2">
+              <CardHeader className="py-3 flex flex-row items-start justify-between gap-2 flex-wrap">
+                <div className="min-w-0">
+                  <CardTitle className="text-base flex items-center gap-2 flex-wrap">
                     <Wrench className="size-4 text-primary" />
                     {a.reference}
-                    <Badge variant="secondary">{a.status}</Badge>
+                    <StatusPill status={a.status} />
+                    {ready && ALLOCATING_STATUSES.includes(a.status) && (
+                      <Badge variant="outline" className="border-emerald-500/40 text-emerald-500">
+                        Stock ready
+                      </Badge>
+                    )}
+                    {!ready && a.status !== "Draft" && a.status !== "Completed" && (
+                      <Badge variant="outline" className="border-destructive/40 text-destructive">
+                        Stock short
+                      </Badge>
+                    )}
                   </CardTitle>
                   <CardDescription>
+                    {a.customer ? <span className="text-foreground">{a.customer}</span> : <span>(no customer)</span>}
+                    {" · "}
                     {fin?.productName ?? "(no product)"} · {a.unitsToProduce.toLocaleString()} units
                     {a.scheduledFor ? ` · ${new Date(a.scheduledFor).toLocaleString()}` : ""}
                   </CardDescription>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
+                  <Button size="sm" variant="outline" onClick={() => setExpandedId(expanded ? null : a.id)}>
+                    {expanded ? "Hide details" : "View details"}
+                  </Button>
                   <Button size="sm" variant="outline" onClick={() => setEditing(a)}>Edit</Button>
                   <Button
                     size="sm"
@@ -718,8 +778,17 @@ function AssembliesTab() {
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent>
-                <RequirementsCard calc={calc} stock={stock} compact />
+              <CardContent className="space-y-3">
+                <StatusPipeline assembly={a} onAdvance={(patch) => upsertAssembly({ ...a, ...patch })} />
+                <RequirementsCard calc={calc} stock={stock} allocations={otherAlloc} compact />
+                {expanded && (
+                  <AssemblyDetail
+                    assembly={a}
+                    finished={fin}
+                    bulk={blk}
+                    onPatch={(patch) => upsertAssembly({ ...a, ...patch })}
+                  />
+                )}
               </CardContent>
             </Card>
           );
@@ -736,6 +805,191 @@ function AssembliesTab() {
   );
 }
 
+// ---------- Status pipeline & detail ----------
+
+function StatusPipeline({
+  assembly,
+  onAdvance,
+}: {
+  assembly: ProductionAssembly;
+  onAdvance: (patch: Partial<ProductionAssembly>) => void;
+}) {
+  const stages: AssemblyStatus[] = ["Planned", "Ready", "Mixing", "Filling", "QC Hold", "Completed"];
+  const currentIdx = stages.indexOf(assembly.status);
+
+  function setStatus(next: AssemblyStatus) {
+    const patch: Partial<ProductionAssembly> = { status: next };
+    if (next === "Mixing" && !assembly.actualStart) patch.actualStart = new Date().toISOString();
+    if (next === "Completed" && !assembly.actualEnd) patch.actualEnd = new Date().toISOString();
+    onAdvance(patch);
+  }
+
+  return (
+    <div className="flex items-center gap-1 flex-wrap rounded-md border border-border bg-card/40 p-1.5">
+      {stages.map((s, i) => {
+        const active = i === currentIdx;
+        const done = currentIdx > i;
+        return (
+          <button
+            key={s}
+            type="button"
+            onClick={() => setStatus(s)}
+            className={cn(
+              "px-2.5 py-1 text-xs rounded transition-colors",
+              active && "bg-primary text-primary-foreground",
+              done && !active && "bg-primary/20 text-primary",
+              !active && !done && "text-muted-foreground hover:bg-accent hover:text-foreground",
+            )}
+          >
+            {s}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function AssemblyDetail({
+  assembly,
+  finished,
+  bulk,
+  onPatch,
+}: {
+  assembly: ProductionAssembly;
+  finished?: FinishedProductBOM;
+  bulk?: BulkFormulaBOM;
+  onPatch: (patch: Partial<ProductionAssembly>) => void;
+}) {
+  const { getSpecForJob } = useCustomerSpecs();
+  const spec = assembly.customer && finished
+    ? getSpecForJob(assembly.customer, finished.productName)
+    : undefined;
+
+  const runtimeMs =
+    assembly.actualStart
+      ? (assembly.actualEnd ? new Date(assembly.actualEnd).getTime() : Date.now()) -
+        new Date(assembly.actualStart).getTime()
+      : 0;
+  const runtimeHrs = runtimeMs > 0 ? (runtimeMs / 3_600_000).toFixed(2) : "—";
+
+  return (
+    <div className="grid md:grid-cols-2 gap-3 pt-1">
+      {/* Formula / BOM */}
+      <div className="rounded-md border border-border p-3 space-y-2">
+        <div className="text-xs font-semibold uppercase text-muted-foreground">Formula & BOM</div>
+        {bulk ? (
+          <>
+            <div className="text-sm">{bulk.productName} · <span className="text-muted-foreground">{bulk.formulaSku}</span></div>
+            <div className="text-xs text-muted-foreground">Base batch {bulk.baseBatchSize} L</div>
+            <ul className="text-xs space-y-0.5">
+              {bulk.ingredients.map((i) => (
+                <li key={i.id} className="flex justify-between">
+                  <span className="truncate">{i.name}</span>
+                  <span className="text-muted-foreground">{i.quantity}{i.unit}</span>
+                </li>
+              ))}
+            </ul>
+            {bulk.notes && (
+              <div className="text-xs text-muted-foreground italic pt-1 border-t border-border/50">
+                {bulk.notes}
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="text-xs text-muted-foreground">No bulk formula linked.</div>
+        )}
+      </div>
+
+      {/* Packaging */}
+      <div className="rounded-md border border-border p-3 space-y-2">
+        <div className="text-xs font-semibold uppercase text-muted-foreground">Packaging</div>
+        {finished ? (
+          <div className="text-xs space-y-1">
+            <div>{finished.productName} ({finished.containerSize}{finished.containerUnit})</div>
+            <div className="text-muted-foreground">Bottle: {finished.bottleSku}</div>
+            <div className="text-muted-foreground">Cap: {finished.capSku}</div>
+            <div className="text-muted-foreground">Label: {finished.labelSku}</div>
+            <div className="text-muted-foreground">Carton: {finished.cartonSku} · {finished.unitsPerCarton}/ctn</div>
+            {finished.cartonsPerPallet && (
+              <div className="text-muted-foreground">{finished.cartonsPerPallet} ctn/pallet</div>
+            )}
+            {finished.palletNotes && (
+              <div className="italic text-muted-foreground pt-1 border-t border-border/50">{finished.palletNotes}</div>
+            )}
+          </div>
+        ) : (
+          <div className="text-xs text-muted-foreground">No finished product.</div>
+        )}
+      </div>
+
+      {/* Customer specs */}
+      <div className="rounded-md border border-border p-3 space-y-2">
+        <div className="text-xs font-semibold uppercase text-muted-foreground">Customer specs</div>
+        {spec ? (
+          <div className="text-xs space-y-1">
+            <Badge variant="secondary" className="text-[10px]">
+              {spec.source === "product" ? "Product-level" : "Customer default"}
+            </Badge>
+            {spec.filling.labelRequirements && <div><span className="text-muted-foreground">Label: </span>{spec.filling.labelRequirements}</div>}
+            {spec.packing.unitsPerCarton ? <div><span className="text-muted-foreground">Units/carton: </span>{spec.packing.unitsPerCarton}</div> : null}
+            {spec.palletising.cartonsPerLayer ? <div><span className="text-muted-foreground">Pallet: </span>{spec.palletising.cartonsPerLayer}×{spec.palletising.layersHigh}</div> : null}
+            {"lineSetupNotes" in spec && spec.lineSetupNotes && (
+              <div className="text-muted-foreground italic">{spec.lineSetupNotes}</div>
+            )}
+            {"specialInstructions" in spec && spec.specialInstructions && (
+              <div className="text-amber-500 italic">⚠ {spec.specialInstructions}</div>
+            )}
+          </div>
+        ) : (
+          <div className="text-xs text-muted-foreground">No customer specs for this product.</div>
+        )}
+      </div>
+
+      {/* QC + runtime */}
+      <div className="rounded-md border border-border p-3 space-y-2">
+        <div className="text-xs font-semibold uppercase text-muted-foreground">QC & runtime</div>
+        <div className="flex items-center gap-2">
+          <Label className="text-xs">QC</Label>
+          <Select
+            value={assembly.qcStatus ?? "Pending"}
+            onValueChange={(v) => onPatch({ qcStatus: v as AssemblyQcStatus })}
+          >
+            <SelectTrigger className="h-8 w-32"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Pending">Pending</SelectItem>
+              <SelectItem value="Pass">Pass</SelectItem>
+              <SelectItem value="Hold">Hold</SelectItem>
+              <SelectItem value="Fail">Fail</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="text-xs space-y-0.5">
+          <div><span className="text-muted-foreground">Started: </span>{assembly.actualStart ? new Date(assembly.actualStart).toLocaleString() : "—"}</div>
+          <div><span className="text-muted-foreground">Finished: </span>{assembly.actualEnd ? new Date(assembly.actualEnd).toLocaleString() : "—"}</div>
+          <div><span className="text-muted-foreground">Runtime: </span>{runtimeHrs} h</div>
+        </div>
+        {assembly.notes && (
+          <div className="text-xs italic text-muted-foreground pt-1 border-t border-border/50">
+            {assembly.notes}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function StatusPill({ status }: { status: AssemblyStatus }) {
+  const color =
+    status === "Completed" ? "border-emerald-500/40 text-emerald-500"
+    : status === "QC Hold" ? "border-amber-500/40 text-amber-500"
+    : status === "Filling" ? "border-sky-500/40 text-sky-500"
+    : status === "Mixing" ? "border-primary/40 text-primary"
+    : status === "Ready" ? "border-emerald-500/40 text-emerald-500"
+    : "border-border text-muted-foreground";
+  return <Badge variant="outline" className={color}>{status}</Badge>;
+}
+
+
 // ============= Stock check =============
 
 function StockCheckTab() {
@@ -745,6 +999,7 @@ function StockCheckTab() {
   const fin = asm ? finishedBOMs.find((f) => f.id === asm.finishedProductId) : undefined;
   const blk = fin ? bulkBOMs.find((b) => b.id === fin.bulkFormulaId) : undefined;
   const calc = asm ? calculateAssembly(asm.unitsToProduce, fin, blk) : null;
+  const allocations = asm ? computeAllocations(assemblies, finishedBOMs, bulkBOMs, asm.id) : undefined;
 
   return (
     <div className="space-y-4">
@@ -769,7 +1024,7 @@ function StockCheckTab() {
           </CardContent>
         </Card>
       ) : (
-        <RequirementsCard calc={calc} stock={stock} />
+        <RequirementsCard calc={calc} stock={stock} allocations={allocations} />
       )}
     </div>
   );
@@ -780,20 +1035,22 @@ function StockCheckTab() {
 function RequirementsCard({
   calc,
   stock,
+  allocations,
   compact = false,
 }: {
   calc: ReturnType<typeof calculateAssembly>;
   stock: { sku: string; name: string; availableStock: number }[];
+  allocations?: Map<string, number>;
   compact?: boolean;
 }) {
-  const lines = checkStock(calc, stock as never);
+  const lines = checkStock(calc, stock as never, allocations);
   const blockers = lines.filter((l) => l.status !== "ok").length;
 
   return (
     <Card>
       {!compact && (
         <CardHeader className="py-3">
-          <CardTitle className="text-base">Requirements & stock check</CardTitle>
+          <CardTitle className="text-base">Live stock readiness</CardTitle>
           <CardDescription>
             {calc.unitsToProduce.toLocaleString()} units · {calc.bulkLitresRequired.toLocaleString()} L bulk ·{" "}
             {calc.cartonsRequired.toLocaleString()} cartons
@@ -814,6 +1071,8 @@ function RequirementsCard({
                 <TableHead>Item</TableHead>
                 <TableHead>SKU</TableHead>
                 <TableHead className="text-right">Required</TableHead>
+                <TableHead className="text-right">On hand</TableHead>
+                <TableHead className="text-right">Allocated</TableHead>
                 <TableHead className="text-right">Available</TableHead>
                 <TableHead className="text-right">Missing</TableHead>
                 <TableHead>Status</TableHead>
@@ -844,7 +1103,13 @@ function RequirementsCard({
                   <TableCell className="text-right">
                     {l.required.toLocaleString()} {l.unit}
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right text-muted-foreground">
+                    {l.onHand.toLocaleString()} {l.unit}
+                  </TableCell>
+                  <TableCell className="text-right text-amber-500/90">
+                    {l.allocatedOther > 0 ? `${l.allocatedOther.toLocaleString()} ${l.unit}` : "—"}
+                  </TableCell>
+                  <TableCell className="text-right font-medium">
                     {l.available.toLocaleString()} {l.unit}
                   </TableCell>
                   <TableCell className="text-right">

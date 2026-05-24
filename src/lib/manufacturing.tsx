@@ -62,14 +62,48 @@ export interface FinishedProductBOM {
   updatedAt: string;
 }
 
+export type AssemblyStatus =
+  | "Draft"
+  | "Planned"
+  | "Ready"
+  | "Mixing"
+  | "Filling"
+  | "QC Hold"
+  | "Completed";
+
+export const ASSEMBLY_STATUSES: AssemblyStatus[] = [
+  "Draft",
+  "Planned",
+  "Ready",
+  "Mixing",
+  "Filling",
+  "QC Hold",
+  "Completed",
+];
+
+/** Statuses that consume / reserve stock. Draft and Completed do not allocate. */
+export const ALLOCATING_STATUSES: AssemblyStatus[] = [
+  "Planned",
+  "Ready",
+  "Mixing",
+  "Filling",
+  "QC Hold",
+];
+
+export type AssemblyQcStatus = "Pending" | "Pass" | "Fail" | "Hold";
+
 export interface ProductionAssembly {
   id: string;
   reference: string;
+  customer?: string;
   finishedProductId: string; // -> FinishedProductBOM.id
   unitsToProduce: number;
   scheduledFor?: string; // ISO date
   notes?: string;
-  status: "Draft" | "Planned" | "In Progress" | "Complete";
+  status: AssemblyStatus;
+  qcStatus?: AssemblyQcStatus;
+  actualStart?: string; // ISO
+  actualEnd?: string; // ISO
   createdAt: string;
 }
 
@@ -169,9 +203,11 @@ function seedAssemblies(): ProductionAssembly[] {
     {
       id: "asm-001",
       reference: "ASM-001",
+      customer: "AquaPure Industries",
       finishedProductId: "fin-degr-5l",
       unitsToProduce: 1000,
       status: "Planned",
+      qcStatus: "Pending",
       scheduledFor: new Date(Date.now() + 1000 * 60 * 60 * 48).toISOString(),
       notes: "First production run of Q3 — verify formula with QC before fill.",
       createdAt: new Date().toISOString(),
@@ -190,7 +226,9 @@ export interface RequirementLine {
 }
 
 export interface StockCheckLine extends RequirementLine {
-  available: number;
+  onHand: number;
+  allocatedOther: number;
+  available: number; // onHand - allocatedOther
   missing: number;
   status: "ok" | "low" | "missing";
 }
@@ -267,17 +305,46 @@ function round(n: number) {
   return Math.round(n * 100) / 100;
 }
 
+/**
+ * Sum stock allocated by all active assemblies (excluding `excludeAssemblyId`).
+ * Returns Map<sku, qty>. Aggregates across raw materials AND packaging SKUs.
+ */
+export function computeAllocations(
+  assemblies: ProductionAssembly[],
+  finishedBOMs: FinishedProductBOM[],
+  bulkBOMs: BulkFormulaBOM[],
+  excludeAssemblyId?: string,
+): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const a of assemblies) {
+    if (a.id === excludeAssemblyId) continue;
+    if (!ALLOCATING_STATUSES.includes(a.status)) continue;
+    const fin = finishedBOMs.find((f) => f.id === a.finishedProductId);
+    if (!fin) continue;
+    const blk = bulkBOMs.find((b) => b.id === fin.bulkFormulaId);
+    const calc = calculateAssembly(a.unitsToProduce, fin, blk);
+    for (const l of calc.lines) {
+      if (!l.sku) continue;
+      map.set(l.sku, (map.get(l.sku) ?? 0) + l.required);
+    }
+  }
+  return map;
+}
+
 export function checkStock(
   calc: AssemblyCalculation,
   stock: StockItem[],
+  allocations?: Map<string, number>,
 ): StockCheckLine[] {
   return calc.lines.map((line) => {
     const item = line.sku ? stock.find((s) => s.sku === line.sku) : undefined;
-    const available = item?.availableStock ?? 0;
+    const onHand = item?.availableStock ?? 0;
+    const allocatedOther = line.sku ? (allocations?.get(line.sku) ?? 0) : 0;
+    const available = Math.max(0, onHand - allocatedOther);
     const missing = Math.max(0, line.required - available);
     const status: StockCheckLine["status"] =
       missing <= 0 ? "ok" : available <= 0 ? "missing" : "low";
-    return { ...line, available, missing, status };
+    return { ...line, onHand, allocatedOther, available, missing, status };
   });
 }
 
@@ -419,6 +486,7 @@ export function ManufacturingProvider({ children }: { children: ReactNode }) {
       finishedProductId: "",
       unitsToProduce: 100,
       status: "Draft",
+      qcStatus: "Pending",
       createdAt: new Date().toISOString(),
     }),
     [],
