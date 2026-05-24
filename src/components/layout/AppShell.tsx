@@ -25,12 +25,6 @@ import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { ROLE_LABELS, useAuth, type Permission } from "@/lib/auth";
 import { useBranding } from "@/lib/branding";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { useTheme } from "@/lib/theme";
-import { cn } from "@/lib/utils";
-import { ROLE_LABELS, useAuth, type Permission } from "@/lib/auth";
-import { useBranding } from "@/lib/branding";
 
 const NAV: Array<{
   to: string;
