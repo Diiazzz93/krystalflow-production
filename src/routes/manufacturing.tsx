@@ -786,14 +786,6 @@ function AssembliesTab() {
                     assembly={a}
                     finished={fin}
                     bulk={blk}
-                    customerSpec={
-                      a.customer && fin
-                        ? // resolve customer spec inline
-                          customerSpecs
-                            .map((s) => s)
-                            .reduce<ResolvedSpec | undefined>((acc, _s) => acc, undefined) ?? undefined
-                        : undefined
-                    }
                     onPatch={(patch) => upsertAssembly({ ...a, ...patch })}
                   />
                 )}
