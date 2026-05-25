@@ -620,6 +620,46 @@ function FinishedEditor({
 
 // ============= Assemblies =============
 
+type AssemblyFilter =
+  | "all"
+  | "active"
+  | "planned"
+  | "ready"
+  | "mixing"
+  | "filling"
+  | "qchold"
+  | "delayed"
+  | "completedToday"
+  | "recent"
+  | "completed";
+
+const ACTIVE_STATUSES: AssemblyStatus[] = ["Planned", "Ready", "Mixing", "Filling", "QC Hold", "Delayed"];
+
+function matchesFilter(a: ProductionAssembly, filter: AssemblyFilter): boolean {
+  switch (filter) {
+    case "all": return true;
+    case "active": return ACTIVE_STATUSES.includes(a.status);
+    case "planned": return a.status === "Planned";
+    case "ready": return a.status === "Ready";
+    case "mixing": return a.status === "Mixing";
+    case "filling": return a.status === "Filling";
+    case "qchold": return a.status === "QC Hold";
+    case "delayed": return a.status === "Delayed";
+    case "completed": return a.status === "Completed";
+    case "completedToday": {
+      if (a.status !== "Completed" || !a.actualEnd) return false;
+      const end = new Date(a.actualEnd);
+      const now = new Date();
+      return end.toDateString() === now.toDateString();
+    }
+    case "recent": {
+      if (a.status !== "Completed" || !a.actualEnd) return false;
+      const ageMs = Date.now() - new Date(a.actualEnd).getTime();
+      return ageMs <= 1000 * 60 * 60 * 24 * 7;
+    }
+  }
+}
+
 function AssembliesTab() {
   const {
     assemblies,
