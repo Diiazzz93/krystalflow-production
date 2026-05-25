@@ -127,49 +127,6 @@ function ManufacturingPage() {
   );
 }
 
-function BatchHistoryTab() {
-  const { assemblies, finishedBOMs } = useManufacturing();
-  const completed = assemblies.filter((a) => a.status === "Completed");
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Batch History</CardTitle>
-        <CardDescription>Completed production runs.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {completed.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No completed batches yet.</p>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Reference</TableHead>
-                <TableHead>Product</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead className="text-right">Units</TableHead>
-                <TableHead>Completed</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {completed.map((a) => {
-                const fin = finishedBOMs.find((f) => f.id === a.finishedProductId);
-                return (
-                  <TableRow key={a.id}>
-                    <TableCell className="font-medium">{a.reference}</TableCell>
-                    <TableCell>{fin?.productName ?? "—"}</TableCell>
-                    <TableCell>{a.customer ?? "—"}</TableCell>
-                    <TableCell className="text-right">{a.unitsToProduce.toLocaleString()}</TableCell>
-                    <TableCell>{a.actualEnd ? new Date(a.actualEnd).toLocaleString() : "—"}</TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
 
 function ImportExportTab() {
   return (
