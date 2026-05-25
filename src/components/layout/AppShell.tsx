@@ -10,7 +10,7 @@ import {
   Factory,
   FileCog,
   FlaskConical,
-  History,
+  LayoutDashboard,
   LayoutDashboard,
   LogOut,
   Lock,
