@@ -54,8 +54,8 @@ import {
 import { useCustomerSpecs } from "@/lib/customer-specs";
 import { cn } from "@/lib/utils";
 
-type MfgTab = "assemblies" | "history" | "bulk" | "finished" | "stock" | "io";
-const VALID_TABS: MfgTab[] = ["assemblies", "history", "bulk", "finished", "stock", "io"];
+type MfgTab = "assemblies" | "bulk" | "finished" | "stock" | "io";
+const VALID_TABS: MfgTab[] = ["assemblies", "bulk", "finished", "stock", "io"];
 
 export const Route = createFileRoute("/manufacturing")({
   validateSearch: (search: Record<string, unknown>): { tab?: MfgTab } => {
