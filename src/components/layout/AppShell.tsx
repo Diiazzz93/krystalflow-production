@@ -1,62 +1,175 @@
-import { Link, useLocation } from "@tanstack/react-router";
+import { Link, useLocation, useSearch } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import {
+  Beaker,
   Boxes,
   CalendarDays,
+  ChevronRight,
   ClipboardList,
   ClipboardCheck,
   Factory,
+  FileCog,
   FlaskConical,
+  History,
   LayoutDashboard,
   LogOut,
   Lock,
   Menu,
   Moon,
+  Package,
   Settings,
   ShieldCheck,
   SlidersHorizontal,
   Sun,
   TrendingUp,
+  Warehouse,
+  Wrench,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { ROLE_LABELS, useAuth, type Permission } from "@/lib/auth";
 import { useBranding } from "@/lib/branding";
 
-const NAV: Array<{
+type NavLeaf = {
+  kind: "link";
   to: string;
   label: string;
   icon: typeof LayoutDashboard;
   permission: Permission;
-}> = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard, permission: "page:dashboard" },
-  { to: "/calendar", label: "Calendar", icon: CalendarDays, permission: "page:calendar" },
-  { to: "/jobs", label: "Jobs", icon: ClipboardList, permission: "page:jobs" },
-  { to: "/live", label: "Live Board", icon: Factory, permission: "page:live" },
-  { to: "/qc", label: "Quality Control", icon: ShieldCheck, permission: "page:qc" },
-  { to: "/stock", label: "Stock", icon: Boxes, permission: "page:stock" },
-  { to: "/line-setup", label: "Line Setup", icon: SlidersHorizontal, permission: "page:line-setup" },
-  { to: "/customer-specs", label: "Customer Specs", icon: ClipboardCheck, permission: "page:customer-specs" },
-  { to: "/manufacturing", label: "Manufacturing", icon: FlaskConical, permission: "page:manufacturing" },
-  { to: "/analytics", label: "Analytics", icon: TrendingUp, permission: "page:analytics" },
-  { to: "/settings", label: "Settings", icon: Settings, permission: "page:settings" },
+  search?: Record<string, string>;
+  /** Match when location.pathname === to AND search.tab matches (if provided). */
+  matchTab?: string;
+};
+
+type NavGroup = {
+  kind: "group";
+  label: string;
+  icon: typeof LayoutDashboard;
+  permission: Permission;
+  /** Base path used to auto-open the group when active. */
+  basePath: string;
+  children: Array<NavLeaf | NavGroup>;
+};
+
+type NavNode = NavLeaf | NavGroup;
+
+const NAV: NavNode[] = [
+  { kind: "link", to: "/", label: "Dashboard", icon: LayoutDashboard, permission: "page:dashboard" },
+  { kind: "link", to: "/calendar", label: "Calendar", icon: CalendarDays, permission: "page:calendar" },
+  { kind: "link", to: "/jobs", label: "Jobs", icon: ClipboardList, permission: "page:jobs" },
+  { kind: "link", to: "/live", label: "Live Board", icon: Factory, permission: "page:live" },
+  { kind: "link", to: "/qc", label: "Quality Control", icon: ShieldCheck, permission: "page:qc" },
+  { kind: "link", to: "/stock", label: "Stock", icon: Boxes, permission: "page:stock" },
+  { kind: "link", to: "/line-setup", label: "Line Setup", icon: SlidersHorizontal, permission: "page:line-setup" },
+  { kind: "link", to: "/customer-specs", label: "Customer Specs", icon: ClipboardCheck, permission: "page:customer-specs" },
+  {
+    kind: "group",
+    label: "Manufacturing",
+    icon: FlaskConical,
+    permission: "page:manufacturing",
+    basePath: "/manufacturing",
+    children: [
+      {
+        kind: "group",
+        label: "Assemblies",
+        icon: Wrench,
+        permission: "page:manufacturing",
+        basePath: "/manufacturing",
+        children: [
+          { kind: "link", to: "/manufacturing", label: "Production Runs", icon: Wrench, permission: "page:manufacturing", search: { tab: "assemblies" }, matchTab: "assemblies" },
+          { kind: "link", to: "/manufacturing", label: "Batch History", icon: History, permission: "page:manufacturing", search: { tab: "history" }, matchTab: "history" },
+        ],
+      },
+      {
+        kind: "group",
+        label: "Bill of Materials",
+        icon: FileCog,
+        permission: "page:manufacturing",
+        basePath: "/manufacturing",
+        children: [
+          { kind: "link", to: "/manufacturing", label: "Bulk Formula BOMs", icon: Beaker, permission: "page:manufacturing", search: { tab: "bulk" }, matchTab: "bulk" },
+          { kind: "link", to: "/manufacturing", label: "Finished Product BOMs", icon: Package, permission: "page:manufacturing", search: { tab: "finished" }, matchTab: "finished" },
+        ],
+      },
+      { kind: "link", to: "/manufacturing", label: "Manufacturing Stock", icon: Warehouse, permission: "page:manufacturing", search: { tab: "stock" }, matchTab: "stock" },
+      { kind: "link", to: "/manufacturing", label: "Import / Export", icon: Package, permission: "page:manufacturing", search: { tab: "io" }, matchTab: "io" },
+    ],
+  },
+  { kind: "link", to: "/analytics", label: "Analytics", icon: TrendingUp, permission: "page:analytics" },
+  { kind: "link", to: "/settings", label: "Settings", icon: Settings, permission: "page:settings" },
 ];
+
+function filterNav(nodes: NavNode[], can: (p: Permission) => boolean): NavNode[] {
+  const out: NavNode[] = [];
+  for (const n of nodes) {
+    if (!can(n.permission)) continue;
+    if (n.kind === "group") {
+      const children = filterNav(n.children, can);
+      if (children.length === 0) continue;
+      out.push({ ...n, children });
+    } else {
+      out.push(n);
+    }
+  }
+  return out;
+}
+
+function findActiveLeaf(
+  nodes: NavNode[],
+  pathname: string,
+  tab: string | undefined,
+): NavLeaf | undefined {
+  // Prefer most specific match: exact pathname + tab match wins over pathname-only.
+  let best: { leaf: NavLeaf; score: number } | undefined;
+  const walk = (list: NavNode[]) => {
+    for (const n of list) {
+      if (n.kind === "group") {
+        walk(n.children);
+      } else {
+        const pathMatches = n.to === "/" ? pathname === "/" : pathname === n.to || pathname.startsWith(n.to + "/");
+        if (!pathMatches) continue;
+        let score = 1;
+        if (n.matchTab) {
+          if ((tab ?? undefined) === n.matchTab) score = 3;
+          else continue;
+        } else if (!tab) {
+          score = 2;
+        }
+        if (!best || score > best.score) best = { leaf: n, score };
+      }
+    }
+  };
+  walk(nodes);
+  return best?.leaf;
+}
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { theme, toggle } = useTheme();
   const location = useLocation();
+  // Read tab search param when on the manufacturing route (safe-cast; undefined elsewhere).
+  const searchAll = useSearch({ strict: false }) as { tab?: string };
+  const activeTab = searchAll?.tab;
   const { user, signOut, can } = useAuth();
   const { branding } = useBranding();
 
-  const visibleNav = NAV.filter((n) => can(n.permission));
-  const currentNav = NAV.find((n) =>
-    n.to === "/" ? location.pathname === "/" : location.pathname.startsWith(n.to),
-  );
-  const allowed = currentNav ? can(currentNav.permission) : true;
+  const visibleNav = filterNav(NAV, can);
+  const activeLeaf = findActiveLeaf(visibleNav, location.pathname, activeTab);
+
+  // Permission check for the current page (top-level): walk groups to find the
+  // first link whose pathname covers location.pathname.
+  const allowed = (() => {
+    if (activeLeaf) return can(activeLeaf.permission);
+    return true;
+  })();
 
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
@@ -78,34 +191,145 @@ export function AppShell({ children }: { children: ReactNode }) {
     );
   };
 
+  const isLeafActive = (leaf: NavLeaf) => activeLeaf === leaf;
+
+  const groupContainsActive = (group: NavGroup): boolean => {
+    if (!activeLeaf) return false;
+    const walk = (list: NavNode[]): boolean => {
+      for (const n of list) {
+        if (n.kind === "group") {
+          if (walk(n.children)) return true;
+        } else if (n === activeLeaf) {
+          return true;
+        }
+      }
+      return false;
+    };
+    return walk(group.children);
+  };
+
+  const NavLeafItem = ({
+    leaf,
+    touch,
+    depth,
+    onNavigate,
+  }: {
+    leaf: NavLeaf;
+    touch: boolean;
+    depth: number;
+    onNavigate?: () => void;
+  }) => {
+    const Icon = leaf.icon;
+    const active = isLeafActive(leaf);
+    return (
+      <Link
+        to={leaf.to}
+        search={leaf.search as never}
+        onClick={onNavigate}
+        className={cn(
+          "flex items-center gap-3 rounded-md font-medium transition-colors",
+          touch ? "px-4 py-3 text-base min-h-12" : "px-3 py-2 text-sm",
+          depth > 0 && (touch ? "pl-10" : "pl-8"),
+          depth > 1 && (touch ? "pl-14" : "pl-12"),
+          active
+            ? "bg-sidebar-accent text-sidebar-accent-foreground"
+            : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
+        )}
+      >
+        <Icon className={touch ? "size-5" : "size-4"} />
+        <span className="truncate">{leaf.label}</span>
+      </Link>
+    );
+  };
+
+  const NavGroupItem = ({
+    group,
+    touch,
+    depth,
+    onNavigate,
+  }: {
+    group: NavGroup;
+    touch: boolean;
+    depth: number;
+    onNavigate?: () => void;
+  }) => {
+    const containsActive = groupContainsActive(group);
+    const [open, setOpen] = useState<boolean>(containsActive);
+    // Keep open in sync if active branch changes after mount.
+    if (containsActive && !open) setOpen(true);
+    const Icon = group.icon;
+    return (
+      <Collapsible open={open} onOpenChange={setOpen}>
+        <CollapsibleTrigger
+          className={cn(
+            "group/trigger w-full flex items-center gap-3 rounded-md font-medium transition-colors",
+            touch ? "px-4 py-3 text-base min-h-12" : "px-3 py-2 text-sm",
+            depth > 0 && (touch ? "pl-10" : "pl-8"),
+            containsActive
+              ? "text-sidebar-accent-foreground"
+              : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
+          )}
+        >
+          <Icon className={touch ? "size-5" : "size-4"} />
+          <span className="flex-1 text-left truncate">{group.label}</span>
+          <ChevronRight
+            className={cn(
+              "size-4 transition-transform duration-200",
+              open && "rotate-90",
+            )}
+          />
+        </CollapsibleTrigger>
+        <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
+          <div className="mt-1 space-y-1">
+            {group.children.map((child) =>
+              child.kind === "group" ? (
+                <NavGroupItem
+                  key={child.label}
+                  group={child}
+                  touch={touch}
+                  depth={depth + 1}
+                  onNavigate={onNavigate}
+                />
+              ) : (
+                <NavLeafItem
+                  key={child.label + child.to + (child.matchTab ?? "")}
+                  leaf={child}
+                  touch={touch}
+                  depth={depth + 1}
+                  onNavigate={onNavigate}
+                />
+              ),
+            )}
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+    );
+  };
+
   const NavList = ({ touch = false, onNavigate }: { touch?: boolean; onNavigate?: () => void }) => (
     <nav className="flex-1 px-3 py-3 space-y-1 overflow-y-auto">
-      {visibleNav.map((item) => {
-        const active =
-          item.to === "/"
-            ? location.pathname === "/"
-            : location.pathname.startsWith(item.to);
-        const Icon = item.icon;
-        return (
-          <Link
-            key={item.to}
-            to={item.to}
-            onClick={onNavigate}
-            className={cn(
-              "flex items-center gap-3 rounded-md font-medium transition-colors",
-              touch ? "px-4 py-3 text-base min-h-12" : "px-3 py-2 text-sm",
-              active
-                ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
-            )}
-          >
-            <Icon className={touch ? "size-5" : "size-4"} />
-            {item.label}
-          </Link>
-        );
-      })}
+      {visibleNav.map((node) =>
+        node.kind === "group" ? (
+          <NavGroupItem
+            key={node.label}
+            group={node}
+            touch={touch}
+            depth={0}
+            onNavigate={onNavigate}
+          />
+        ) : (
+          <NavLeafItem
+            key={node.to}
+            leaf={node}
+            touch={touch}
+            depth={0}
+            onNavigate={onNavigate}
+          />
+        ),
+      )}
     </nav>
   );
+
 
   return (
     <div className="min-h-screen flex bg-background text-foreground">
