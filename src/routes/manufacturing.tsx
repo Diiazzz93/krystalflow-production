@@ -941,10 +941,12 @@ function AssembliesTab() {
             </Card>
           );
         })}
-        {assemblies.length === 0 && (
+        {filteredAssemblies.length === 0 && (
           <Card>
             <CardContent className="py-10 text-center text-sm text-muted-foreground">
-              No assemblies yet.
+              {assemblies.length === 0
+                ? "No assemblies yet."
+                : "No assemblies match this filter."}
             </CardContent>
           </Card>
         )}
