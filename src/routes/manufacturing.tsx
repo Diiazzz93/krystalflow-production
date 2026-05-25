@@ -797,14 +797,82 @@ function AssembliesTab() {
 
   
 
+  const filterCounts = useMemo(() => {
+    const c: Record<AssemblyFilter, number> = {
+      all: assemblies.length,
+      active: 0, planned: 0, ready: 0, mixing: 0, filling: 0,
+      qchold: 0, delayed: 0, completedToday: 0, recent: 0, completed: 0,
+    };
+    for (const a of assemblies) {
+      if (ACTIVE_STATUSES.includes(a.status)) c.active++;
+      if (a.status === "Planned") c.planned++;
+      if (a.status === "Ready") c.ready++;
+      if (a.status === "Mixing") c.mixing++;
+      if (a.status === "Filling") c.filling++;
+      if (a.status === "QC Hold") c.qchold++;
+      if (a.status === "Delayed") c.delayed++;
+      if (a.status === "Completed") c.completed++;
+      if (matchesFilter(a, "completedToday")) c.completedToday++;
+      if (matchesFilter(a, "recent")) c.recent++;
+    }
+    return c;
+  }, [assemblies]);
+
+  const filteredAssemblies = useMemo(
+    () => assemblies.filter((a) => matchesFilter(a, filter)),
+    [assemblies, filter],
+  );
+
+  const FILTER_CHIPS: { value: AssemblyFilter; label: string }[] = [
+    { value: "active", label: "Active" },
+    { value: "planned", label: "Planned" },
+    { value: "ready", label: "Ready" },
+    { value: "mixing", label: "Mixing" },
+    { value: "filling", label: "Filling" },
+    { value: "qchold", label: "QC Hold" },
+    { value: "delayed", label: "Delayed" },
+    { value: "completedToday", label: "Completed today" },
+    { value: "recent", label: "Recently completed" },
+    { value: "completed", label: "All completed" },
+    { value: "all", label: "All" },
+  ];
+
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center gap-2">
-        <div className="text-sm text-muted-foreground">{assemblies.length} assemblies</div>
+      <div className="flex justify-between items-center gap-2 flex-wrap">
+        <div className="text-sm text-muted-foreground">
+          {filteredAssemblies.length} of {assemblies.length} assemblies
+        </div>
         <Button onClick={() => setEditing(newAssembly())}>
           <Plus className="size-4 mr-1" /> New assembly
         </Button>
       </div>
+
+      <div className="flex flex-wrap gap-2">
+        {FILTER_CHIPS.map((c) => {
+          const active = filter === c.value;
+          const count = filterCounts[c.value];
+          return (
+            <button
+              key={c.value}
+              type="button"
+              onClick={() => setFilter(c.value)}
+              className={cn(
+                "px-3 py-1.5 rounded-full text-xs font-medium border transition-colors min-h-9",
+                active
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "border-border text-muted-foreground hover:bg-accent hover:text-foreground",
+              )}
+            >
+              {c.label}
+              <span className={cn("ml-1.5 tabular-nums", active ? "opacity-80" : "opacity-60")}>
+                {count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
       <div className="grid gap-3">
         {assemblies.map((a) => {
           const fin = finishedBOMs.find((f) => f.id === a.finishedProductId);
