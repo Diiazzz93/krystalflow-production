@@ -633,6 +633,7 @@ function AssembliesTab() {
   const { specs: customerSpecs } = useCustomerSpecs();
   const [editing, setEditing] = useState<ProductionAssembly | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [filter, setFilter] = useState<AssemblyFilter>("active");
 
   function save() {
     if (!editing) return;
