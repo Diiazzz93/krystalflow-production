@@ -88,12 +88,9 @@ function ManufacturingPage() {
           onValueChange={(v) => navigate({ search: { tab: v as MfgTab } })}
           className="w-full"
         >
-          <TabsList className="grid grid-cols-3 md:grid-cols-6 w-full md:w-auto h-auto">
+          <TabsList className="grid grid-cols-3 md:grid-cols-5 w-full md:w-auto h-auto">
             <TabsTrigger value="assemblies" className="gap-2 py-2">
-              <Wrench className="size-4" /> Production Runs
-            </TabsTrigger>
-            <TabsTrigger value="history" className="gap-2 py-2">
-              <CheckCircle2 className="size-4" /> Batch History
+              <Wrench className="size-4" /> Assemblies
             </TabsTrigger>
             <TabsTrigger value="bulk" className="gap-2 py-2">
               <Beaker className="size-4" /> Bulk BOMs
@@ -111,9 +108,6 @@ function ManufacturingPage() {
 
           <TabsContent value="assemblies" className="mt-4">
             <AssembliesTab />
-          </TabsContent>
-          <TabsContent value="history" className="mt-4">
-            <BatchHistoryTab />
           </TabsContent>
           <TabsContent value="bulk" className="mt-4">
             <BulkBOMsTab />
