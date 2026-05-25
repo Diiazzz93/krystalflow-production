@@ -874,7 +874,7 @@ function AssembliesTab() {
       </div>
 
       <div className="grid gap-3">
-        {assemblies.map((a) => {
+        {filteredAssemblies.map((a) => {
           const fin = finishedBOMs.find((f) => f.id === a.finishedProductId);
           const blk = fin ? bulkBOMs.find((b) => b.id === fin.bulkFormulaId) : undefined;
           const calc = calculateAssembly(a.unitsToProduce, fin, blk);
