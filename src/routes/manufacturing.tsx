@@ -1132,6 +1132,7 @@ function StatusPill({ status }: { status: AssemblyStatus }) {
   const color =
     status === "Completed" ? "border-emerald-500/40 text-emerald-500"
     : status === "QC Hold" ? "border-amber-500/40 text-amber-500"
+    : status === "Delayed" ? "border-destructive/40 text-destructive"
     : status === "Filling" ? "border-sky-500/40 text-sky-500"
     : status === "Mixing" ? "border-primary/40 text-primary"
     : status === "Ready" ? "border-emerald-500/40 text-emerald-500"
