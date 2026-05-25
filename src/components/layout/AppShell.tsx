@@ -191,121 +191,6 @@ export function AppShell({ children }: { children: ReactNode }) {
     );
   };
 
-  const isLeafActive = (leaf: NavLeaf) => activeLeaf === leaf;
-
-  const groupContainsActive = (group: NavGroup): boolean => {
-    if (!activeLeaf) return false;
-    const walk = (list: NavNode[]): boolean => {
-      for (const n of list) {
-        if (n.kind === "group") {
-          if (walk(n.children)) return true;
-        } else if (n === activeLeaf) {
-          return true;
-        }
-      }
-      return false;
-    };
-    return walk(group.children);
-  };
-
-  const NavLeafItem = ({
-    leaf,
-    touch,
-    depth,
-    onNavigate,
-  }: {
-    leaf: NavLeaf;
-    touch: boolean;
-    depth: number;
-    onNavigate?: () => void;
-  }) => {
-    const Icon = leaf.icon;
-    const active = isLeafActive(leaf);
-    return (
-      <Link
-        to={leaf.to}
-        search={leaf.search as never}
-        onClick={onNavigate}
-        className={cn(
-          "flex items-center gap-3 rounded-md font-medium transition-colors",
-          touch ? "px-4 py-3 text-base min-h-12" : "px-3 py-2 text-sm",
-          depth > 0 && (touch ? "pl-10" : "pl-8"),
-          depth > 1 && (touch ? "pl-14" : "pl-12"),
-          active
-            ? "bg-sidebar-accent text-sidebar-accent-foreground"
-            : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
-        )}
-      >
-        <Icon className={touch ? "size-5" : "size-4"} />
-        <span className="truncate">{leaf.label}</span>
-      </Link>
-    );
-  };
-
-  const NavGroupItem = ({
-    group,
-    touch,
-    depth,
-    onNavigate,
-  }: {
-    group: NavGroup;
-    touch: boolean;
-    depth: number;
-    onNavigate?: () => void;
-  }) => {
-    const containsActive = groupContainsActive(group);
-    const [open, setOpen] = useState<boolean>(containsActive);
-    // Keep open in sync if active branch changes after mount.
-    if (containsActive && !open) setOpen(true);
-    const Icon = group.icon;
-    return (
-      <Collapsible open={open} onOpenChange={setOpen}>
-        <CollapsibleTrigger
-          className={cn(
-            "group/trigger w-full flex items-center gap-3 rounded-md font-medium transition-colors",
-            touch ? "px-4 py-3 text-base min-h-12" : "px-3 py-2 text-sm",
-            depth > 0 && (touch ? "pl-10" : "pl-8"),
-            containsActive
-              ? "text-sidebar-accent-foreground"
-              : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
-          )}
-        >
-          <Icon className={touch ? "size-5" : "size-4"} />
-          <span className="flex-1 text-left truncate">{group.label}</span>
-          <ChevronRight
-            className={cn(
-              "size-4 transition-transform duration-200",
-              open && "rotate-90",
-            )}
-          />
-        </CollapsibleTrigger>
-        <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
-          <div className="mt-1 space-y-1">
-            {group.children.map((child) =>
-              child.kind === "group" ? (
-                <NavGroupItem
-                  key={child.label}
-                  group={child}
-                  touch={touch}
-                  depth={depth + 1}
-                  onNavigate={onNavigate}
-                />
-              ) : (
-                <NavLeafItem
-                  key={child.label + child.to + (child.matchTab ?? "")}
-                  leaf={child}
-                  touch={touch}
-                  depth={depth + 1}
-                  onNavigate={onNavigate}
-                />
-              ),
-            )}
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
-    );
-  };
-
   const NavList = ({ touch = false, onNavigate }: { touch?: boolean; onNavigate?: () => void }) => (
     <nav className="flex-1 px-3 py-3 space-y-1 overflow-y-auto">
       {visibleNav.map((node) =>
@@ -315,6 +200,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             group={node}
             touch={touch}
             depth={0}
+            activeLeaf={activeLeaf}
             onNavigate={onNavigate}
           />
         ) : (
@@ -323,12 +209,14 @@ export function AppShell({ children }: { children: ReactNode }) {
             leaf={node}
             touch={touch}
             depth={0}
+            active={activeLeaf === node}
             onNavigate={onNavigate}
           />
         ),
       )}
     </nav>
   );
+
 
 
   return (
