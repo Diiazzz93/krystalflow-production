@@ -11,7 +11,6 @@ import {
   FileCog,
   FlaskConical,
   LayoutDashboard,
-  LayoutDashboard,
   LogOut,
   Lock,
   Menu,
