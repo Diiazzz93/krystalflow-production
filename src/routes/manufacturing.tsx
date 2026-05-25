@@ -54,8 +54,8 @@ import {
 import { useCustomerSpecs } from "@/lib/customer-specs";
 import { cn } from "@/lib/utils";
 
-type MfgTab = "assemblies" | "history" | "bulk" | "finished" | "stock" | "io";
-const VALID_TABS: MfgTab[] = ["assemblies", "history", "bulk", "finished", "stock", "io"];
+type MfgTab = "assemblies" | "bulk" | "finished" | "stock" | "io";
+const VALID_TABS: MfgTab[] = ["assemblies", "bulk", "finished", "stock", "io"];
 
 export const Route = createFileRoute("/manufacturing")({
   validateSearch: (search: Record<string, unknown>): { tab?: MfgTab } => {
@@ -88,12 +88,9 @@ function ManufacturingPage() {
           onValueChange={(v) => navigate({ search: { tab: v as MfgTab } })}
           className="w-full"
         >
-          <TabsList className="grid grid-cols-3 md:grid-cols-6 w-full md:w-auto h-auto">
+          <TabsList className="grid grid-cols-3 md:grid-cols-5 w-full md:w-auto h-auto">
             <TabsTrigger value="assemblies" className="gap-2 py-2">
-              <Wrench className="size-4" /> Production Runs
-            </TabsTrigger>
-            <TabsTrigger value="history" className="gap-2 py-2">
-              <CheckCircle2 className="size-4" /> Batch History
+              <Wrench className="size-4" /> Assemblies
             </TabsTrigger>
             <TabsTrigger value="bulk" className="gap-2 py-2">
               <Beaker className="size-4" /> Bulk BOMs
@@ -111,9 +108,6 @@ function ManufacturingPage() {
 
           <TabsContent value="assemblies" className="mt-4">
             <AssembliesTab />
-          </TabsContent>
-          <TabsContent value="history" className="mt-4">
-            <BatchHistoryTab />
           </TabsContent>
           <TabsContent value="bulk" className="mt-4">
             <BulkBOMsTab />
@@ -133,49 +127,6 @@ function ManufacturingPage() {
   );
 }
 
-function BatchHistoryTab() {
-  const { assemblies, finishedBOMs } = useManufacturing();
-  const completed = assemblies.filter((a) => a.status === "Completed");
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Batch History</CardTitle>
-        <CardDescription>Completed production runs.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {completed.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No completed batches yet.</p>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Reference</TableHead>
-                <TableHead>Product</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead className="text-right">Units</TableHead>
-                <TableHead>Completed</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {completed.map((a) => {
-                const fin = finishedBOMs.find((f) => f.id === a.finishedProductId);
-                return (
-                  <TableRow key={a.id}>
-                    <TableCell className="font-medium">{a.reference}</TableCell>
-                    <TableCell>{fin?.productName ?? "—"}</TableCell>
-                    <TableCell>{a.customer ?? "—"}</TableCell>
-                    <TableCell className="text-right">{a.unitsToProduce.toLocaleString()}</TableCell>
-                    <TableCell>{a.actualEnd ? new Date(a.actualEnd).toLocaleString() : "—"}</TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
 
 function ImportExportTab() {
   return (
@@ -669,6 +620,46 @@ function FinishedEditor({
 
 // ============= Assemblies =============
 
+type AssemblyFilter =
+  | "all"
+  | "active"
+  | "planned"
+  | "ready"
+  | "mixing"
+  | "filling"
+  | "qchold"
+  | "delayed"
+  | "completedToday"
+  | "recent"
+  | "completed";
+
+const ACTIVE_STATUSES: AssemblyStatus[] = ["Planned", "Ready", "Mixing", "Filling", "QC Hold", "Delayed"];
+
+function matchesFilter(a: ProductionAssembly, filter: AssemblyFilter): boolean {
+  switch (filter) {
+    case "all": return true;
+    case "active": return ACTIVE_STATUSES.includes(a.status);
+    case "planned": return a.status === "Planned";
+    case "ready": return a.status === "Ready";
+    case "mixing": return a.status === "Mixing";
+    case "filling": return a.status === "Filling";
+    case "qchold": return a.status === "QC Hold";
+    case "delayed": return a.status === "Delayed";
+    case "completed": return a.status === "Completed";
+    case "completedToday": {
+      if (a.status !== "Completed" || !a.actualEnd) return false;
+      const end = new Date(a.actualEnd);
+      const now = new Date();
+      return end.toDateString() === now.toDateString();
+    }
+    case "recent": {
+      if (a.status !== "Completed" || !a.actualEnd) return false;
+      const ageMs = Date.now() - new Date(a.actualEnd).getTime();
+      return ageMs <= 1000 * 60 * 60 * 24 * 7;
+    }
+  }
+}
+
 function AssembliesTab() {
   const {
     assemblies,
@@ -682,6 +673,7 @@ function AssembliesTab() {
   const { specs: customerSpecs } = useCustomerSpecs();
   const [editing, setEditing] = useState<ProductionAssembly | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [filter, setFilter] = useState<AssemblyFilter>("active");
 
   function save() {
     if (!editing) return;
@@ -805,16 +797,84 @@ function AssembliesTab() {
 
   
 
+  const filterCounts = useMemo(() => {
+    const c: Record<AssemblyFilter, number> = {
+      all: assemblies.length,
+      active: 0, planned: 0, ready: 0, mixing: 0, filling: 0,
+      qchold: 0, delayed: 0, completedToday: 0, recent: 0, completed: 0,
+    };
+    for (const a of assemblies) {
+      if (ACTIVE_STATUSES.includes(a.status)) c.active++;
+      if (a.status === "Planned") c.planned++;
+      if (a.status === "Ready") c.ready++;
+      if (a.status === "Mixing") c.mixing++;
+      if (a.status === "Filling") c.filling++;
+      if (a.status === "QC Hold") c.qchold++;
+      if (a.status === "Delayed") c.delayed++;
+      if (a.status === "Completed") c.completed++;
+      if (matchesFilter(a, "completedToday")) c.completedToday++;
+      if (matchesFilter(a, "recent")) c.recent++;
+    }
+    return c;
+  }, [assemblies]);
+
+  const filteredAssemblies = useMemo(
+    () => assemblies.filter((a) => matchesFilter(a, filter)),
+    [assemblies, filter],
+  );
+
+  const FILTER_CHIPS: { value: AssemblyFilter; label: string }[] = [
+    { value: "active", label: "Active" },
+    { value: "planned", label: "Planned" },
+    { value: "ready", label: "Ready" },
+    { value: "mixing", label: "Mixing" },
+    { value: "filling", label: "Filling" },
+    { value: "qchold", label: "QC Hold" },
+    { value: "delayed", label: "Delayed" },
+    { value: "completedToday", label: "Completed today" },
+    { value: "recent", label: "Recently completed" },
+    { value: "completed", label: "All completed" },
+    { value: "all", label: "All" },
+  ];
+
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center gap-2">
-        <div className="text-sm text-muted-foreground">{assemblies.length} assemblies</div>
+      <div className="flex justify-between items-center gap-2 flex-wrap">
+        <div className="text-sm text-muted-foreground">
+          {filteredAssemblies.length} of {assemblies.length} assemblies
+        </div>
         <Button onClick={() => setEditing(newAssembly())}>
           <Plus className="size-4 mr-1" /> New assembly
         </Button>
       </div>
+
+      <div className="flex flex-wrap gap-2">
+        {FILTER_CHIPS.map((c) => {
+          const active = filter === c.value;
+          const count = filterCounts[c.value];
+          return (
+            <button
+              key={c.value}
+              type="button"
+              onClick={() => setFilter(c.value)}
+              className={cn(
+                "px-3 py-1.5 rounded-full text-xs font-medium border transition-colors min-h-9",
+                active
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "border-border text-muted-foreground hover:bg-accent hover:text-foreground",
+              )}
+            >
+              {c.label}
+              <span className={cn("ml-1.5 tabular-nums", active ? "opacity-80" : "opacity-60")}>
+                {count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
       <div className="grid gap-3">
-        {assemblies.map((a) => {
+        {filteredAssemblies.map((a) => {
           const fin = finishedBOMs.find((f) => f.id === a.finishedProductId);
           const blk = fin ? bulkBOMs.find((b) => b.id === fin.bulkFormulaId) : undefined;
           const calc = calculateAssembly(a.unitsToProduce, fin, blk);
@@ -881,10 +941,12 @@ function AssembliesTab() {
             </Card>
           );
         })}
-        {assemblies.length === 0 && (
+        {filteredAssemblies.length === 0 && (
           <Card>
             <CardContent className="py-10 text-center text-sm text-muted-foreground">
-              No assemblies yet.
+              {assemblies.length === 0
+                ? "No assemblies yet."
+                : "No assemblies match this filter."}
             </CardContent>
           </Card>
         )}
@@ -1070,6 +1132,7 @@ function StatusPill({ status }: { status: AssemblyStatus }) {
   const color =
     status === "Completed" ? "border-emerald-500/40 text-emerald-500"
     : status === "QC Hold" ? "border-amber-500/40 text-amber-500"
+    : status === "Delayed" ? "border-destructive/40 text-destructive"
     : status === "Filling" ? "border-sky-500/40 text-sky-500"
     : status === "Mixing" ? "border-primary/40 text-primary"
     : status === "Ready" ? "border-emerald-500/40 text-emerald-500"

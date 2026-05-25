@@ -10,7 +10,6 @@ import {
   Factory,
   FileCog,
   FlaskConical,
-  History,
   LayoutDashboard,
   LogOut,
   Lock,
@@ -78,17 +77,7 @@ const NAV: NavNode[] = [
     permission: "page:manufacturing",
     basePath: "/manufacturing",
     children: [
-      {
-        kind: "group",
-        label: "Assemblies",
-        icon: Wrench,
-        permission: "page:manufacturing",
-        basePath: "/manufacturing",
-        children: [
-          { kind: "link", to: "/manufacturing", label: "Production Runs", icon: Wrench, permission: "page:manufacturing", search: { tab: "assemblies" }, matchTab: "assemblies" },
-          { kind: "link", to: "/manufacturing", label: "Batch History", icon: History, permission: "page:manufacturing", search: { tab: "history" }, matchTab: "history" },
-        ],
-      },
+      { kind: "link", to: "/manufacturing", label: "Assemblies", icon: Wrench, permission: "page:manufacturing", search: { tab: "assemblies" }, matchTab: "assemblies" },
       {
         kind: "group",
         label: "Bill of Materials",

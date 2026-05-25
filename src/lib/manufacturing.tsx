@@ -69,6 +69,7 @@ export type AssemblyStatus =
   | "Mixing"
   | "Filling"
   | "QC Hold"
+  | "Delayed"
   | "Completed";
 
 export const ASSEMBLY_STATUSES: AssemblyStatus[] = [
@@ -78,6 +79,7 @@ export const ASSEMBLY_STATUSES: AssemblyStatus[] = [
   "Mixing",
   "Filling",
   "QC Hold",
+  "Delayed",
   "Completed",
 ];
 
@@ -88,6 +90,7 @@ export const ALLOCATING_STATUSES: AssemblyStatus[] = [
   "Mixing",
   "Filling",
   "QC Hold",
+  "Delayed",
 ];
 
 export type AssemblyQcStatus = "Pending" | "Pass" | "Fail" | "Hold";
