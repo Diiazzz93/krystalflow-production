@@ -54,11 +54,22 @@ import {
 import { useCustomerSpecs } from "@/lib/customer-specs";
 import { cn } from "@/lib/utils";
 
+type MfgTab = "assemblies" | "history" | "bulk" | "finished" | "stock" | "io";
+const VALID_TABS: MfgTab[] = ["assemblies", "history", "bulk", "finished", "stock", "io"];
+
 export const Route = createFileRoute("/manufacturing")({
+  validateSearch: (search: Record<string, unknown>): { tab?: MfgTab } => {
+    const t = search.tab as string | undefined;
+    return { tab: VALID_TABS.includes(t as MfgTab) ? (t as MfgTab) : undefined };
+  },
   component: ManufacturingPage,
 });
 
 function ManufacturingPage() {
+  const search = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const tab: MfgTab = search.tab ?? "assemblies";
+
   return (
     <AppShell>
       <div className="space-y-5">
@@ -72,37 +83,114 @@ function ManufacturingPage() {
           </p>
         </div>
 
-        <Tabs defaultValue="bulk" className="w-full">
-          <TabsList className="grid grid-cols-2 md:grid-cols-4 w-full md:w-auto h-auto">
+        <Tabs
+          value={tab}
+          onValueChange={(v) => navigate({ search: { tab: v as MfgTab } })}
+          className="w-full"
+        >
+          <TabsList className="grid grid-cols-3 md:grid-cols-6 w-full md:w-auto h-auto">
+            <TabsTrigger value="assemblies" className="gap-2 py-2">
+              <Wrench className="size-4" /> Production Runs
+            </TabsTrigger>
+            <TabsTrigger value="history" className="gap-2 py-2">
+              <CheckCircle2 className="size-4" /> Batch History
+            </TabsTrigger>
             <TabsTrigger value="bulk" className="gap-2 py-2">
               <Beaker className="size-4" /> Bulk BOMs
             </TabsTrigger>
             <TabsTrigger value="finished" className="gap-2 py-2">
               <Package className="size-4" /> Finished BOMs
             </TabsTrigger>
-            <TabsTrigger value="assemblies" className="gap-2 py-2">
-              <Wrench className="size-4" /> Assemblies
-            </TabsTrigger>
             <TabsTrigger value="stock" className="gap-2 py-2">
               <Boxes className="size-4" /> Stock Check
             </TabsTrigger>
+            <TabsTrigger value="io" className="gap-2 py-2">
+              <Package className="size-4" /> Import / Export
+            </TabsTrigger>
           </TabsList>
 
+          <TabsContent value="assemblies" className="mt-4">
+            <AssembliesTab />
+          </TabsContent>
+          <TabsContent value="history" className="mt-4">
+            <BatchHistoryTab />
+          </TabsContent>
           <TabsContent value="bulk" className="mt-4">
             <BulkBOMsTab />
           </TabsContent>
           <TabsContent value="finished" className="mt-4">
             <FinishedBOMsTab />
           </TabsContent>
-          <TabsContent value="assemblies" className="mt-4">
-            <AssembliesTab />
-          </TabsContent>
           <TabsContent value="stock" className="mt-4">
             <StockCheckTab />
+          </TabsContent>
+          <TabsContent value="io" className="mt-4">
+            <ImportExportTab />
           </TabsContent>
         </Tabs>
       </div>
     </AppShell>
+  );
+}
+
+function BatchHistoryTab() {
+  const { assemblies, finishedBOMs } = useManufacturing();
+  const completed = assemblies.filter((a) => a.status === "Completed");
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Batch History</CardTitle>
+        <CardDescription>Completed production runs.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {completed.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No completed batches yet.</p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Reference</TableHead>
+                <TableHead>Product</TableHead>
+                <TableHead>Customer</TableHead>
+                <TableHead className="text-right">Units</TableHead>
+                <TableHead>Completed</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {completed.map((a) => {
+                const fin = finishedBOMs.find((f) => f.id === a.finishedProductId);
+                return (
+                  <TableRow key={a.id}>
+                    <TableCell className="font-medium">{a.reference}</TableCell>
+                    <TableCell>{fin?.productName ?? "—"}</TableCell>
+                    <TableCell>{a.customer ?? "—"}</TableCell>
+                    <TableCell className="text-right">{a.unitsToProduce.toLocaleString()}</TableCell>
+                    <TableCell>{a.actualEnd ? new Date(a.actualEnd).toLocaleString() : "—"}</TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function ImportExportTab() {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Import / Export</CardTitle>
+        <CardDescription>
+          Bring BOMs and production data in or out of KrystalFlow.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="text-sm text-muted-foreground space-y-2">
+        <p>CSV import/export for Bulk Formulas, Finished Product BOMs, and Production Runs is coming soon.</p>
+        <p>This will let you sync data with Unleashed, Excel templates, and other manufacturing tools.</p>
+      </CardContent>
+    </Card>
   );
 }
 
