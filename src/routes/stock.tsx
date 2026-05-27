@@ -198,6 +198,17 @@ function StockPage() {
                     className="pl-8 w-64"
                   />
                 </div>
+                <Select value={category} onValueChange={(v) => setCategory(v as typeof category)}>
+                  <SelectTrigger className="w-44">
+                    <SelectValue placeholder="Category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All categories</SelectItem>
+                    {STOCK_CATEGORIES.map((c) => (
+                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <Select value={status} onValueChange={(v) => setStatus(v as typeof status)}>
                   <SelectTrigger className="w-44">
                     <SelectValue placeholder="Status" />
