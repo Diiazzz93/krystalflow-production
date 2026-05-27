@@ -4,6 +4,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -19,9 +20,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { AlertTriangle, Boxes, CheckCircle2, Layers, Package, Search } from "lucide-react";
-import { MOCK_STOCK, getStockStatus, type StockItem, type StockStatus } from "@/lib/stock";
+import { AlertTriangle, Boxes, CheckCircle2, Layers, Package, Plus, Search } from "lucide-react";
+import {
+  getStockStatus,
+  resolveCategory,
+  STOCK_CATEGORIES,
+  type StockCategory,
+  type StockStatus,
+} from "@/lib/stock";
+import { useStockStore } from "@/lib/stock-store";
 import { ActiveJobsSection } from "@/components/stock/ActiveJobsSection";
+import { AddStockDialog } from "@/components/stock/AddStockDialog";
+import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/stock")({
