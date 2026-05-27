@@ -19,7 +19,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { MOCK_STOCK, type StockItem } from "@/lib/stock";
+import { type StockItem } from "@/lib/stock";
+import { useStockStore } from "@/lib/stock-store";
 
 // ---------- Types ----------
 
