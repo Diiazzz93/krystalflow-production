@@ -259,6 +259,7 @@ function StockPage() {
                         <TableCell className="font-mono text-xs text-muted-foreground">
                           {i.sku}
                         </TableCell>
+                        <TableCell>{categoryBadge(i.categoryResolved)}</TableCell>
                         <TableCell className="text-right tabular-nums">
                           {i.quantityOnHand.toLocaleString()}{" "}
                           <span className="text-xs text-muted-foreground">{i.unit}</span>
