@@ -309,6 +309,7 @@ function StockPage() {
                     <div className="min-w-0">
                       <div className="font-medium text-sm leading-snug">{i.name}</div>
                       <div className="font-mono text-xs text-muted-foreground">{i.sku}</div>
+                      <div className="mt-1">{categoryBadge(i.categoryResolved)}</div>
                     </div>
                     {statusBadge(i.status)}
                   </div>
