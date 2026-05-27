@@ -149,6 +149,12 @@ function StockPage() {
               Unleashed once connected.
             </p>
           </div>
+          {canEdit && (
+            <Button onClick={() => setAddOpen(true)} className="h-11 gap-2">
+              <Plus className="size-4" />
+              Add stock
+            </Button>
+          )}
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
