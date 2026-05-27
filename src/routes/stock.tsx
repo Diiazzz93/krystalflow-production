@@ -230,6 +230,7 @@ function StockPage() {
                   <TableRow>
                     <TableHead>Product</TableHead>
                     <TableHead>SKU</TableHead>
+                    <TableHead>Category</TableHead>
                     <TableHead className="text-right">On hand</TableHead>
                     <TableHead className="text-right">Available</TableHead>
                     <TableHead className="text-right">Allocated</TableHead>
@@ -241,7 +242,7 @@ function StockPage() {
                 <TableBody>
                   {filtered.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                      <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                         No stock items match your filters.
                       </TableCell>
                     </TableRow>
