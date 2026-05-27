@@ -144,11 +144,13 @@ function RootComponent() {
             <StoreProvider>
               <LineSetupProvider>
                 <CustomerSpecsProvider>
-                  <ManufacturingProvider>
-                    <AuthGate>
-                      <Outlet />
-                    </AuthGate>
-                  </ManufacturingProvider>
+                  <StockStoreProvider>
+                    <ManufacturingProvider>
+                      <AuthGate>
+                        <Outlet />
+                      </AuthGate>
+                    </ManufacturingProvider>
+                  </StockStoreProvider>
                 </CustomerSpecsProvider>
               </LineSetupProvider>
             </StoreProvider>
