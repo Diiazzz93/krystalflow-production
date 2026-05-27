@@ -19,7 +19,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { MOCK_STOCK, type StockItem } from "@/lib/stock";
+import { type StockItem } from "@/lib/stock";
+import { useStockStore } from "@/lib/stock-store";
 
 // ---------- Types ----------
 
@@ -495,10 +496,12 @@ export function ManufacturingProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const { items: stockItems } = useStockStore();
+
   const value = useMemo<ManufacturingValue>(
     () => ({
       ...data,
-      stock: MOCK_STOCK,
+      stock: stockItems,
       upsertBulk,
       deleteBulk,
       upsertFinished,
@@ -509,7 +512,7 @@ export function ManufacturingProvider({ children }: { children: ReactNode }) {
       newFinished,
       newAssembly,
     }),
-    [data, upsertBulk, deleteBulk, upsertFinished, deleteFinished, upsertAssembly, deleteAssembly, newBulk, newFinished, newAssembly],
+    [data, stockItems, upsertBulk, deleteBulk, upsertFinished, deleteFinished, upsertAssembly, deleteAssembly, newBulk, newFinished, newAssembly],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

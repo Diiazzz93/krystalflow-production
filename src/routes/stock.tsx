@@ -4,6 +4,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -19,9 +20,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { AlertTriangle, Boxes, CheckCircle2, Layers, Package, Search } from "lucide-react";
-import { MOCK_STOCK, getStockStatus, type StockItem, type StockStatus } from "@/lib/stock";
+import { AlertTriangle, Boxes, CheckCircle2, Layers, Package, Plus, Search } from "lucide-react";
+import {
+  getStockStatus,
+  resolveCategory,
+  STOCK_CATEGORIES,
+  type StockCategory,
+  type StockStatus,
+} from "@/lib/stock";
+import { useStockStore } from "@/lib/stock-store";
 import { ActiveJobsSection } from "@/components/stock/ActiveJobsSection";
+import { AddStockDialog } from "@/components/stock/AddStockDialog";
+import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/stock")({
@@ -67,20 +77,44 @@ function fmtDateTime(iso: string) {
   });
 }
 
+const CATEGORY_BADGE: Record<StockCategory, string> = {
+  "Bottles": "bg-blue-500/15 text-blue-600 dark:text-blue-300 border-blue-500/30",
+  "Caps": "bg-purple-500/15 text-purple-600 dark:text-purple-300 border-purple-500/30",
+  "Labels": "bg-pink-500/15 text-pink-600 dark:text-pink-300 border-pink-500/30",
+  "Cartons": "bg-orange-500/15 text-orange-600 dark:text-orange-300 border-orange-500/30",
+  "Pallets": "bg-yellow-500/15 text-yellow-700 dark:text-yellow-300 border-yellow-500/30",
+  "Liquid / IBC": "bg-cyan-500/15 text-cyan-600 dark:text-cyan-300 border-cyan-500/30",
+  "Raw Materials": "bg-teal-500/15 text-teal-600 dark:text-teal-300 border-teal-500/30",
+  "Finished Goods": "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border-emerald-500/30",
+  "Other": "bg-muted text-muted-foreground border-border",
+};
+
+function categoryBadge(cat: StockCategory) {
+  return (
+    <Badge variant="outline" className={cn("font-medium", CATEGORY_BADGE[cat])}>
+      {cat}
+    </Badge>
+  );
+}
+
 function StockPage() {
-  // Mock data — swap with `useQuery(['stock'], fetchStock)` once Unleashed is wired.
-  const [items] = useState<StockItem[]>(MOCK_STOCK);
+  const { items } = useStockStore();
+  const { hasRole } = useAuth();
+  const canEdit = hasRole("admin", "manager");
+  const [addOpen, setAddOpen] = useState(false);
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<"all" | StockStatus>("all");
+  const [category, setCategory] = useState<"all" | StockCategory>("all");
 
   const enriched = useMemo(
-    () => items.map((i) => ({ ...i, status: getStockStatus(i) })),
+    () => items.map((i) => ({ ...i, status: getStockStatus(i), categoryResolved: resolveCategory(i) })),
     [items],
   );
 
   const filtered = useMemo(() => {
     return enriched.filter((i) => {
       if (status !== "all" && i.status !== status) return false;
+      if (category !== "all" && i.categoryResolved !== category) return false;
       if (q) {
         const t = q.toLowerCase();
         if (
@@ -92,7 +126,7 @@ function StockPage() {
       }
       return true;
     });
-  }, [enriched, q, status]);
+  }, [enriched, q, status, category]);
 
   const totals = useMemo(() => {
     return {
@@ -115,6 +149,12 @@ function StockPage() {
               Unleashed once connected.
             </p>
           </div>
+          {canEdit && (
+            <Button onClick={() => setAddOpen(true)} className="h-11 gap-2">
+              <Plus className="size-4" />
+              Add stock
+            </Button>
+          )}
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -158,6 +198,17 @@ function StockPage() {
                     className="pl-8 w-64"
                   />
                 </div>
+                <Select value={category} onValueChange={(v) => setCategory(v as typeof category)}>
+                  <SelectTrigger className="w-44">
+                    <SelectValue placeholder="Category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All categories</SelectItem>
+                    {STOCK_CATEGORIES.map((c) => (
+                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <Select value={status} onValueChange={(v) => setStatus(v as typeof status)}>
                   <SelectTrigger className="w-44">
                     <SelectValue placeholder="Status" />
@@ -179,6 +230,7 @@ function StockPage() {
                   <TableRow>
                     <TableHead>Product</TableHead>
                     <TableHead>SKU</TableHead>
+                    <TableHead>Category</TableHead>
                     <TableHead className="text-right">On hand</TableHead>
                     <TableHead className="text-right">Available</TableHead>
                     <TableHead className="text-right">Allocated</TableHead>
@@ -190,7 +242,7 @@ function StockPage() {
                 <TableBody>
                   {filtered.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                      <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                         No stock items match your filters.
                       </TableCell>
                     </TableRow>
@@ -207,6 +259,7 @@ function StockPage() {
                         <TableCell className="font-mono text-xs text-muted-foreground">
                           {i.sku}
                         </TableCell>
+                        <TableCell>{categoryBadge(i.categoryResolved)}</TableCell>
                         <TableCell className="text-right tabular-nums">
                           {i.quantityOnHand.toLocaleString()}{" "}
                           <span className="text-xs text-muted-foreground">{i.unit}</span>
@@ -256,6 +309,7 @@ function StockPage() {
                     <div className="min-w-0">
                       <div className="font-medium text-sm leading-snug">{i.name}</div>
                       <div className="font-mono text-xs text-muted-foreground">{i.sku}</div>
+                      <div className="mt-1">{categoryBadge(i.categoryResolved)}</div>
                     </div>
                     {statusBadge(i.status)}
                   </div>
@@ -298,6 +352,7 @@ function StockPage() {
 
         <ActiveJobsSection />
       </div>
+      <AddStockDialog open={addOpen} onOpenChange={setAddOpen} />
     </AppShell>
   );
 }
