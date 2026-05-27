@@ -14,6 +14,29 @@
 
 export type StockStatus = "in-stock" | "low-stock" | "out-of-stock";
 
+export type StockCategory =
+  | "Bottles"
+  | "Caps"
+  | "Labels"
+  | "Cartons"
+  | "Pallets"
+  | "Liquid / IBC"
+  | "Raw Materials"
+  | "Finished Goods"
+  | "Other";
+
+export const STOCK_CATEGORIES: StockCategory[] = [
+  "Bottles",
+  "Caps",
+  "Labels",
+  "Cartons",
+  "Pallets",
+  "Liquid / IBC",
+  "Raw Materials",
+  "Finished Goods",
+  "Other",
+];
+
 export interface StockItem {
   id: string;
   sku: string;
@@ -25,12 +48,32 @@ export interface StockItem {
   location: string;
   unit: string;
   lastUpdated: string; // ISO
+  category?: StockCategory;
+  source?: string;
+  notes?: string;
+  dateReceived?: string;
 }
 
 export function getStockStatus(item: StockItem): StockStatus {
   if (item.availableStock <= 0) return "out-of-stock";
   if (item.availableStock <= item.reorderLevel) return "low-stock";
   return "in-stock";
+}
+
+export function inferCategory(sku: string): StockCategory {
+  const s = sku.toUpperCase();
+  if (s.startsWith("CAP")) return "Caps";
+  if (s.startsWith("LBL")) return "Labels";
+  if (s.startsWith("BOX")) return "Cartons";
+  if (s.startsWith("PLT")) return "Pallets";
+  if (s.startsWith("RAW")) return "Raw Materials";
+  if (s.startsWith("LIQ")) return "Liquid / IBC";
+  if (s.startsWith("AQP")) return "Bottles";
+  return "Other";
+}
+
+export function resolveCategory(item: StockItem): StockCategory {
+  return item.category ?? inferCategory(item.sku);
 }
 
 export const MOCK_STOCK: StockItem[] = [
