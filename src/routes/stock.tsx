@@ -352,6 +352,7 @@ function StockPage() {
 
         <ActiveJobsSection />
       </div>
+      <AddStockDialog open={addOpen} onOpenChange={setAddOpen} />
     </AppShell>
   );
 }
