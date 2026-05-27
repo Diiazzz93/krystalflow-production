@@ -77,20 +77,44 @@ function fmtDateTime(iso: string) {
   });
 }
 
+const CATEGORY_BADGE: Record<StockCategory, string> = {
+  "Bottles": "bg-blue-500/15 text-blue-600 dark:text-blue-300 border-blue-500/30",
+  "Caps": "bg-purple-500/15 text-purple-600 dark:text-purple-300 border-purple-500/30",
+  "Labels": "bg-pink-500/15 text-pink-600 dark:text-pink-300 border-pink-500/30",
+  "Cartons": "bg-orange-500/15 text-orange-600 dark:text-orange-300 border-orange-500/30",
+  "Pallets": "bg-yellow-500/15 text-yellow-700 dark:text-yellow-300 border-yellow-500/30",
+  "Liquid / IBC": "bg-cyan-500/15 text-cyan-600 dark:text-cyan-300 border-cyan-500/30",
+  "Raw Materials": "bg-teal-500/15 text-teal-600 dark:text-teal-300 border-teal-500/30",
+  "Finished Goods": "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border-emerald-500/30",
+  "Other": "bg-muted text-muted-foreground border-border",
+};
+
+function categoryBadge(cat: StockCategory) {
+  return (
+    <Badge variant="outline" className={cn("font-medium", CATEGORY_BADGE[cat])}>
+      {cat}
+    </Badge>
+  );
+}
+
 function StockPage() {
-  // Mock data — swap with `useQuery(['stock'], fetchStock)` once Unleashed is wired.
-  const [items] = useState<StockItem[]>(MOCK_STOCK);
+  const { items } = useStockStore();
+  const { hasRole } = useAuth();
+  const canEdit = hasRole("admin", "manager");
+  const [addOpen, setAddOpen] = useState(false);
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<"all" | StockStatus>("all");
+  const [category, setCategory] = useState<"all" | StockCategory>("all");
 
   const enriched = useMemo(
-    () => items.map((i) => ({ ...i, status: getStockStatus(i) })),
+    () => items.map((i) => ({ ...i, status: getStockStatus(i), categoryResolved: resolveCategory(i) })),
     [items],
   );
 
   const filtered = useMemo(() => {
     return enriched.filter((i) => {
       if (status !== "all" && i.status !== status) return false;
+      if (category !== "all" && i.categoryResolved !== category) return false;
       if (q) {
         const t = q.toLowerCase();
         if (
@@ -102,7 +126,7 @@ function StockPage() {
       }
       return true;
     });
-  }, [enriched, q, status]);
+  }, [enriched, q, status, category]);
 
   const totals = useMemo(() => {
     return {
