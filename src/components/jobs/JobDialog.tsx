@@ -125,6 +125,12 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
     [presets, form.product, form.bottleSize],
   );
 
+  const { items: stockItems } = useStockStore();
+  const bottleStock = useMemo(() => byCategory(stockItems, "Bottles"), [stockItems]);
+  const capStock = useMemo(() => byCategory(stockItems, "Caps"), [stockItems]);
+  const labelStock = useMemo(() => byCategory(stockItems, "Labels"), [stockItems]);
+  const cartonStock = useMemo(() => byCategory(stockItems, "Cartons"), [stockItems]);
+
   useEffect(() => {
     if (open) {
       const base = existing ?? emptyJob();
