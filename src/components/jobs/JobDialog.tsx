@@ -39,6 +39,7 @@ import { LIQUID_OPTIONS } from "@/lib/catalog";
 import { SlidersHorizontal } from "lucide-react";
 import { findSetupForJob, useLineSetups } from "@/lib/line-setups";
 import { LineSetupViewerDialog } from "@/components/line-setup/LineSetupViewerDialog";
+import { StockCombobox } from "@/components/jobs/StockCombobox";
 import { useStockStore } from "@/lib/stock-store";
 import { resolveCategory, type StockCategory, type StockItem } from "@/lib/stock";
 
@@ -198,88 +199,55 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
             <Input value={form.product} onChange={(e) => set("product", e.target.value)} />
           </Field>
           <Field label="Bottle">
-            <Select
-              value={form.bottleSku ?? ""}
-              onValueChange={(v) => {
-                const opt = bottleStock.find((o) => o.sku === v);
+            <StockCombobox
+              items={bottleStock}
+              value={form.bottleSku}
+              placeholder="Search bottles…"
+              emptyText="No bottles in stock"
+              onSelect={(opt) =>
                 setForm((f) => ({
                   ...f,
-                  bottleSku: v,
-                  sku: v,
-                  bottleSize: opt ? parseBottleSize(opt.name, f.bottleSize) : f.bottleSize,
-                }));
-              }}
-            >
-              <SelectTrigger><SelectValue placeholder="Select bottle" /></SelectTrigger>
-              <SelectContent>
-                {bottleStock.length === 0 && (
-                  <div className="px-2 py-1.5 text-xs text-muted-foreground">No bottles in stock</div>
-                )}
-                {bottleStock.map((o) => (
-                  <SelectItem key={o.sku} value={o.sku}>
-                    {o.name} <span className="text-muted-foreground">· {o.sku} · {stockLabel(o)}</span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                  bottleSku: opt.sku,
+                  sku: opt.sku,
+                  bottleSize: parseBottleSize(opt.name, f.bottleSize),
+                }))
+              }
+            />
           </Field>
           <Field label="Cap">
-            <Select value={form.capSku ?? ""} onValueChange={(v) => set("capSku", v)}>
-              <SelectTrigger><SelectValue placeholder="Select cap" /></SelectTrigger>
-              <SelectContent>
-                {capStock.length === 0 && (
-                  <div className="px-2 py-1.5 text-xs text-muted-foreground">No caps in stock</div>
-                )}
-                {capStock.map((o) => (
-                  <SelectItem key={o.sku} value={o.sku}>
-                    {o.name} <span className="text-muted-foreground">· {o.sku} · {stockLabel(o)}</span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <StockCombobox
+              items={capStock}
+              value={form.capSku}
+              placeholder="Search caps…"
+              emptyText="No caps in stock"
+              onSelect={(opt) => set("capSku", opt.sku)}
+            />
           </Field>
           <Field label="Label">
-            <Select value={form.labelSku ?? ""} onValueChange={(v) => set("labelSku", v)}>
-              <SelectTrigger><SelectValue placeholder="Select label" /></SelectTrigger>
-              <SelectContent>
-                {labelStock.length === 0 && (
-                  <div className="px-2 py-1.5 text-xs text-muted-foreground">No labels in stock</div>
-                )}
-                {labelStock.map((o) => (
-                  <SelectItem key={o.sku} value={o.sku}>
-                    {o.name} <span className="text-muted-foreground">· {o.sku} · {stockLabel(o)}</span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <StockCombobox
+              items={labelStock}
+              value={form.labelSku}
+              placeholder="Search labels…"
+              emptyText="No labels in stock"
+              onSelect={(opt) => set("labelSku", opt.sku)}
+            />
           </Field>
           <Field label="Carton">
-            <Select
-              value={form.cartonSku ?? ""}
-              onValueChange={(v) => {
-                const opt = cartonStock.find((o) => o.sku === v);
+            <StockCombobox
+              items={cartonStock}
+              value={form.cartonSku}
+              placeholder="Search cartons…"
+              emptyText="No cartons in stock"
+              onSelect={(opt) =>
                 setForm((f) => ({
                   ...f,
-                  cartonSku: v,
-                  bottlesPerCarton: opt
-                    ? parseBottlesPerCarton(opt.name, f.bottlesPerCarton)
-                    : f.bottlesPerCarton,
-                }));
-              }}
-            >
-              <SelectTrigger><SelectValue placeholder="Select carton" /></SelectTrigger>
-              <SelectContent>
-                {cartonStock.length === 0 && (
-                  <div className="px-2 py-1.5 text-xs text-muted-foreground">No cartons in stock</div>
-                )}
-                {cartonStock.map((o) => (
-                  <SelectItem key={o.sku} value={o.sku}>
-                    {o.name} <span className="text-muted-foreground">· {o.sku} · {stockLabel(o)}</span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                  cartonSku: opt.sku,
+                  bottlesPerCarton: parseBottlesPerCarton(opt.name, f.bottlesPerCarton),
+                }))
+              }
+            />
           </Field>
+
 
           <Field label="Liquid / Product to Fill">
             <Select value={form.liquidSku ?? ""} onValueChange={(v) => set("liquidSku", v)}>
