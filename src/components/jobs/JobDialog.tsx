@@ -39,6 +39,7 @@ import { LIQUID_OPTIONS } from "@/lib/catalog";
 import { SlidersHorizontal } from "lucide-react";
 import { findSetupForJob, useLineSetups } from "@/lib/line-setups";
 import { LineSetupViewerDialog } from "@/components/line-setup/LineSetupViewerDialog";
+import { StockCombobox } from "@/components/jobs/StockCombobox";
 import { useStockStore } from "@/lib/stock-store";
 import { resolveCategory, type StockCategory, type StockItem } from "@/lib/stock";
 
