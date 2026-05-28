@@ -35,16 +35,31 @@ import type { Job, ReadyState } from "@/lib/types";
 import { Progress } from "@/components/ui/progress";
 import { JobStockCheck } from "@/components/jobs/JobStockCheck";
 import { computeJobStockCheck } from "@/lib/job-stock";
-import {
-  BOTTLE_OPTIONS,
-  CAP_OPTIONS,
-  LABEL_OPTIONS,
-  CARTON_OPTIONS,
-  LIQUID_OPTIONS,
-} from "@/lib/catalog";
+import { LIQUID_OPTIONS } from "@/lib/catalog";
 import { SlidersHorizontal } from "lucide-react";
 import { findSetupForJob, useLineSetups } from "@/lib/line-setups";
 import { LineSetupViewerDialog } from "@/components/line-setup/LineSetupViewerDialog";
+import { useStockStore } from "@/lib/stock-store";
+import { resolveCategory, type StockCategory, type StockItem } from "@/lib/stock";
+
+function parseBottleSize(name: string, fallback: string): string {
+  const m = name.match(/(\d+(?:\.\d+)?)\s*(ml|L|l)\b/);
+  if (!m) return fallback;
+  return `${m[1]}${m[2].toLowerCase() === "l" ? "L" : "ml"}`;
+}
+
+function parseBottlesPerCarton(name: string, fallback: number | undefined): number | undefined {
+  const m = name.match(/(\d+)\s*[xX×]\s*\d/);
+  return m ? Number(m[1]) : fallback;
+}
+
+function byCategory(items: StockItem[], cat: StockCategory) {
+  return items.filter((i) => resolveCategory(i) === cat);
+}
+
+function stockLabel(item: StockItem) {
+  return `${item.availableStock.toLocaleString()} ${item.unit} avail`;
+}
 
 const READY_STATES: ReadyState[] = ["Pending", "Ready", "Issue"];
 const COLORS = ["#0ea5e9", "#22c55e", "#f97316", "#a855f7", "#ec4899", "#14b8a6", "#eab308"];
