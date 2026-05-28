@@ -201,20 +201,23 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
             <Select
               value={form.bottleSku ?? ""}
               onValueChange={(v) => {
-                const opt = BOTTLE_OPTIONS.find((o) => o.sku === v);
+                const opt = bottleStock.find((o) => o.sku === v);
                 setForm((f) => ({
                   ...f,
                   bottleSku: v,
                   sku: v,
-                  bottleSize: opt?.size ?? f.bottleSize,
+                  bottleSize: opt ? parseBottleSize(opt.name, f.bottleSize) : f.bottleSize,
                 }));
               }}
             >
               <SelectTrigger><SelectValue placeholder="Select bottle" /></SelectTrigger>
               <SelectContent>
-                {BOTTLE_OPTIONS.map((o) => (
+                {bottleStock.length === 0 && (
+                  <div className="px-2 py-1.5 text-xs text-muted-foreground">No bottles in stock</div>
+                )}
+                {bottleStock.map((o) => (
                   <SelectItem key={o.sku} value={o.sku}>
-                    {o.name} <span className="text-muted-foreground">· {o.sku}</span>
+                    {o.name} <span className="text-muted-foreground">· {o.sku} · {stockLabel(o)}</span>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -224,9 +227,12 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
             <Select value={form.capSku ?? ""} onValueChange={(v) => set("capSku", v)}>
               <SelectTrigger><SelectValue placeholder="Select cap" /></SelectTrigger>
               <SelectContent>
-                {CAP_OPTIONS.map((o) => (
+                {capStock.length === 0 && (
+                  <div className="px-2 py-1.5 text-xs text-muted-foreground">No caps in stock</div>
+                )}
+                {capStock.map((o) => (
                   <SelectItem key={o.sku} value={o.sku}>
-                    {o.name} <span className="text-muted-foreground">· {o.sku}</span>
+                    {o.name} <span className="text-muted-foreground">· {o.sku} · {stockLabel(o)}</span>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -236,9 +242,12 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
             <Select value={form.labelSku ?? ""} onValueChange={(v) => set("labelSku", v)}>
               <SelectTrigger><SelectValue placeholder="Select label" /></SelectTrigger>
               <SelectContent>
-                {LABEL_OPTIONS.map((o) => (
+                {labelStock.length === 0 && (
+                  <div className="px-2 py-1.5 text-xs text-muted-foreground">No labels in stock</div>
+                )}
+                {labelStock.map((o) => (
                   <SelectItem key={o.sku} value={o.sku}>
-                    {o.name} <span className="text-muted-foreground">· {o.sku}</span>
+                    {o.name} <span className="text-muted-foreground">· {o.sku} · {stockLabel(o)}</span>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -248,24 +257,30 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
             <Select
               value={form.cartonSku ?? ""}
               onValueChange={(v) => {
-                const opt = CARTON_OPTIONS.find((o) => o.sku === v);
+                const opt = cartonStock.find((o) => o.sku === v);
                 setForm((f) => ({
                   ...f,
                   cartonSku: v,
-                  bottlesPerCarton: opt?.bottlesPerCarton ?? f.bottlesPerCarton,
+                  bottlesPerCarton: opt
+                    ? parseBottlesPerCarton(opt.name, f.bottlesPerCarton)
+                    : f.bottlesPerCarton,
                 }));
               }}
             >
               <SelectTrigger><SelectValue placeholder="Select carton" /></SelectTrigger>
               <SelectContent>
-                {CARTON_OPTIONS.map((o) => (
+                {cartonStock.length === 0 && (
+                  <div className="px-2 py-1.5 text-xs text-muted-foreground">No cartons in stock</div>
+                )}
+                {cartonStock.map((o) => (
                   <SelectItem key={o.sku} value={o.sku}>
-                    {o.name} <span className="text-muted-foreground">· {o.sku}</span>
+                    {o.name} <span className="text-muted-foreground">· {o.sku} · {stockLabel(o)}</span>
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </Field>
+
           <Field label="Liquid / Product to Fill">
             <Select value={form.liquidSku ?? ""} onValueChange={(v) => set("liquidSku", v)}>
               <SelectTrigger><SelectValue placeholder="Select liquid (IBC)" /></SelectTrigger>
