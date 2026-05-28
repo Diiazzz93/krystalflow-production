@@ -35,16 +35,31 @@ import type { Job, ReadyState } from "@/lib/types";
 import { Progress } from "@/components/ui/progress";
 import { JobStockCheck } from "@/components/jobs/JobStockCheck";
 import { computeJobStockCheck } from "@/lib/job-stock";
-import {
-  BOTTLE_OPTIONS,
-  CAP_OPTIONS,
-  LABEL_OPTIONS,
-  CARTON_OPTIONS,
-  LIQUID_OPTIONS,
-} from "@/lib/catalog";
+import { LIQUID_OPTIONS } from "@/lib/catalog";
 import { SlidersHorizontal } from "lucide-react";
 import { findSetupForJob, useLineSetups } from "@/lib/line-setups";
 import { LineSetupViewerDialog } from "@/components/line-setup/LineSetupViewerDialog";
+import { useStockStore } from "@/lib/stock-store";
+import { resolveCategory, type StockCategory, type StockItem } from "@/lib/stock";
+
+function parseBottleSize(name: string, fallback: string): string {
+  const m = name.match(/(\d+(?:\.\d+)?)\s*(ml|L|l)\b/);
+  if (!m) return fallback;
+  return `${m[1]}${m[2].toLowerCase() === "l" ? "L" : "ml"}`;
+}
+
+function parseBottlesPerCarton(name: string, fallback: number | undefined): number | undefined {
+  const m = name.match(/(\d+)\s*[xX×]\s*\d/);
+  return m ? Number(m[1]) : fallback;
+}
+
+function byCategory(items: StockItem[], cat: StockCategory) {
+  return items.filter((i) => resolveCategory(i) === cat);
+}
+
+function stockLabel(item: StockItem) {
+  return `${item.availableStock.toLocaleString()} ${item.unit} avail`;
+}
 
 const READY_STATES: ReadyState[] = ["Pending", "Ready", "Issue"];
 const COLORS = ["#0ea5e9", "#22c55e", "#f97316", "#a855f7", "#ec4899", "#14b8a6", "#eab308"];
@@ -109,6 +124,12 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
     () => findSetupForJob(presets, form.product, form.bottleSize),
     [presets, form.product, form.bottleSize],
   );
+
+  const { items: stockItems } = useStockStore();
+  const bottleStock = useMemo(() => byCategory(stockItems, "Bottles"), [stockItems]);
+  const capStock = useMemo(() => byCategory(stockItems, "Caps"), [stockItems]);
+  const labelStock = useMemo(() => byCategory(stockItems, "Labels"), [stockItems]);
+  const cartonStock = useMemo(() => byCategory(stockItems, "Cartons"), [stockItems]);
 
   useEffect(() => {
     if (open) {
@@ -180,20 +201,23 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
             <Select
               value={form.bottleSku ?? ""}
               onValueChange={(v) => {
-                const opt = BOTTLE_OPTIONS.find((o) => o.sku === v);
+                const opt = bottleStock.find((o) => o.sku === v);
                 setForm((f) => ({
                   ...f,
                   bottleSku: v,
                   sku: v,
-                  bottleSize: opt?.size ?? f.bottleSize,
+                  bottleSize: opt ? parseBottleSize(opt.name, f.bottleSize) : f.bottleSize,
                 }));
               }}
             >
               <SelectTrigger><SelectValue placeholder="Select bottle" /></SelectTrigger>
               <SelectContent>
-                {BOTTLE_OPTIONS.map((o) => (
+                {bottleStock.length === 0 && (
+                  <div className="px-2 py-1.5 text-xs text-muted-foreground">No bottles in stock</div>
+                )}
+                {bottleStock.map((o) => (
                   <SelectItem key={o.sku} value={o.sku}>
-                    {o.name} <span className="text-muted-foreground">· {o.sku}</span>
+                    {o.name} <span className="text-muted-foreground">· {o.sku} · {stockLabel(o)}</span>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -203,9 +227,12 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
             <Select value={form.capSku ?? ""} onValueChange={(v) => set("capSku", v)}>
               <SelectTrigger><SelectValue placeholder="Select cap" /></SelectTrigger>
               <SelectContent>
-                {CAP_OPTIONS.map((o) => (
+                {capStock.length === 0 && (
+                  <div className="px-2 py-1.5 text-xs text-muted-foreground">No caps in stock</div>
+                )}
+                {capStock.map((o) => (
                   <SelectItem key={o.sku} value={o.sku}>
-                    {o.name} <span className="text-muted-foreground">· {o.sku}</span>
+                    {o.name} <span className="text-muted-foreground">· {o.sku} · {stockLabel(o)}</span>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -215,9 +242,12 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
             <Select value={form.labelSku ?? ""} onValueChange={(v) => set("labelSku", v)}>
               <SelectTrigger><SelectValue placeholder="Select label" /></SelectTrigger>
               <SelectContent>
-                {LABEL_OPTIONS.map((o) => (
+                {labelStock.length === 0 && (
+                  <div className="px-2 py-1.5 text-xs text-muted-foreground">No labels in stock</div>
+                )}
+                {labelStock.map((o) => (
                   <SelectItem key={o.sku} value={o.sku}>
-                    {o.name} <span className="text-muted-foreground">· {o.sku}</span>
+                    {o.name} <span className="text-muted-foreground">· {o.sku} · {stockLabel(o)}</span>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -227,24 +257,30 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
             <Select
               value={form.cartonSku ?? ""}
               onValueChange={(v) => {
-                const opt = CARTON_OPTIONS.find((o) => o.sku === v);
+                const opt = cartonStock.find((o) => o.sku === v);
                 setForm((f) => ({
                   ...f,
                   cartonSku: v,
-                  bottlesPerCarton: opt?.bottlesPerCarton ?? f.bottlesPerCarton,
+                  bottlesPerCarton: opt
+                    ? parseBottlesPerCarton(opt.name, f.bottlesPerCarton)
+                    : f.bottlesPerCarton,
                 }));
               }}
             >
               <SelectTrigger><SelectValue placeholder="Select carton" /></SelectTrigger>
               <SelectContent>
-                {CARTON_OPTIONS.map((o) => (
+                {cartonStock.length === 0 && (
+                  <div className="px-2 py-1.5 text-xs text-muted-foreground">No cartons in stock</div>
+                )}
+                {cartonStock.map((o) => (
                   <SelectItem key={o.sku} value={o.sku}>
-                    {o.name} <span className="text-muted-foreground">· {o.sku}</span>
+                    {o.name} <span className="text-muted-foreground">· {o.sku} · {stockLabel(o)}</span>
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </Field>
+
           <Field label="Liquid / Product to Fill">
             <Select value={form.liquidSku ?? ""} onValueChange={(v) => set("liquidSku", v)}>
               <SelectTrigger><SelectValue placeholder="Select liquid (IBC)" /></SelectTrigger>
