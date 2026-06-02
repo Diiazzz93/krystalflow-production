@@ -42,6 +42,7 @@ function fmtDate(iso: string) {
 
 export function ActiveJobsSection() {
   const { jobs } = useStore();
+  const { items: stockItems } = useStockStore();
   const [selected, setSelected] = useState<Job | null>(null);
 
   const active = useMemo(
