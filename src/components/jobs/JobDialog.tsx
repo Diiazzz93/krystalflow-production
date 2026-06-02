@@ -131,6 +131,7 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
   const capStock = useMemo(() => byCategory(stockItems, "Caps"), [stockItems]);
   const labelStock = useMemo(() => byCategory(stockItems, "Labels"), [stockItems]);
   const cartonStock = useMemo(() => byCategory(stockItems, "Cartons"), [stockItems]);
+  const liquidStock = useMemo(() => byCategory(stockItems, "Liquid / IBC"), [stockItems]);
 
   useEffect(() => {
     if (open) {
