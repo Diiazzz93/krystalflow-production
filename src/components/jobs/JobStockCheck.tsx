@@ -3,6 +3,7 @@ import type { Job } from "@/lib/types";
 import { computeJobStockCheck, type JobRequirement } from "@/lib/job-stock";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useStockStore } from "@/lib/stock-store";
 
 interface Props {
   job: Job;
