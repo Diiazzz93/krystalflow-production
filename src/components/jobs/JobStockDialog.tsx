@@ -34,8 +34,9 @@ function fmtDate(iso?: string) {
 export function JobStockDialog({ job, open, onOpenChange }: Props) {
   const { presets } = useLineSetups();
   const { getSpecForJob } = useCustomerSpecs();
+  const { items: stockItems } = useStockStore();
   if (!job) return null;
-  const check = computeJobStockCheck(job);
+  const check = computeJobStockCheck(job, stockItems);
   const totalMissing = check.requirements.reduce((s, r) => s + r.missing, 0);
   const productLabel = `${job.product} ${job.bottleSize}`.trim();
   const resolvedSpec = getSpecForJob(job.customer, productLabel);
