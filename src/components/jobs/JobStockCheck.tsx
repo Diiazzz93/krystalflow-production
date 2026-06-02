@@ -35,7 +35,9 @@ const STATUS_STYLE: Record<
 };
 
 export function JobStockCheck({ job, className }: Props) {
-  const check = computeJobStockCheck(job);
+  const { items } = useStockStore();
+  const check = computeJobStockCheck(job, items);
+
 
   const headerTone = check.hasShort
     ? "border-red-500/40 bg-red-500/5"
