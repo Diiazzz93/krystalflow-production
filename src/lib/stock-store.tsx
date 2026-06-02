@@ -1,13 +1,15 @@
 // Runtime stock store.
 // Wraps MOCK_STOCK in a React context so newly added items propagate to the
 // Stock page, job stock checks, and manufacturing readiness calculations.
-// Swap the initial state for `useQuery(['stock'], fetchStock)` when wiring
-// the real backend.
+// Persisted to localStorage so manually added stock survives refresh.
+// Swap the initial state / persistence for `useQuery(['stock'], fetchStock)`
+// and a mutation when wiring the real backend.
 
 import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -34,13 +36,35 @@ interface StockStoreValue {
 }
 
 const Ctx = createContext<StockStoreValue | null>(null);
+const STORAGE_KEY = "krystalflow.stock.v1";
 
 function uid() {
   return `stk-${Math.random().toString(36).slice(2, 9)}`;
 }
 
+function loadInitial(): StockItem[] {
+  if (typeof window === "undefined") return MOCK_STOCK;
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return MOCK_STOCK;
+    const parsed = JSON.parse(raw) as StockItem[];
+    return Array.isArray(parsed) && parsed.length ? parsed : MOCK_STOCK;
+  } catch {
+    return MOCK_STOCK;
+  }
+}
+
 export function StockStoreProvider({ children }: { children: ReactNode }) {
-  const [items, setItems] = useState<StockItem[]>(MOCK_STOCK);
+  const [items, setItems] = useState<StockItem[]>(() => loadInitial());
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    } catch {
+      // ignore quota errors
+    }
+  }, [items]);
 
   const addItem = useCallback<StockStoreValue["addItem"]>((input) => {
     const item: StockItem = {
