@@ -89,7 +89,7 @@ export function ActiveJobsSection() {
                   </TableRow>
                 ) : (
                   active.map((j) => {
-                    const check = computeJobStockCheck(j);
+                    const check = computeJobStockCheck(j, stockItems);
                     const tone = check.hasShort
                       ? {
                           row: "bg-red-500/5",
