@@ -35,7 +35,7 @@ import type { Job, ReadyState } from "@/lib/types";
 import { Progress } from "@/components/ui/progress";
 import { JobStockCheck } from "@/components/jobs/JobStockCheck";
 import { computeJobStockCheck } from "@/lib/job-stock";
-import { LIQUID_OPTIONS } from "@/lib/catalog";
+
 import { SlidersHorizontal } from "lucide-react";
 import { findSetupForJob, useLineSetups } from "@/lib/line-setups";
 import { LineSetupViewerDialog } from "@/components/line-setup/LineSetupViewerDialog";
@@ -131,6 +131,7 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
   const capStock = useMemo(() => byCategory(stockItems, "Caps"), [stockItems]);
   const labelStock = useMemo(() => byCategory(stockItems, "Labels"), [stockItems]);
   const cartonStock = useMemo(() => byCategory(stockItems, "Cartons"), [stockItems]);
+  const liquidStock = useMemo(() => byCategory(stockItems, "Liquid / IBC"), [stockItems]);
 
   useEffect(() => {
     if (open) {
@@ -166,7 +167,8 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
               <Badge className={STATUS_COLORS[form.status]}>{form.status}</Badge>
             )}
             {(() => {
-              const c = computeJobStockCheck(form);
+              const c = computeJobStockCheck(form, stockItems);
+
               if (c.hasShort)
                 return (
                   <Badge variant="outline" className="border-red-500/40 text-red-600 dark:text-red-400">
@@ -250,17 +252,15 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
 
 
           <Field label="Liquid / Product to Fill">
-            <Select value={form.liquidSku ?? ""} onValueChange={(v) => set("liquidSku", v)}>
-              <SelectTrigger><SelectValue placeholder="Select liquid (IBC)" /></SelectTrigger>
-              <SelectContent>
-                {LIQUID_OPTIONS.map((o) => (
-                  <SelectItem key={o.sku} value={o.sku}>
-                    {o.name} <span className="text-muted-foreground">· {o.sku}</span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <StockCombobox
+              items={liquidStock}
+              value={form.liquidSku}
+              placeholder="Search liquid / IBC…"
+              emptyText="No liquid stock items"
+              onSelect={(opt) => set("liquidSku", opt.sku)}
+            />
           </Field>
+
           <Field label="Quantity (bottles)">
             <Input
               type="number"

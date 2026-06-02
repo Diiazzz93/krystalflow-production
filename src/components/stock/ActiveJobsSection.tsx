@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/table";
 import { Factory, Eye } from "lucide-react";
 import { useStore } from "@/lib/store";
+import { useStockStore } from "@/lib/stock-store";
 import type { Job } from "@/lib/types";
 import { computeJobStockCheck } from "@/lib/job-stock";
 import { JobStockDialog } from "@/components/jobs/JobStockDialog";
@@ -41,6 +42,7 @@ function fmtDate(iso: string) {
 
 export function ActiveJobsSection() {
   const { jobs } = useStore();
+  const { items: stockItems } = useStockStore();
   const [selected, setSelected] = useState<Job | null>(null);
 
   const active = useMemo(
@@ -87,7 +89,7 @@ export function ActiveJobsSection() {
                   </TableRow>
                 ) : (
                   active.map((j) => {
-                    const check = computeJobStockCheck(j);
+                    const check = computeJobStockCheck(j, stockItems);
                     const tone = check.hasShort
                       ? {
                           row: "bg-red-500/5",
