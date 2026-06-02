@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/table";
 import { Factory, Eye } from "lucide-react";
 import { useStore } from "@/lib/store";
+import { useStockStore } from "@/lib/stock-store";
 import type { Job } from "@/lib/types";
 import { computeJobStockCheck } from "@/lib/job-stock";
 import { JobStockDialog } from "@/components/jobs/JobStockDialog";
