@@ -167,7 +167,8 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
               <Badge className={STATUS_COLORS[form.status]}>{form.status}</Badge>
             )}
             {(() => {
-              const c = computeJobStockCheck(form);
+              const c = computeJobStockCheck(form, stockItems);
+
               if (c.hasShort)
                 return (
                   <Badge variant="outline" className="border-red-500/40 text-red-600 dark:text-red-400">
