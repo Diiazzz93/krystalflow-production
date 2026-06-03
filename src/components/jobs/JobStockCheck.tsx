@@ -37,7 +37,7 @@ const STATUS_STYLE: Record<
 
 export function JobStockCheck({ job, className }: Props) {
   const { items } = useStockStore();
-  const check = useMemo(
+  const check = useMemo<JobStockCheckResult>(
     () => computeJobStockCheck(job, items),
     [
       items,
