@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { AlertTriangle, CheckCircle2, CircleAlert, PackageCheck } from "lucide-react";
 import type { Job } from "@/lib/types";
 import { computeJobStockCheck, type JobRequirement } from "@/lib/job-stock";
