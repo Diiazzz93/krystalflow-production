@@ -20,17 +20,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { AlertTriangle, Boxes, CheckCircle2, Layers, Package, Plus, Search } from "lucide-react";
+import { AlertTriangle, Boxes, CheckCircle2, History, Layers, Package, Pencil, Plus, Scale, Search } from "lucide-react";
 import {
   getStockStatus,
   resolveCategory,
   STOCK_CATEGORIES,
   type StockCategory,
+  type StockItem,
   type StockStatus,
 } from "@/lib/stock";
 import { useStockStore } from "@/lib/stock-store";
 import { ActiveJobsSection } from "@/components/stock/ActiveJobsSection";
 import { AddStockDialog } from "@/components/stock/AddStockDialog";
+import { EditStockDialog } from "@/components/stock/EditStockDialog";
+import { AdjustStockDialog } from "@/components/stock/AdjustStockDialog";
+import { StockHistoryDialog } from "@/components/stock/StockHistoryDialog";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
