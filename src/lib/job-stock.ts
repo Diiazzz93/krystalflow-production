@@ -1,9 +1,5 @@
-// Job ↔ stock requirement engine.
-// Mock-first, but shaped so that swapping `MOCK_STOCK` for the real
-// Unleashed-backed list keeps the consumer code identical.
-
 import type { Job } from "@/lib/types";
-import { MOCK_STOCK, type StockItem } from "@/lib/stock";
+import type { StockItem } from "@/lib/stock";
 
 export type RequirementCategory = "bottle" | "cap" | "label" | "carton" | "liquid";
 
@@ -22,6 +18,7 @@ export interface JobRequirement {
 export interface JobStockCheck {
   jobId: string;
   requirements: JobRequirement[];
+  hasSelections: boolean;
   ready: boolean; // true when no requirement is short
   hasLow: boolean; // any item below 1.2x of need
   hasShort: boolean; // any item below need
@@ -48,10 +45,6 @@ function findStockFor(
   job: Job,
   stock: StockItem[],
 ): StockItem | null {
-  const sku = job.sku?.toUpperCase() ?? "";
-  const product = job.product?.toUpperCase() ?? "";
-
-  // Explicit overrides on the job take precedence.
   const override =
     category === "bottle" ? job.bottleSku
       : category === "cap" ? job.capSku
@@ -59,53 +52,13 @@ function findStockFor(
       : category === "carton" ? job.cartonSku
       : category === "liquid" ? job.liquidSku
       : undefined;
-  if (override) {
-    const m = stock.find((s) => s.sku.toUpperCase() === override.toUpperCase());
-    if (m) return m;
-  }
-
-  // Prefer items whose SKU references the job's SKU (e.g. LBL-AQP-500 for AQP-500).
-  const direct = stock.find((s) => {
-    const ssku = s.sku.toUpperCase();
-    if (category === "bottle") {
-      return sku && (ssku === sku || ssku.endsWith(sku));
-    }
-    if (category === "label") {
-      return sku && ssku.includes(sku) && ssku.startsWith("LBL");
-    }
-    return false;
-  });
-  if (direct) return direct;
-
-  // Category fallbacks by SKU prefix / name keyword.
-  const byCategory = stock.find((s) => {
-    const ssku = s.sku.toUpperCase();
-    const sname = s.name.toUpperCase();
-    switch (category) {
-      case "bottle":
-        return (
-          ssku.startsWith("AQP") ||
-          sname.includes("BOTTLE") ||
-          (product && sname.includes(product))
-        );
-      case "cap":
-        return ssku.startsWith("CAP") || sname.includes("CAP");
-      case "label":
-        return ssku.startsWith("LBL") || sname.includes("LABEL");
-      case "carton":
-        return (
-          ssku.startsWith("BOX") || sname.includes("BOX") || sname.includes("CARTON")
-        );
-      case "liquid":
-        return ssku.startsWith("LIQ") || ssku.startsWith("RAW") || sname.includes("IBC");
-    }
-  });
-  return byCategory ?? null;
+  if (!override) return null;
+  return stock.find((s) => s.sku.toUpperCase() === override.toUpperCase()) ?? null;
 }
 
 export function computeJobStockCheck(
   job: Job,
-  stock: StockItem[] = MOCK_STOCK,
+  stock: StockItem[] = [],
 ): JobStockCheck {
   const qty = Math.max(0, job.quantity ?? 0);
   const perCarton = Math.max(1, job.bottlesPerCarton ?? DEFAULT_BOTTLES_PER_CARTON);
@@ -136,7 +89,14 @@ export function computeJobStockCheck(
     },
   ];
 
-  const requirements: JobRequirement[] = blueprint.map((b) => {
+  const selectedCategories = new Set<RequirementCategory>();
+  if (job.bottleSku) selectedCategories.add("bottle");
+  if (job.capSku) selectedCategories.add("cap");
+  if (job.labelSku) selectedCategories.add("label");
+  if (job.cartonSku) selectedCategories.add("carton");
+  if (job.liquidSku) selectedCategories.add("liquid");
+
+  const requirements: JobRequirement[] = blueprint.filter((b) => selectedCategories.has(b.category)).map((b) => {
     const item = findStockFor(b.category, job, stock);
     const available = item?.availableStock ?? 0;
     const missing = Math.max(0, b.required - available);
@@ -144,6 +104,7 @@ export function computeJobStockCheck(
       missing > 0 ? "short" : available < b.required * 1.2 ? "low" : "ok";
     return {
       ...b,
+      description: item?.name ?? b.description,
       stock: item,
       available,
       missing,
@@ -157,7 +118,8 @@ export function computeJobStockCheck(
   return {
     jobId: job.id,
     requirements,
-    ready: !hasShort,
+    hasSelections: selectedCategories.size > 0,
+    ready: requirements.length > 0 && !hasShort,
     hasLow,
     hasShort,
     shortCount: requirements.filter((r) => r.status === "short").length,

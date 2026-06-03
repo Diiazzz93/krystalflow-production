@@ -56,6 +56,20 @@ export function JobStockCheck({ job, className }: Props) {
 
 
 
+  if (!check.hasSelections) {
+    return (
+      <div className={cn("rounded-lg border border-border bg-muted/20 p-3 space-y-2", className)}>
+        <div className="flex items-center gap-2">
+          <PackageCheck className="size-4 text-muted-foreground" />
+          <span className="font-medium text-sm">Live Stock Check</span>
+        </div>
+        <div className="text-xs text-muted-foreground">
+          Select stock items from the dropdowns above to check availability for this job.
+        </div>
+      </div>
+    );
+  }
+
   const headerTone = check.hasShort
     ? "border-red-500/40 bg-red-500/5"
     : check.hasLow
@@ -85,7 +99,7 @@ export function JobStockCheck({ job, className }: Props) {
           <PackageCheck className="size-4 text-muted-foreground" />
           <span className="font-medium text-sm">Live Stock Check</span>
           <span className="text-xs text-muted-foreground hidden sm:inline">
-            · updates as you edit the job
+            · uses selected stock records
           </span>
         </div>
         <div className={cn("flex items-center gap-1.5 text-sm font-medium", headerClr)}>

@@ -74,8 +74,8 @@ function emptyJob(): Job {
     customer: "",
     product: "",
     sku: "",
-    bottleSize: "500ml",
-    quantity: 1000,
+    bottleSize: "",
+    quantity: 0,
     pallets: 1,
     dueDate: new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10),
     priority: "Normal",
@@ -168,6 +168,8 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
             )}
             {(() => {
               const c = computeJobStockCheck(form, stockItems);
+
+              if (!c.hasSelections) return null;
 
               if (c.hasShort)
                 return (

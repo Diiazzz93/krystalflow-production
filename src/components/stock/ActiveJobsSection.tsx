@@ -90,7 +90,14 @@ export function ActiveJobsSection() {
                 ) : (
                   active.map((j) => {
                     const check = computeJobStockCheck(j, stockItems);
-                    const tone = check.hasShort
+                    const tone = !check.hasSelections
+                      ? {
+                          row: "",
+                          dot: "bg-muted-foreground",
+                          text: "text-muted-foreground",
+                          label: "No stock selected",
+                        }
+                      : check.hasShort
                       ? {
                           row: "bg-red-500/5",
                           dot: "bg-red-500",
@@ -130,7 +137,7 @@ export function ActiveJobsSection() {
                           <span
                             className={cn("text-sm font-medium", tone.text)}
                           >
-                            {check.ready ? "Job ready" : "Not ready"}
+                            {check.hasSelections ? (check.ready ? "Job ready" : "Not ready") : "Not checked"}
                           </span>
                         </TableCell>
                         <TableCell>
