@@ -244,6 +244,7 @@ function StockPage() {
                     <TableHead>Status</TableHead>
                     <TableHead>Location</TableHead>
                     <TableHead>Last updated</TableHead>
+                    {canEdit && <TableHead className="text-right">Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
