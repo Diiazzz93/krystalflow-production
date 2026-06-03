@@ -14,6 +14,111 @@ export type Database = {
   }
   public: {
     Tables: {
+      inventory_items: {
+        Row: {
+          allocated_stock: number
+          available_stock: number
+          category: string
+          created_at: string
+          created_by: string | null
+          date_received: string | null
+          id: string
+          last_updated: string
+          location: string
+          name: string
+          notes: string | null
+          quantity_on_hand: number
+          reorder_level: number
+          sku: string
+          source: string | null
+          unit: string
+        }
+        Insert: {
+          allocated_stock?: number
+          available_stock?: number
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          date_received?: string | null
+          id?: string
+          last_updated?: string
+          location?: string
+          name: string
+          notes?: string | null
+          quantity_on_hand?: number
+          reorder_level?: number
+          sku: string
+          source?: string | null
+          unit?: string
+        }
+        Update: {
+          allocated_stock?: number
+          available_stock?: number
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          date_received?: string | null
+          id?: string
+          last_updated?: string
+          location?: string
+          name?: string
+          notes?: string | null
+          quantity_on_hand?: number
+          reorder_level?: number
+          sku?: string
+          source?: string | null
+          unit?: string
+        }
+        Relationships: []
+      }
+      production_jobs: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          customer: string
+          data: Json
+          id: string
+          line: string
+          operator: string
+          product: string
+          scheduled_end: string | null
+          scheduled_start: string | null
+          sku: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          customer?: string
+          data?: Json
+          id?: string
+          line?: string
+          operator?: string
+          product?: string
+          scheduled_end?: string | null
+          scheduled_start?: string | null
+          sku?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          customer?: string
+          data?: Json
+          id?: string
+          line?: string
+          operator?: string
+          product?: string
+          scheduled_end?: string | null
+          scheduled_start?: string | null
+          sku?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
