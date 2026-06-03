@@ -268,6 +268,25 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
               onChange={(e) => set("quantity", Number(e.target.value))}
             />
           </Field>
+          <Field label="Bottle size (e.g. 500ml, 1L)">
+            <Input
+              value={form.bottleSize}
+              onChange={(e) => set("bottleSize", e.target.value)}
+            />
+          </Field>
+          <Field label="Bottles per carton">
+            <Input
+              type="number"
+              value={form.bottlesPerCarton ?? ""}
+              placeholder="12"
+              onChange={(e) =>
+                set(
+                  "bottlesPerCarton",
+                  e.target.value ? Number(e.target.value) : undefined,
+                )
+              }
+            />
+          </Field>
           <Field label="Pallets">
             <Input
               type="number"

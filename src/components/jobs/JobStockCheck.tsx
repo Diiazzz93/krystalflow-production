@@ -1,6 +1,7 @@
+import { useMemo } from "react";
 import { AlertTriangle, CheckCircle2, CircleAlert, PackageCheck } from "lucide-react";
 import type { Job } from "@/lib/types";
-import { computeJobStockCheck, type JobRequirement } from "@/lib/job-stock";
+import { computeJobStockCheck, type JobRequirement, type JobStockCheck as JobStockCheckResult } from "@/lib/job-stock";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useStockStore } from "@/lib/stock-store";
@@ -36,7 +37,23 @@ const STATUS_STYLE: Record<
 
 export function JobStockCheck({ job, className }: Props) {
   const { items } = useStockStore();
-  const check = computeJobStockCheck(job, items);
+  const check = useMemo<JobStockCheckResult>(
+    () => computeJobStockCheck(job, items),
+    [
+      items,
+      job.quantity,
+      job.bottleSize,
+      job.bottlesPerCarton,
+      job.bottleSku,
+      job.capSku,
+      job.labelSku,
+      job.cartonSku,
+      job.liquidSku,
+      job.sku,
+      job.product,
+    ],
+  );
+
 
 
   const headerTone = check.hasShort
