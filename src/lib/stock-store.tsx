@@ -37,7 +37,7 @@ interface StockStoreValue {
   loading: boolean;
   addItem: (input: NewStockInput) => Promise<StockItem | null>;
   updateItem: (id: string, patch: Partial<StockItem>) => Promise<void>;
-  refresh: () => Promise<void>;
+  refresh: () => Promise<StockItem[]>;
 }
 
 const Ctx = createContext<StockStoreValue | null>(null);

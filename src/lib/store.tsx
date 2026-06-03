@@ -144,7 +144,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const { id: _ignored, ...rest } = jobToRow(job);
     const { data, error } = await supabase
       .from("production_jobs")
-      .insert(rest)
+      .insert(rest as never)
       .select()
       .single();
     if (error || !data) {
@@ -170,8 +170,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         line: row.line,
         scheduled_start: row.scheduled_start,
         scheduled_end: row.scheduled_end,
-        data: row.data,
-      })
+        data: row.data as never,
+      } as never)
       .eq("id", id)
       .select()
       .single();
