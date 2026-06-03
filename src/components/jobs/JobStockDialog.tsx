@@ -59,7 +59,9 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
     }
   };
 
-  const summaryTone = check.hasShort
+  const summaryTone = !check.hasSelections
+    ? "border-border bg-muted/20 text-muted-foreground"
+    : check.hasShort
     ? "border-red-500/40 bg-red-500/10 text-red-600 dark:text-red-400"
     : "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400";
 
@@ -81,14 +83,20 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
         </DialogHeader>
 
         <div className={cn("rounded-lg border p-3 flex items-center gap-3", summaryTone)}>
-          {check.hasShort ? (
+          {!check.hasSelections ? (
+            <FileDown className="size-5" />
+          ) : check.hasShort ? (
             <AlertTriangle className="size-5" />
           ) : (
             <CheckCircle2 className="size-5" />
           )}
           <div className="flex-1">
             <div className="font-semibold">
-              {check.hasShort ? "Stock Shortage Detected" : "Ready to Run"}
+              {!check.hasSelections
+                ? "No stock selected"
+                : check.hasShort
+                  ? "Stock Shortage Detected"
+                  : "Ready to Run"}
             </div>
             {check.hasShort && (
               <div className="text-xs">
