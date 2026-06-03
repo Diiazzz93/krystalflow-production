@@ -291,6 +291,39 @@ function StockPage() {
                         <TableCell className="text-xs text-muted-foreground">
                           {fmtDateTime(i.lastUpdated)}
                         </TableCell>
+                        {canEdit && (
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 gap-1"
+                                onClick={() => setEditItem(i)}
+                              >
+                                <Pencil className="size-3.5" />
+                                <span className="hidden lg:inline">Edit</span>
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 gap-1"
+                                onClick={() => setAdjustItem(i)}
+                              >
+                                <Scale className="size-3.5" />
+                                <span className="hidden lg:inline">Adjust</span>
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 gap-1"
+                                onClick={() => setHistoryItem(i)}
+                              >
+                                <History className="size-3.5" />
+                                <span className="hidden lg:inline">History</span>
+                              </Button>
+                            </div>
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))
                   )}
