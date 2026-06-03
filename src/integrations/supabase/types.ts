@@ -143,6 +143,59 @@ export type Database = {
         }
         Relationships: []
       }
+      stock_adjustments: {
+        Row: {
+          adjustment_date: string
+          adjustment_type: string
+          created_at: string
+          id: string
+          inventory_item_id: string
+          new_quantity: number
+          notes: string | null
+          previous_quantity: number
+          quantity_change: number
+          reason: string
+          user_id: string | null
+          user_name: string
+        }
+        Insert: {
+          adjustment_date?: string
+          adjustment_type: string
+          created_at?: string
+          id?: string
+          inventory_item_id: string
+          new_quantity: number
+          notes?: string | null
+          previous_quantity: number
+          quantity_change: number
+          reason?: string
+          user_id?: string | null
+          user_name?: string
+        }
+        Update: {
+          adjustment_date?: string
+          adjustment_type?: string
+          created_at?: string
+          id?: string
+          inventory_item_id?: string
+          new_quantity?: number
+          notes?: string | null
+          previous_quantity?: number
+          quantity_change?: number
+          reason?: string
+          user_id?: string | null
+          user_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_adjustments_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
