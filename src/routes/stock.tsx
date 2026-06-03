@@ -20,17 +20,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { AlertTriangle, Boxes, CheckCircle2, Layers, Package, Plus, Search } from "lucide-react";
+import { AlertTriangle, Boxes, CheckCircle2, History, Layers, Package, Pencil, Plus, Scale, Search } from "lucide-react";
 import {
   getStockStatus,
   resolveCategory,
   STOCK_CATEGORIES,
   type StockCategory,
+  type StockItem,
   type StockStatus,
 } from "@/lib/stock";
 import { useStockStore } from "@/lib/stock-store";
 import { ActiveJobsSection } from "@/components/stock/ActiveJobsSection";
 import { AddStockDialog } from "@/components/stock/AddStockDialog";
+import { EditStockDialog } from "@/components/stock/EditStockDialog";
+import { AdjustStockDialog } from "@/components/stock/AdjustStockDialog";
+import { StockHistoryDialog } from "@/components/stock/StockHistoryDialog";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
@@ -102,6 +106,9 @@ function StockPage() {
   const { hasRole } = useAuth();
   const canEdit = hasRole("admin", "manager");
   const [addOpen, setAddOpen] = useState(false);
+  const [editItem, setEditItem] = useState<StockItem | null>(null);
+  const [adjustItem, setAdjustItem] = useState<StockItem | null>(null);
+  const [historyItem, setHistoryItem] = useState<StockItem | null>(null);
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<"all" | StockStatus>("all");
   const [category, setCategory] = useState<"all" | StockCategory>("all");
@@ -237,12 +244,13 @@ function StockPage() {
                     <TableHead>Status</TableHead>
                     <TableHead>Location</TableHead>
                     <TableHead>Last updated</TableHead>
+                    {canEdit && <TableHead className="text-right">Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filtered.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
+                      <TableCell colSpan={canEdit ? 10 : 9} className="text-center text-muted-foreground py-8">
                         No stock items match your filters.
                       </TableCell>
                     </TableRow>
@@ -283,6 +291,39 @@ function StockPage() {
                         <TableCell className="text-xs text-muted-foreground">
                           {fmtDateTime(i.lastUpdated)}
                         </TableCell>
+                        {canEdit && (
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 gap-1"
+                                onClick={() => setEditItem(i)}
+                              >
+                                <Pencil className="size-3.5" />
+                                <span className="hidden lg:inline">Edit</span>
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 gap-1"
+                                onClick={() => setAdjustItem(i)}
+                              >
+                                <Scale className="size-3.5" />
+                                <span className="hidden lg:inline">Adjust</span>
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 gap-1"
+                                onClick={() => setHistoryItem(i)}
+                              >
+                                <History className="size-3.5" />
+                                <span className="hidden lg:inline">History</span>
+                              </Button>
+                            </div>
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))
                   )}
@@ -344,6 +385,19 @@ function StockPage() {
                     <span>{i.location}</span>
                     <span>{fmtDateTime(i.lastUpdated)}</span>
                   </div>
+                  {canEdit && (
+                    <div className="flex gap-1 pt-1">
+                      <Button size="sm" variant="outline" className="flex-1 h-8 gap-1" onClick={() => setEditItem(i)}>
+                        <Pencil className="size-3.5" /> Edit
+                      </Button>
+                      <Button size="sm" variant="outline" className="flex-1 h-8 gap-1" onClick={() => setAdjustItem(i)}>
+                        <Scale className="size-3.5" /> Adjust
+                      </Button>
+                      <Button size="sm" variant="outline" className="flex-1 h-8 gap-1" onClick={() => setHistoryItem(i)}>
+                        <History className="size-3.5" /> History
+                      </Button>
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>
@@ -353,6 +407,9 @@ function StockPage() {
         <ActiveJobsSection />
       </div>
       <AddStockDialog open={addOpen} onOpenChange={setAddOpen} />
+      <EditStockDialog item={editItem} open={!!editItem} onOpenChange={(v) => !v && setEditItem(null)} />
+      <AdjustStockDialog item={adjustItem} open={!!adjustItem} onOpenChange={(v) => !v && setAdjustItem(null)} />
+      <StockHistoryDialog item={historyItem} open={!!historyItem} onOpenChange={(v) => !v && setHistoryItem(null)} />
     </AppShell>
   );
 }

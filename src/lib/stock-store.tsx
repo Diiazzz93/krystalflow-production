@@ -32,11 +32,39 @@ export interface NewStockInput {
   reorderLevel?: number;
 }
 
+export type AdjustmentType = "received" | "damaged" | "correction" | "stocktake";
+
+export interface StockAdjustment {
+  id: string;
+  inventoryItemId: string;
+  userId: string | null;
+  userName: string;
+  adjustmentType: AdjustmentType;
+  quantityChange: number;
+  previousQuantity: number;
+  newQuantity: number;
+  reason: string;
+  notes: string | null;
+  adjustmentDate: string;
+  createdAt: string;
+}
+
+export interface AdjustmentInput {
+  adjustmentType: AdjustmentType;
+  /** received/damaged/correction: signed delta. stocktake: absolute new total. */
+  value: number;
+  reason: string;
+  notes?: string;
+  adjustmentDate: string;
+}
+
 interface StockStoreValue {
   items: StockItem[];
   loading: boolean;
   addItem: (input: NewStockInput) => Promise<StockItem | null>;
   updateItem: (id: string, patch: Partial<StockItem>) => Promise<void>;
+  adjustStock: (id: string, input: AdjustmentInput) => Promise<void>;
+  listAdjustments: (id: string) => Promise<StockAdjustment[]>;
   refresh: () => Promise<StockItem[]>;
 }
 
@@ -191,9 +219,94 @@ export function StockStoreProvider({ children }: { children: ReactNode }) {
     setItems((prev) => prev.map((i) => (i.id === id ? item : i)));
   }, []);
 
+  const adjustStock = useCallback<StockStoreValue["adjustStock"]>(
+    async (id, input) => {
+      const current = items.find((i) => i.id === id);
+      if (!current) {
+        toast.error("Stock item not found");
+        return;
+      }
+      const previous = current.quantityOnHand;
+      const newQty =
+        input.adjustmentType === "stocktake"
+          ? input.value
+          : previous + input.value;
+      if (!Number.isFinite(newQty) || newQty < 0) {
+        toast.error("Resulting quantity cannot be negative");
+        return;
+      }
+      const delta = newQty - previous;
+      const newAvailable = Math.max(0, current.availableStock + delta);
+
+      const { data: updated, error: updErr } = await supabase
+        .from("inventory_items")
+        .update({
+          quantity_on_hand: newQty,
+          available_stock: newAvailable,
+          last_updated: new Date().toISOString(),
+        } as never)
+        .eq("id", id)
+        .select()
+        .single();
+      if (updErr || !updated) {
+        toast.error(updErr?.message ?? "Could not adjust stock");
+        return;
+      }
+
+      const { error: insErr } = await supabase.from("stock_adjustments").insert({
+        inventory_item_id: id,
+        user_id: user?.id ?? null,
+        user_name: user?.name ?? user?.email ?? "Unknown",
+        adjustment_type: input.adjustmentType,
+        quantity_change: delta,
+        previous_quantity: previous,
+        new_quantity: newQty,
+        reason: input.reason,
+        notes: input.notes?.trim() || null,
+        adjustment_date: input.adjustmentDate,
+      } as never);
+      if (insErr) {
+        toast.error(`Stock updated but history not recorded: ${insErr.message}`);
+      }
+
+      const item = rowToItem(updated);
+      setItems((prev) => prev.map((i) => (i.id === id ? item : i)));
+    },
+    [items, user],
+  );
+
+  const listAdjustments = useCallback<StockStoreValue["listAdjustments"]>(
+    async (id) => {
+      const { data, error } = await supabase
+        .from("stock_adjustments")
+        .select("*")
+        .eq("inventory_item_id", id)
+        .order("created_at", { ascending: false });
+      if (error) {
+        toast.error(`Failed to load history: ${error.message}`);
+        return [];
+      }
+      return (data ?? []).map((r: Record<string, unknown>) => ({
+        id: String(r.id),
+        inventoryItemId: String(r.inventory_item_id),
+        userId: (r.user_id as string) ?? null,
+        userName: String(r.user_name ?? ""),
+        adjustmentType: r.adjustment_type as AdjustmentType,
+        quantityChange: Number(r.quantity_change ?? 0),
+        previousQuantity: Number(r.previous_quantity ?? 0),
+        newQuantity: Number(r.new_quantity ?? 0),
+        reason: String(r.reason ?? ""),
+        notes: (r.notes as string) ?? null,
+        adjustmentDate: String(r.adjustment_date ?? ""),
+        createdAt: String(r.created_at ?? ""),
+      }));
+    },
+    [],
+  );
+
   const value = useMemo(
-    () => ({ items, loading, addItem, updateItem, refresh: load }),
-    [items, loading, addItem, updateItem, load],
+    () => ({ items, loading, addItem, updateItem, adjustStock, listAdjustments, refresh: load }),
+    [items, loading, addItem, updateItem, adjustStock, listAdjustments, load],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
