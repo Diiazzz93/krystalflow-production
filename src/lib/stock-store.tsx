@@ -32,11 +32,39 @@ export interface NewStockInput {
   reorderLevel?: number;
 }
 
+export type AdjustmentType = "received" | "damaged" | "correction" | "stocktake";
+
+export interface StockAdjustment {
+  id: string;
+  inventoryItemId: string;
+  userId: string | null;
+  userName: string;
+  adjustmentType: AdjustmentType;
+  quantityChange: number;
+  previousQuantity: number;
+  newQuantity: number;
+  reason: string;
+  notes: string | null;
+  adjustmentDate: string;
+  createdAt: string;
+}
+
+export interface AdjustmentInput {
+  adjustmentType: AdjustmentType;
+  /** received/damaged/correction: signed delta. stocktake: absolute new total. */
+  value: number;
+  reason: string;
+  notes?: string;
+  adjustmentDate: string;
+}
+
 interface StockStoreValue {
   items: StockItem[];
   loading: boolean;
   addItem: (input: NewStockInput) => Promise<StockItem | null>;
   updateItem: (id: string, patch: Partial<StockItem>) => Promise<void>;
+  adjustStock: (id: string, input: AdjustmentInput) => Promise<void>;
+  listAdjustments: (id: string) => Promise<StockAdjustment[]>;
   refresh: () => Promise<StockItem[]>;
 }
 
