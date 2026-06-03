@@ -2,7 +2,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertTriangle, CheckCircle2, FileDown, Printer } from "lucide-react";
+import { AlertTriangle, CheckCircle2, FileDown, PackageCheck, Printer } from "lucide-react";
 import type { Job } from "@/lib/types";
 import { computeJobStockCheck } from "@/lib/job-stock";
 import { JobStockCheck } from "./JobStockCheck";
@@ -84,7 +84,7 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
 
         <div className={cn("rounded-lg border p-3 flex items-center gap-3", summaryTone)}>
           {!check.hasSelections ? (
-            <FileDown className="size-5" />
+            <PackageCheck className="size-5" />
           ) : check.hasShort ? (
             <AlertTriangle className="size-5" />
           ) : (
