@@ -106,6 +106,9 @@ function StockPage() {
   const { hasRole } = useAuth();
   const canEdit = hasRole("admin", "manager");
   const [addOpen, setAddOpen] = useState(false);
+  const [editItem, setEditItem] = useState<StockItem | null>(null);
+  const [adjustItem, setAdjustItem] = useState<StockItem | null>(null);
+  const [historyItem, setHistoryItem] = useState<StockItem | null>(null);
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<"all" | StockStatus>("all");
   const [category, setCategory] = useState<"all" | StockCategory>("all");
