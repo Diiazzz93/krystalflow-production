@@ -385,6 +385,19 @@ function StockPage() {
                     <span>{i.location}</span>
                     <span>{fmtDateTime(i.lastUpdated)}</span>
                   </div>
+                  {canEdit && (
+                    <div className="flex gap-1 pt-1">
+                      <Button size="sm" variant="outline" className="flex-1 h-8 gap-1" onClick={() => setEditItem(i)}>
+                        <Pencil className="size-3.5" /> Edit
+                      </Button>
+                      <Button size="sm" variant="outline" className="flex-1 h-8 gap-1" onClick={() => setAdjustItem(i)}>
+                        <Scale className="size-3.5" /> Adjust
+                      </Button>
+                      <Button size="sm" variant="outline" className="flex-1 h-8 gap-1" onClick={() => setHistoryItem(i)}>
+                        <History className="size-3.5" /> History
+                      </Button>
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>
@@ -394,6 +407,9 @@ function StockPage() {
         <ActiveJobsSection />
       </div>
       <AddStockDialog open={addOpen} onOpenChange={setAddOpen} />
+      <EditStockDialog item={editItem} open={!!editItem} onOpenChange={(v) => !v && setEditItem(null)} />
+      <AdjustStockDialog item={adjustItem} open={!!adjustItem} onOpenChange={(v) => !v && setAdjustItem(null)} />
+      <StockHistoryDialog item={historyItem} open={!!historyItem} onOpenChange={(v) => !v && setHistoryItem(null)} />
     </AppShell>
   );
 }
