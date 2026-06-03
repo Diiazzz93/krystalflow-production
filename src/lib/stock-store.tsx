@@ -179,7 +179,7 @@ export function StockStoreProvider({ children }: { children: ReactNode }) {
   const updateItem = useCallback<StockStoreValue["updateItem"]>(async (id, patch) => {
     const { data, error } = await supabase
       .from("inventory_items")
-      .update(patchToRow(patch))
+      .update(patchToRow(patch) as never)
       .eq("id", id)
       .select()
       .single();
