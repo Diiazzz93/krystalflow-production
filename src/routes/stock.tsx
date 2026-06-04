@@ -54,6 +54,7 @@ export const Route = createFileRoute("/stock")({
 const STATUS_LABEL: Record<StockStatus, string> = {
   "in-stock": "In stock",
   "low-stock": "Low stock",
+  "critical-stock": "Critical",
   "out-of-stock": "Out of stock",
 };
 
@@ -63,7 +64,9 @@ function statusBadge(status: StockStatus) {
       ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
       : status === "low-stock"
         ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30"
-        : "bg-red-500/15 text-red-600 dark:text-red-400 border-red-500/30";
+        : status === "critical-stock"
+          ? "bg-orange-500/15 text-orange-600 dark:text-orange-400 border-orange-500/30"
+          : "bg-red-500/15 text-red-600 dark:text-red-400 border-red-500/30";
   return (
     <Badge variant="outline" className={cn("font-medium", cls)}>
       {STATUS_LABEL[status]}
