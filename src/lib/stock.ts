@@ -12,7 +12,7 @@
 //   Warehouse.WarehouseName -> location
 //   LastModifiedOn   -> lastUpdated
 
-export type StockStatus = "in-stock" | "low-stock" | "out-of-stock";
+export type StockStatus = "in-stock" | "low-stock" | "critical-stock" | "out-of-stock";
 
 export type StockCategory =
   | "Bottles"
