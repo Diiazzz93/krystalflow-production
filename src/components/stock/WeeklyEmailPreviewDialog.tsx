@@ -43,7 +43,7 @@ export function WeeklyEmailPreviewDialog({ open, onOpenChange }: Props) {
 function useBrandingSafe(): string {
   try {
     const b = useBranding();
-    return b?.companyName ?? "KrystalFlow";
+    return b?.branding?.companyName ?? "KrystalFlow";
   } catch {
     return "KrystalFlow";
   }
