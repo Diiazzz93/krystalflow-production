@@ -161,12 +161,18 @@ function StockPage() {
               Unleashed once connected.
             </p>
           </div>
-          {canEdit && (
-            <Button onClick={() => setAddOpen(true)} className="h-11 gap-2">
-              <Plus className="size-4" />
-              Add stock
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setReportOpen(true)} className="h-11 gap-2">
+              <AlertTriangle className="size-4" />
+              Low stock report
             </Button>
-          )}
+            {canEdit && (
+              <Button onClick={() => setAddOpen(true)} className="h-11 gap-2">
+                <Plus className="size-4" />
+                Add stock
+              </Button>
+            )}
+          </div>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
