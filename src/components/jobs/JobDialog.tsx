@@ -42,6 +42,7 @@ import { LineSetupViewerDialog } from "@/components/line-setup/LineSetupViewerDi
 import { StockCombobox } from "@/components/jobs/StockCombobox";
 import { useStockStore } from "@/lib/stock-store";
 import { resolveCategory, type StockCategory, type StockItem } from "@/lib/stock";
+import { JobSheetActions } from "@/components/jobs/JobSheetActions";
 
 function parseBottleSize(name: string, fallback: string): string {
   const m = name.match(/(\d+(?:\.\d+)?)\s*(ml|L|l)\b/);
