@@ -420,7 +420,7 @@ function JobsCardList({
             </span>
           </div>
 
-          <div className="mt-3 grid grid-cols-3 gap-1.5">
+          <div className="mt-3 grid grid-cols-2 gap-1.5">
             <Button
               size="sm"
               variant="secondary"
@@ -433,18 +433,13 @@ function JobsCardList({
               size="sm"
               variant="secondary"
               className="min-h-11"
-              onClick={() => handlePdf(j)}
-            >
-              <FileDown className="size-4" /> PDF
-            </Button>
-            <Button
-              size="sm"
-              variant="secondary"
-              className="min-h-11"
               onClick={() => onQC(j.id)}
             >
               <ShieldCheck className="size-4" /> QC
             </Button>
+          </div>
+          <div className="mt-1.5">
+            <JobSheetActions job={j} variant="secondary" className="w-full [&>button]:flex-1 [&>button]:min-h-11" />
           </div>
         </li>
       ))}
