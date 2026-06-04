@@ -323,17 +323,8 @@ function JobsTable({
                 >
                   <Eye className="size-4 mr-1" /> View Job
                 </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handlePdf(j);
-                  }}
-                  title="Generate Job PDF run sheet"
-                >
-                  <FileDown className="size-4 mr-1" /> PDF
-                </Button>
+                <JobSheetActions job={j} />
+
                 <Button
                   size="sm"
                   variant="ghost"
