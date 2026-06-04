@@ -365,17 +365,6 @@ function JobsCardList({
   onViewStock: (id: string) => void;
   hideCustomer?: boolean;
 }) {
-  const { presets } = useLineSetups();
-  const handlePdf = (job: Job) => {
-    try {
-      downloadJobPdf(job, presets);
-      toast.success(`Run sheet PDF generated for ${job.id}`);
-    } catch (e) {
-      console.error(e);
-      toast.error("Could not generate PDF");
-    }
-  };
-
   if (jobs.length === 0) {
     return (
       <div className="rounded-lg border border-border bg-card py-10 text-center text-muted-foreground text-sm">
