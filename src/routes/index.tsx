@@ -270,6 +270,10 @@ function Dashboard() {
           </Card>
         </div>
 
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <StockAlertsCard />
+        </div>
+
         {delayed.length > 0 && (
           <Card className="border-orange-500/40 bg-orange-500/5">
             <CardHeader>
