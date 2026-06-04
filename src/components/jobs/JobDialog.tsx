@@ -468,6 +468,9 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
               Delete
             </Button>
           )}
+          {isEdit && (
+            <JobSheetActions job={form} variant="outline" />
+          )}
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             {canEdit ? "Cancel" : "Close"}
           </Button>
