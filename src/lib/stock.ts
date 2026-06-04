@@ -45,6 +45,10 @@ export interface StockItem {
   availableStock: number;
   allocatedStock: number;
   reorderLevel: number;
+  criticalLevel?: number;
+  reorderQuantity?: number;
+  supplier?: string;
+  alertNotes?: string;
   location: string;
   unit: string;
   lastUpdated: string; // ISO
@@ -56,6 +60,8 @@ export interface StockItem {
 
 export function getStockStatus(item: StockItem): StockStatus {
   if (item.availableStock <= 0) return "out-of-stock";
+  if ((item.criticalLevel ?? 0) > 0 && item.availableStock <= (item.criticalLevel ?? 0))
+    return "critical-stock";
   if (item.availableStock <= item.reorderLevel) return "low-stock";
   return "in-stock";
 }
