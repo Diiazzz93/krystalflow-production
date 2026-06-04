@@ -27,6 +27,7 @@ import {
   Plus,
 } from "lucide-react";
 import { JobDialog } from "@/components/jobs/JobDialog";
+import { StockAlertsCard } from "@/components/stock/StockAlertsCard";
 
 export const Route = createFileRoute("/")({
   component: Dashboard,
