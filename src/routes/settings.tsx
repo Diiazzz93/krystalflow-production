@@ -100,6 +100,7 @@ function SettingsPage() {
 
         <LinesPanel />
 
+        <StockAlertsPanel />
 
         <UnleashedSyncPanel />
 
