@@ -1,35 +1,34 @@
-# Fix login getting stuck and resetting the form
+## Goal
+Shrink the Stock Alert Settings section so it stays compact even with hundreds of stock items, while keeping all current functionality (thresholds, reorder qty, supplier, notes, weekly email preview, role permissions).
 
-## Root cause
+## Approach
+Replace the current stack of large per-item cards with a compact, scrollable table inside a fixed-height panel. Editing happens in a side drawer instead of inline expanded fields.
 
-Supabase Auth sign-in is succeeding (auth logs show HTTP 200), but immediately after sign-in the app calls `loadAuthUser()` which reads from `public.profiles` and `public.user_roles`. Both tables (plus `inventory_items` and `production_jobs`) were created with RLS policies but **no `GRANT` statements** for the `authenticated` role.
+### Layout changes in `StockAlertsPanel.tsx`
+1. **Collapsible section header** — wrap the whole panel in a collapsible card (open by default) so users can hide it entirely on the Settings page.
+2. **Filters row** (single line):
+   - Search input (existing)
+   - Category filter dropdown (Bottle / Cap / Label / Carton / Liquid / Other)
+   - Status filter (All / Needs attention / OK) — "Needs attention" = out / critical / low
+   - "Preview weekly email" button (moved here)
+3. **Compact table** replacing the card stack. Columns:
+   - Status dot (red/orange/yellow/green)
+   - Item (name + SKU muted below)
+   - On hand
+   - Low / Critical / Reorder qty (small inline numeric inputs, ~70px wide)
+   - Supplier (small input)
+   - Edit button (opens drawer for notes + full edit)
+4. **Fixed max height** (e.g. `max-h-[520px] overflow-auto`) with sticky header so the section never dominates the Settings page.
+5. **Bulk save bar** at the bottom of the table appears only when there are unsaved drafts: "3 items modified — Save all / Discard". Removes the per-row Save button noise.
+6. **Edit drawer** (`Sheet` from shadcn) opens on row click or Edit button for full editing including the Notes textarea (which doesn't fit comfortably in a row).
 
-In Supabase, RLS alone is not enough — PostgREST also requires table-level `GRANT`s. Without them, every query returns a permission error before RLS is evaluated. `loadAuthUser` retries 4 times, throws, and the user state stays `null`. The `<AuthGate>` then re-renders `<LoginScreen>`, which mounts fresh and shows empty inputs — exactly the "gets rid of my name" symptom.
+### Files
+- Edit `src/components/settings/StockAlertsPanel.tsx` — rewrite to table + drawer layout.
+- New `src/components/settings/StockAlertEditDrawer.tsx` — sheet with full fields + notes.
+- No DB changes, no changes to `stock-alerts.ts` or stock store.
 
-`private.has_role(...)` is also not `EXECUTE`-able by `authenticated`, which would break the admin-scoped policies once grants are added.
-
-## Fix (single migration)
-
-Add the missing grants. No app code changes needed.
-
-```sql
--- Tables used by the signed-in user
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.profiles        TO authenticated;
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.user_roles      TO authenticated;
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.inventory_items TO authenticated;
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.production_jobs TO authenticated;
-
-GRANT ALL ON public.profiles, public.user_roles,
-             public.inventory_items, public.production_jobs
-      TO service_role;
-
--- has_role is called from RLS policies running as the authenticated user
-GRANT USAGE   ON SCHEMA private TO authenticated;
-GRANT EXECUTE ON FUNCTION private.has_role(uuid, public.app_role) TO authenticated;
-```
-
-RLS policies already restrict rows correctly (own profile / own roles / admin overrides), so granting table-level CRUD to `authenticated` is safe.
-
-## Verification
-
-After the migration, sign in again — the loading screen should advance into the app instead of bouncing back to the empty login form.
+## Result
+- Section collapses to a single header row when not in use.
+- When expanded, shows ~10 items per screen instead of ~2, in a fixed-height scroll area.
+- Quick edits (thresholds, supplier) stay inline; deep edits (notes) move to a drawer.
+- Bulk save replaces dozens of Save buttons.
