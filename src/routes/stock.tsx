@@ -422,6 +422,7 @@ function StockPage() {
       <EditStockDialog item={editItem} open={!!editItem} onOpenChange={(v) => !v && setEditItem(null)} />
       <AdjustStockDialog item={adjustItem} open={!!adjustItem} onOpenChange={(v) => !v && setAdjustItem(null)} />
       <StockHistoryDialog item={historyItem} open={!!historyItem} onOpenChange={(v) => !v && setHistoryItem(null)} />
+      <LowStockReportDialog open={reportOpen} onOpenChange={setReportOpen} />
     </AppShell>
   );
 }
