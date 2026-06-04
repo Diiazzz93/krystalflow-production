@@ -11,6 +11,7 @@ import { findSetupForJob, type LineSetupPreset } from "@/lib/line-setups";
 import { fmtDate, fmtDateTime } from "@/lib/utils-domain";
 import { getBranding, hexToRgb, type Branding } from "@/lib/branding";
 import { getSpecForJobSync, type ResolvedSpec } from "@/lib/customer-specs";
+import type { StockItem } from "@/lib/stock";
 
 // Default brand (overridden per-call by tenant branding)
 const BRAND = {
