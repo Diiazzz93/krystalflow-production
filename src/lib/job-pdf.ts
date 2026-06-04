@@ -365,3 +365,61 @@ function qcSignoff(doc: jsPDF, yStart: number): number {
   doc.text("NOTES", M + 10, y + 12);
   return y + 80;
 }
+
+function renderResolvedSpec(doc: jsPDF, yStart: number, spec: ResolvedSpec): number {
+  let y = yStart;
+  const heading =
+    spec.source === "product"
+      ? `${spec.customer} — ${spec.productName} (product spec)`
+      : `${spec.customer} — customer default`;
+  y = sectionTitle(doc, y, heading);
+  y = kvGrid(doc, y, [
+    ["Product type", spec.filling.productType],
+    ["Bottle / container", spec.filling.containerType],
+    ["Fill size", spec.filling.fillSize],
+    ["Cap type", spec.filling.capType],
+    ["Trigger / sprayer", spec.filling.triggerSprayer],
+    ["Label positioning", spec.filling.labelPositioning],
+  ]);
+  y = paragraph(doc, y, "Label requirements", spec.filling.labelRequirements);
+  y = paragraph(doc, y, "Hazard / SDS notes", spec.filling.hazardSdsNotes);
+
+  y = sectionTitle(doc, y, "Packing instructions");
+  y = kvGrid(doc, y, [
+    ["Units per carton", String(spec.packing.unitsPerCarton)],
+    ["Carton type", spec.packing.cartonType],
+    ["Carton label required", spec.packing.cartonLabelRequired ? "Yes" : "No"],
+    ["Trigger packed in carton", spec.packing.triggerInCarton ? "Yes" : "No"],
+  ]);
+  y = paragraph(doc, y, "Special packing notes", spec.packing.packingNotes);
+
+  y = sectionTitle(doc, y, "Palletising instructions");
+  y = kvGrid(doc, y, [
+    ["Pallet type", spec.palletising.palletType],
+    ["Cartons per layer", String(spec.palletising.cartonsPerLayer)],
+    ["Layers high", String(spec.palletising.layersHigh)],
+  ], 3);
+  y = paragraph(doc, y, "Configuration notes", spec.palletising.configurationNotes);
+  y = paragraph(doc, y, "Wrap requirements", spec.palletising.wrapRequirements);
+  y = paragraph(doc, y, "Pallet label requirements", spec.palletising.palletLabelRequirements);
+  y = paragraph(doc, y, "Special customer requirements", spec.palletising.specialRequirements);
+
+  if (spec.lineSetupNotes) y = paragraph(doc, y, "Line setup notes", spec.lineSetupNotes);
+  if (spec.specialInstructions) y = paragraph(doc, y, "Special instructions", spec.specialInstructions);
+
+  return y;
+}
+
+export function downloadJobPdf(job: Job, presets: LineSetupPreset[], stock: StockItem[] = []) {
+  const b = getBranding();
+  const doc = generateJobPdf(job, presets, stock, b);
+  const safeCustomer = job.customer.replace(/\s+/g, "-");
+  doc.save(`${b.appName}_${job.id.slice(0, 8)}_${safeCustomer}.pdf`);
+}
+
+export function printJobPdf(job: Job, presets: LineSetupPreset[], stock: StockItem[] = []) {
+  const doc = generateJobPdf(job, presets, stock);
+  doc.autoPrint();
+  const url = doc.output("bloburl");
+  window.open(url, "_blank");
+}
