@@ -120,6 +120,10 @@ function patchToRow(patch: Partial<StockItem>) {
   if (patch.availableStock !== undefined) row.available_stock = patch.availableStock;
   if (patch.allocatedStock !== undefined) row.allocated_stock = patch.allocatedStock;
   if (patch.reorderLevel !== undefined) row.reorder_level = patch.reorderLevel;
+  if (patch.criticalLevel !== undefined) row.critical_level = patch.criticalLevel;
+  if (patch.reorderQuantity !== undefined) row.reorder_quantity = patch.reorderQuantity;
+  if (patch.supplier !== undefined) row.supplier = patch.supplier;
+  if (patch.alertNotes !== undefined) row.alert_notes = patch.alertNotes;
   if (patch.location !== undefined) row.location = patch.location;
   if (patch.unit !== undefined) row.unit = patch.unit;
   if (patch.source !== undefined) row.source = patch.source;
