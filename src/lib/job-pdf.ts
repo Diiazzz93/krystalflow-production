@@ -174,10 +174,15 @@ function paragraph(doc: jsPDF, y: number, label: string, body: string): number {
   return y + 14 + lines.length * 12 + 8;
 }
 
-export function generateJobPdf(job: Job, presets: LineSetupPreset[], branding?: Branding): jsPDF {
+export function generateJobPdf(
+  job: Job,
+  presets: LineSetupPreset[],
+  stock: StockItem[] = [],
+  branding?: Branding,
+): jsPDF {
   const b = branding ?? getBranding();
   const doc = new jsPDF({ unit: "pt", format: "a4" });
-  const check = computeJobStockCheck(job);
+  const check = computeJobStockCheck(job, stock);
   const setup = findSetupForJob(presets, job.product, job.bottleSize);
   const resolvedSpec = getSpecForJobSync(job.customer, `${job.product} ${job.bottleSize}`.trim());
   const totalPages = resolvedSpec ? 3 : 2;
@@ -188,81 +193,97 @@ export function generateJobPdf(job: Job, presets: LineSetupPreset[], branding?: 
   header(doc, `Job ${job.id}`, subtitle, b);
 
   let y = 90;
-  y = sectionTitle(doc, y, "Job details");
+  y = sectionTitle(doc, y, "Job information");
   y = kvGrid(doc, y, [
-    ["Job number", job.id],
+    ["Job number", job.id.slice(0, 8).toUpperCase()],
     ["Status", job.status],
     ["Customer", job.customer],
     ["Product", `${job.product}${job.sku ? ` · ${job.sku}` : ""}`],
-    ["Bottle size", job.bottleSize],
-    ["Planned quantity", `${job.quantity.toLocaleString()} bottles`],
-    ["Filling line", job.line],
-    ["Operator", job.operator || "—"],
-    ["Scheduled start", fmtDateTime(job.scheduledStart)],
+    ["Quantity to produce", `${job.quantity.toLocaleString()} bottles`],
+    ["Scheduled date", fmtDateTime(job.scheduledStart)],
     ["Due date", fmtDate(job.dueDate)],
+    ["Production line", job.line],
+    ["Operator", job.operator || "—"],
     ["Priority", job.priority],
-    ["Pallets planned", String(job.pallets)],
   ]);
 
-  y = sectionTitle(doc, y, "Required stock items");
-  y = tableSimple(
-    doc,
-    y,
-    ["Item", "Required", "Available", "Status"],
-    check.requirements.map((r) => [
-      `${r.description}${r.stock ? ` (${r.stock.sku})` : ""}`,
-      `${r.required.toLocaleString()} ${r.unit}`,
-      `${r.available.toLocaleString()} ${r.unit}`,
-      r.status === "ok" ? "OK" : r.status === "low" ? "LOW" : "SHORT",
-    ]),
-  );
-
-  // Readiness banner
-  const w = doc.internal.pageSize.getWidth();
-  const ok = check.ready;
-  doc.setFillColor(ok ? 220 : 254, ok ? 252 : 226, ok ? 231 : 226);
-  doc.rect(M, y, w - M * 2, 36, "F");
-  doc.setTextColor(ok ? 22 : 153, ok ? 101 : 27, ok ? 52 : 27);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
-  doc.text(
-    ok ? "STOCK READINESS: READY TO RUN" : "STOCK READINESS: SHORTAGE DETECTED",
-    M + 12,
-    y + 16,
-  );
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.text(
-    ok
-      ? "All required materials are available for this run."
-      : `${check.shortCount} item(s) short. Resolve shortages before starting the run.`,
-    M + 12,
-    y + 30,
-  );
-
-  footer(doc, job.id, 1, totalPages, b);
-
-  // ===== Page 2: Line Setup & Notes =====
-  doc.addPage();
-  header(doc, `Job ${job.id} · Setup`, subtitle, b);
-
-  y = 90;
-  y = sectionTitle(doc, y, "Materials selected");
+  y = sectionTitle(doc, y, "Product requirements");
   y = kvGrid(doc, y, [
-    ["Liquid / product to fill", job.liquidSku || job.product],
     ["Bottle", job.bottleSku || `${job.bottleSize} bottle`],
     ["Cap", job.capSku || "Standard cap"],
     ["Label", job.labelSku || `${job.sku} label`],
     ["Carton", job.cartonSku || "Standard carton"],
+    ["Liquid / product to fill", job.liquidSku || job.product],
+    ["Bottles per carton", String(job.bottlesPerCarton ?? 12)],
+    ["Estimated pallets", String(job.pallets)],
+    ["Bottle size", job.bottleSize],
   ]);
 
-  y = sectionTitle(doc, y, "Line setup values");
+  y = sectionTitle(doc, y, "Stock requirements");
+  if (check.requirements.length > 0) {
+    y = tableSimple(
+      doc,
+      y,
+      ["Item", "Required", "Available", "Status"],
+      check.requirements.map((r) => [
+        `${r.description}${r.stock ? ` (${r.stock.sku})` : ""}`,
+        `${r.required.toLocaleString()} ${r.unit}`,
+        `${r.available.toLocaleString()} ${r.unit}`,
+        r.status === "ok" ? "OK" : r.status === "low" ? "LOW" : "SHORT",
+      ]),
+    );
+  } else {
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(10);
+    doc.setTextColor(...BRAND.muted);
+    doc.text("No stock items selected on this job.", M, y + 4);
+    y += 24;
+  }
+
+  footer(doc, job.id, 1, totalPages, b);
+
+  // ===== Page 2: Setup, instructions & QC =====
+  doc.addPage();
+  header(doc, `Job ${job.id} · Setup & QC`, subtitle, b);
+
+  y = 90;
+  y = sectionTitle(doc, y, "Special instructions");
+  if (resolvedSpec) {
+    const lines: string[] = [];
+    if (resolvedSpec.packing.packingNotes) lines.push(`Packing: ${resolvedSpec.packing.packingNotes}`);
+    if (resolvedSpec.palletising.configurationNotes)
+      lines.push(`Pallet config: ${resolvedSpec.palletising.configurationNotes}`);
+    if (resolvedSpec.packing.cartonType)
+      lines.push(
+        `Carton: ${resolvedSpec.packing.cartonType} · ${resolvedSpec.packing.unitsPerCarton} per carton${resolvedSpec.packing.cartonLabelRequired ? " · carton label required" : ""}`,
+      );
+    if (resolvedSpec.filling.labelPositioning)
+      lines.push(`Label placement: ${resolvedSpec.filling.labelPositioning}`);
+    if (resolvedSpec.filling.labelRequirements)
+      lines.push(`Label requirements: ${resolvedSpec.filling.labelRequirements}`);
+    if (resolvedSpec.palletising.specialRequirements)
+      lines.push(`Special customer requirements: ${resolvedSpec.palletising.specialRequirements}`);
+    if (resolvedSpec.filling.hazardSdsNotes)
+      lines.push(`Handling / SDS: ${resolvedSpec.filling.hazardSdsNotes}`);
+    if (resolvedSpec.specialInstructions) lines.push(resolvedSpec.specialInstructions);
+    y = paragraph(
+      doc,
+      y,
+      `From customer spec — ${resolvedSpec.customer}`,
+      lines.length > 0 ? lines.join("\n\n") : "No special instructions on file.",
+    );
+  } else {
+    y = paragraph(doc, y, "From customer spec", "No special instructions on file for this customer / product.");
+  }
+  if (job.notes) y = paragraph(doc, y, "Job-specific notes", job.notes);
+
+  y = sectionTitle(doc, y, "Line setup");
   if (setup) {
     y = kvGrid(
       doc,
       y,
       [
-        ["Fill level (volume)", `${setup.fillVolumeMl} ml`],
+        ["Fill volume", `${setup.fillVolumeMl} ml`],
         ["Fill nozzle height", `${setup.fillNozzleHeightMm} mm`],
         ["Fill speed", `${setup.fillSpeedPct} %`],
         ["Conveyor speed", `${setup.conveyorSpeedHz} Hz`],
@@ -279,49 +300,26 @@ export function generateJobPdf(job: Job, presets: LineSetupPreset[], branding?: 
       ],
       3,
     );
+    if (setup.notes) y = paragraph(doc, y, "Setup notes", setup.notes);
   } else {
     doc.setFont("helvetica", "italic");
     doc.setFontSize(10);
     doc.setTextColor(...BRAND.muted);
     doc.text(
-      "No saved line setup preset for this product/bottle size. Operator to dial in during changeover.",
+      "No saved line setup preset for this product / bottle size.",
       M,
       y + 4,
     );
     y += 24;
   }
 
-  y = paragraph(
-    doc,
-    y,
-    "Sensor / settings notes",
-    setup?.notes ||
-      "Verify all sensor positions against the bottle profile before starting. Run 10 sample bottles at low speed.",
-  );
-  y = paragraph(
-    doc,
-    y,
-    "Special instructions",
-    job.notes || "No special instructions.",
-  );
-  y = paragraph(
-    doc,
-    y,
-    "Changeover notes",
-    setup
-      ? `Reuse preset from ${setup.line}. Successful runs to date: ${setup.successfulRuns}.`
-      : "First run for this product/size combination — record successful values to save as a preset.",
-  );
-  y = paragraph(
-    doc,
-    y,
-    "QC notes",
-    "Pull QC samples every pallet. Record fill weight, cap torque, label alignment and leak check in the QC log.",
-  );
+  // ===== QC SECTION =====
+  y = sectionTitle(doc, y, "QC sign-off");
+  y = qcSignoff(doc, y);
 
   footer(doc, job.id, 2, totalPages, b);
 
-  // ===== Page 3: Customer Production Specs (when on file) =====
+  // ===== Page 3: Full Customer Production Specs (when on file) =====
   if (resolvedSpec) {
     doc.addPage();
     const specSubtitle =
@@ -337,59 +335,33 @@ export function generateJobPdf(job: Job, presets: LineSetupPreset[], branding?: 
   return doc;
 }
 
-function renderResolvedSpec(doc: jsPDF, yStart: number, spec: ResolvedSpec): number {
+function qcSignoff(doc: jsPDF, yStart: number): number {
+  const w = doc.internal.pageSize.getWidth() - M * 2;
+  const colW = w / 2;
+  const boxH = 56;
+  const sigRows: Array<[string, string]> = [
+    ["Operator signature", "Start time"],
+    ["QC signature", "Finish time"],
+  ];
   let y = yStart;
-  const heading =
-    spec.source === "product"
-      ? `${spec.customer} — ${spec.productName} (product spec)`
-      : `${spec.customer} — customer default`;
-  y = sectionTitle(doc, y, heading);
-  y = kvGrid(doc, y, [
-    ["Product type", spec.filling.productType],
-    ["Bottle / container", spec.filling.containerType],
-    ["Fill size", spec.filling.fillSize],
-    ["Cap type", spec.filling.capType],
-    ["Trigger / sprayer", spec.filling.triggerSprayer],
-    ["Label positioning", spec.filling.labelPositioning],
-  ]);
-  y = paragraph(doc, y, "Label requirements", spec.filling.labelRequirements);
-  y = paragraph(doc, y, "Hazard / SDS notes", spec.filling.hazardSdsNotes);
-
-  y = sectionTitle(doc, y, "Packing instructions");
-  y = kvGrid(doc, y, [
-    ["Units per carton", String(spec.packing.unitsPerCarton)],
-    ["Carton type", spec.packing.cartonType],
-    ["Carton label required", spec.packing.cartonLabelRequired ? "Yes" : "No"],
-    ["Trigger packed in carton", spec.packing.triggerInCarton ? "Yes" : "No"],
-  ]);
-  y = paragraph(doc, y, "Special packing notes", spec.packing.packingNotes);
-
-  y = sectionTitle(doc, y, "Palletising instructions");
-  y = kvGrid(doc, y, [
-    ["Pallet type", spec.palletising.palletType],
-    ["Cartons per layer", String(spec.palletising.cartonsPerLayer)],
-    ["Layers high", String(spec.palletising.layersHigh)],
-  ], 3);
-  y = paragraph(doc, y, "Configuration notes", spec.palletising.configurationNotes);
-  y = paragraph(doc, y, "Wrap requirements", spec.palletising.wrapRequirements);
-  y = paragraph(doc, y, "Pallet label requirements", spec.palletising.palletLabelRequirements);
-  y = paragraph(doc, y, "Special customer requirements", spec.palletising.specialRequirements);
-
-  if (spec.lineSetupNotes) y = paragraph(doc, y, "Line setup notes", spec.lineSetupNotes);
-  if (spec.specialInstructions) y = paragraph(doc, y, "Special instructions", spec.specialInstructions);
-
-  return y;
-}
-
-export function downloadJobPdf(job: Job, presets: LineSetupPreset[]) {
-  const b = getBranding();
-  const doc = generateJobPdf(job, presets, b);
-  doc.save(`${b.appName}_${job.id}_${job.customer.replace(/\s+/g, "-")}.pdf`);
-}
-
-export function printJobPdf(job: Job, presets: LineSetupPreset[]) {
-  const doc = generateJobPdf(job, presets);
-  doc.autoPrint();
-  const url = doc.output("bloburl");
-  window.open(url, "_blank");
+  sigRows.forEach((row) => {
+    row.forEach((label, i) => {
+      const x = M + i * colW;
+      doc.setDrawColor(...BRAND.line);
+      doc.rect(x + 2, y, colW - 4, boxH);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      doc.setTextColor(...BRAND.muted);
+      doc.text(label.toUpperCase(), x + 10, y + 12);
+    });
+    y += boxH + 6;
+  });
+  // Notes box (full width)
+  doc.setDrawColor(...BRAND.line);
+  doc.rect(M + 2, y, w - 4, 70);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(...BRAND.muted);
+  doc.text("NOTES", M + 10, y + 12);
+  return y + 80;
 }
