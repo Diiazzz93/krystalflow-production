@@ -227,6 +227,7 @@ function StockPage() {
                     <SelectItem value="all">All statuses</SelectItem>
                     <SelectItem value="in-stock">In stock</SelectItem>
                     <SelectItem value="low-stock">Low stock</SelectItem>
+                    <SelectItem value="critical-stock">Critical</SelectItem>
                     <SelectItem value="out-of-stock">Out of stock</SelectItem>
                   </SelectContent>
                 </Select>
