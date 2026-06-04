@@ -35,6 +35,7 @@ import { AddStockDialog } from "@/components/stock/AddStockDialog";
 import { EditStockDialog } from "@/components/stock/EditStockDialog";
 import { AdjustStockDialog } from "@/components/stock/AdjustStockDialog";
 import { StockHistoryDialog } from "@/components/stock/StockHistoryDialog";
+import { LowStockReportDialog } from "@/components/stock/LowStockReportDialog";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
