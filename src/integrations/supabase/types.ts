@@ -16,11 +16,13 @@ export type Database = {
     Tables: {
       inventory_items: {
         Row: {
+          alert_notes: string | null
           allocated_stock: number
           available_stock: number
           category: string
           created_at: string
           created_by: string | null
+          critical_level: number
           date_received: string | null
           id: string
           last_updated: string
@@ -29,16 +31,20 @@ export type Database = {
           notes: string | null
           quantity_on_hand: number
           reorder_level: number
+          reorder_quantity: number
           sku: string
           source: string | null
+          supplier: string | null
           unit: string
         }
         Insert: {
+          alert_notes?: string | null
           allocated_stock?: number
           available_stock?: number
           category?: string
           created_at?: string
           created_by?: string | null
+          critical_level?: number
           date_received?: string | null
           id?: string
           last_updated?: string
@@ -47,16 +53,20 @@ export type Database = {
           notes?: string | null
           quantity_on_hand?: number
           reorder_level?: number
+          reorder_quantity?: number
           sku: string
           source?: string | null
+          supplier?: string | null
           unit?: string
         }
         Update: {
+          alert_notes?: string | null
           allocated_stock?: number
           available_stock?: number
           category?: string
           created_at?: string
           created_by?: string | null
+          critical_level?: number
           date_received?: string | null
           id?: string
           last_updated?: string
@@ -65,8 +75,10 @@ export type Database = {
           notes?: string | null
           quantity_on_hand?: number
           reorder_level?: number
+          reorder_quantity?: number
           sku?: string
           source?: string | null
+          supplier?: string | null
           unit?: string
         }
         Relationships: []

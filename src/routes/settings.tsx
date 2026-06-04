@@ -21,6 +21,7 @@ import { UnleashedSyncPanel } from "@/components/settings/UnleashedSyncPanel";
 import { UserManagementPanel } from "@/components/settings/UserManagementPanel";
 import { BrandingPanel } from "@/components/settings/BrandingPanel";
 import { LinesPanel } from "@/components/settings/LinesPanel";
+import { StockAlertsPanel } from "@/components/settings/StockAlertsPanel";
 import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/settings")({
@@ -99,6 +100,7 @@ function SettingsPage() {
 
         <LinesPanel />
 
+        <StockAlertsPanel />
 
         <UnleashedSyncPanel />
 

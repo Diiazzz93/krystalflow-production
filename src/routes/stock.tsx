@@ -35,6 +35,7 @@ import { AddStockDialog } from "@/components/stock/AddStockDialog";
 import { EditStockDialog } from "@/components/stock/EditStockDialog";
 import { AdjustStockDialog } from "@/components/stock/AdjustStockDialog";
 import { StockHistoryDialog } from "@/components/stock/StockHistoryDialog";
+import { LowStockReportDialog } from "@/components/stock/LowStockReportDialog";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
@@ -54,6 +55,7 @@ export const Route = createFileRoute("/stock")({
 const STATUS_LABEL: Record<StockStatus, string> = {
   "in-stock": "In stock",
   "low-stock": "Low stock",
+  "critical-stock": "Critical",
   "out-of-stock": "Out of stock",
 };
 
@@ -63,7 +65,9 @@ function statusBadge(status: StockStatus) {
       ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
       : status === "low-stock"
         ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30"
-        : "bg-red-500/15 text-red-600 dark:text-red-400 border-red-500/30";
+        : status === "critical-stock"
+          ? "bg-orange-500/15 text-orange-600 dark:text-orange-400 border-orange-500/30"
+          : "bg-red-500/15 text-red-600 dark:text-red-400 border-red-500/30";
   return (
     <Badge variant="outline" className={cn("font-medium", cls)}>
       {STATUS_LABEL[status]}
@@ -106,6 +110,7 @@ function StockPage() {
   const { hasRole } = useAuth();
   const canEdit = hasRole("admin", "manager");
   const [addOpen, setAddOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const [editItem, setEditItem] = useState<StockItem | null>(null);
   const [adjustItem, setAdjustItem] = useState<StockItem | null>(null);
   const [historyItem, setHistoryItem] = useState<StockItem | null>(null);
@@ -156,12 +161,18 @@ function StockPage() {
               Unleashed once connected.
             </p>
           </div>
-          {canEdit && (
-            <Button onClick={() => setAddOpen(true)} className="h-11 gap-2">
-              <Plus className="size-4" />
-              Add stock
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setReportOpen(true)} className="h-11 gap-2">
+              <AlertTriangle className="size-4" />
+              Low stock report
             </Button>
-          )}
+            {canEdit && (
+              <Button onClick={() => setAddOpen(true)} className="h-11 gap-2">
+                <Plus className="size-4" />
+                Add stock
+              </Button>
+            )}
+          </div>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -224,6 +235,7 @@ function StockPage() {
                     <SelectItem value="all">All statuses</SelectItem>
                     <SelectItem value="in-stock">In stock</SelectItem>
                     <SelectItem value="low-stock">Low stock</SelectItem>
+                    <SelectItem value="critical-stock">Critical</SelectItem>
                     <SelectItem value="out-of-stock">Out of stock</SelectItem>
                   </SelectContent>
                 </Select>
@@ -410,6 +422,7 @@ function StockPage() {
       <EditStockDialog item={editItem} open={!!editItem} onOpenChange={(v) => !v && setEditItem(null)} />
       <AdjustStockDialog item={adjustItem} open={!!adjustItem} onOpenChange={(v) => !v && setAdjustItem(null)} />
       <StockHistoryDialog item={historyItem} open={!!historyItem} onOpenChange={(v) => !v && setHistoryItem(null)} />
+      <LowStockReportDialog open={reportOpen} onOpenChange={setReportOpen} />
     </AppShell>
   );
 }

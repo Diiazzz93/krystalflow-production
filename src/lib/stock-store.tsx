@@ -81,6 +81,10 @@ function rowToItem(r: Record<string, unknown>): StockItem {
     availableStock: Number(r.available_stock ?? 0),
     allocatedStock: Number(r.allocated_stock ?? 0),
     reorderLevel: Number(r.reorder_level ?? 0),
+    criticalLevel: Number(r.critical_level ?? 0),
+    reorderQuantity: Number(r.reorder_quantity ?? 0),
+    supplier: (r.supplier as string) ?? undefined,
+    alertNotes: (r.alert_notes as string) ?? undefined,
     location: String(r.location ?? ""),
     unit: String(r.unit ?? "units"),
     source: (r.source as string) ?? undefined,
@@ -116,6 +120,10 @@ function patchToRow(patch: Partial<StockItem>) {
   if (patch.availableStock !== undefined) row.available_stock = patch.availableStock;
   if (patch.allocatedStock !== undefined) row.allocated_stock = patch.allocatedStock;
   if (patch.reorderLevel !== undefined) row.reorder_level = patch.reorderLevel;
+  if (patch.criticalLevel !== undefined) row.critical_level = patch.criticalLevel;
+  if (patch.reorderQuantity !== undefined) row.reorder_quantity = patch.reorderQuantity;
+  if (patch.supplier !== undefined) row.supplier = patch.supplier;
+  if (patch.alertNotes !== undefined) row.alert_notes = patch.alertNotes;
   if (patch.location !== undefined) row.location = patch.location;
   if (patch.unit !== undefined) row.unit = patch.unit;
   if (patch.source !== undefined) row.source = patch.source;

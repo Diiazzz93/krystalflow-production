@@ -27,6 +27,7 @@ import {
   Plus,
 } from "lucide-react";
 import { JobDialog } from "@/components/jobs/JobDialog";
+import { StockAlertsCard } from "@/components/stock/StockAlertsCard";
 
 export const Route = createFileRoute("/")({
   component: Dashboard,
@@ -267,6 +268,10 @@ function Dashboard() {
               ))}
             </CardContent>
           </Card>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <StockAlertsCard />
         </div>
 
         {delayed.length > 0 && (
