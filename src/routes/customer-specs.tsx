@@ -279,8 +279,8 @@ function CustomerSpecsPage() {
                 <p className="text-sm text-muted-foreground">
                   No specs saved for <strong>{selected}</strong> yet.
                 </p>
-                <Button onClick={startEditCustomer}>
-                  <Plus className="size-4 mr-1" /> Create specs
+                <Button onClick={openAddCustomerDialog}>
+                  <UserPlus className="size-4 mr-1" /> Add customer details
                 </Button>
               </CardContent></Card>
             ) : edit.kind === "customer" ? (
