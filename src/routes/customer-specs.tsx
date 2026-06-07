@@ -167,9 +167,11 @@ function CustomerSpecsPage() {
           </div>
           <div className="flex items-center gap-2">
             <Input
+              ref={newCustomerInputRef}
               placeholder="New customer name"
               value={newCustomerName}
               onChange={(e) => setNewCustomerName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") addCustomer(); }}
               className="w-56"
             />
             <Button onClick={addCustomer}>
