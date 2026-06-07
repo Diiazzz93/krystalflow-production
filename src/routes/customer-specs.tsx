@@ -23,7 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Save, Plus, Trash2, Upload, ClipboardList, Package2, ArrowLeft, UserPlus, Mail, Phone, MapPin } from "lucide-react";
+import { Save, Plus, Trash2, Upload, ClipboardList, Package2, UserPlus, Mail, Phone, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { useStore } from "@/lib/store";
 import {
