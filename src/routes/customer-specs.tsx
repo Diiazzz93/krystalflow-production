@@ -58,6 +58,8 @@ function CustomerSpecsPage() {
   const [newProductName, setNewProductName] = useState("");
   const [edit, setEdit] = useState<EditMode>({ kind: "none" });
   const [viewingProductId, setViewingProductId] = useState<string | null>(null);
+  const newCustomerInputRef = useRef<HTMLInputElement>(null);
+  const newProductInputRef = useRef<HTMLInputElement>(null);
 
   const existing = useMemo(
     () => specs.find((s) => s.customer === selected),
@@ -83,6 +85,7 @@ function CustomerSpecsPage() {
     const name = newProductName.trim();
     if (!name) {
       toast.error("Enter a product name first");
+      newProductInputRef.current?.focus();
       return;
     }
     if (existing.products.some((p) => p.productName.toLowerCase() === name.toLowerCase())) {
@@ -117,7 +120,11 @@ function CustomerSpecsPage() {
 
   function addCustomer() {
     const name = newCustomerName.trim();
-    if (!name) return;
+    if (!name) {
+      toast.error("Enter a customer name first");
+      newCustomerInputRef.current?.focus();
+      return;
+    }
     if (specs.some((s) => s.customer.toLowerCase() === name.toLowerCase())) {
       toast.error("That customer already has specs");
       return;
@@ -160,9 +167,11 @@ function CustomerSpecsPage() {
           </div>
           <div className="flex items-center gap-2">
             <Input
+              ref={newCustomerInputRef}
               placeholder="New customer name"
               value={newCustomerName}
               onChange={(e) => setNewCustomerName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") addCustomer(); }}
               className="w-56"
             />
             <Button onClick={addCustomer}>
@@ -340,9 +349,11 @@ function CustomerSpecsPage() {
                     </div>
                     <div className="flex gap-2">
                       <Input
+                        ref={newProductInputRef}
                         placeholder="New product name"
                         value={newProductName}
                         onChange={(e) => setNewProductName(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") startNewProduct(); }}
                         className="w-64"
                       />
                       <Button onClick={startNewProduct}>
