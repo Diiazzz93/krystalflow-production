@@ -58,6 +58,8 @@ function CustomerSpecsPage() {
   const [newProductName, setNewProductName] = useState("");
   const [edit, setEdit] = useState<EditMode>({ kind: "none" });
   const [viewingProductId, setViewingProductId] = useState<string | null>(null);
+  const newCustomerInputRef = useRef<HTMLInputElement>(null);
+  const newProductInputRef = useRef<HTMLInputElement>(null);
 
   const existing = useMemo(
     () => specs.find((s) => s.customer === selected),
