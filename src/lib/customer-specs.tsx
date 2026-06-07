@@ -75,7 +75,15 @@ export interface ProductSpec extends SpecPayload {
   updatedAt: string;
 }
 
-export interface CustomerSpec extends SpecPayload {
+export interface CustomerContact {
+  contactName?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  notes?: string;
+}
+
+export interface CustomerSpec extends SpecPayload, CustomerContact {
   id: string; // = customer name slug
   customer: string;
   products: ProductSpec[];

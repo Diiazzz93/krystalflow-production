@@ -15,7 +15,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Save, Plus, Trash2, Upload, ClipboardList, Package2, ArrowLeft } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Save, Plus, Trash2, Upload, ClipboardList, Package2, ArrowLeft, UserPlus, Mail, Phone, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { useStore } from "@/lib/store";
 import {
@@ -34,6 +42,16 @@ type EditMode =
   | { kind: "none" }
   | { kind: "customer"; draft: CustomerSpec }
   | { kind: "product"; customerId: string; draft: ProductSpec };
+
+interface CustomerInfoDraft {
+  id?: string;
+  customer: string;
+  contactName: string;
+  email: string;
+  phone: string;
+  address: string;
+  notes: string;
+}
 
 function CustomerSpecsPage() {
   const { jobs } = useStore();
@@ -54,11 +72,10 @@ function CustomerSpecsPage() {
   }, [specs, jobs]);
 
   const [selected, setSelected] = useState<string>(specs[0]?.customer ?? allCustomers[0] ?? "");
-  const [newCustomerName, setNewCustomerName] = useState("");
   const [newProductName, setNewProductName] = useState("");
   const [edit, setEdit] = useState<EditMode>({ kind: "none" });
   const [viewingProductId, setViewingProductId] = useState<string | null>(null);
-  const newCustomerInputRef = useRef<HTMLInputElement>(null);
+  const [customerInfoDraft, setCustomerInfoDraft] = useState<CustomerInfoDraft | null>(null);
   const newProductInputRef = useRef<HTMLInputElement>(null);
 
   const existing = useMemo(
@@ -118,22 +135,60 @@ function CustomerSpecsPage() {
     }
   }
 
-  function addCustomer() {
-    const name = newCustomerName.trim();
+  function openAddCustomerDialog() {
+    setCustomerInfoDraft({
+      customer: "",
+      contactName: "",
+      email: "",
+      phone: "",
+      address: "",
+      notes: "",
+    });
+  }
+
+  function openEditCustomerDialog() {
+    if (!existing) return;
+    setCustomerInfoDraft({
+      id: existing.id,
+      customer: existing.customer,
+      contactName: existing.contactName ?? "",
+      email: existing.email ?? "",
+      phone: existing.phone ?? "",
+      address: existing.address ?? "",
+      notes: existing.notes ?? "",
+    });
+  }
+
+  function saveCustomerInfo() {
+    if (!customerInfoDraft) return;
+    const name = customerInfoDraft.customer.trim();
     if (!name) {
-      toast.error("Enter a customer name first");
-      newCustomerInputRef.current?.focus();
+      toast.error("Customer name is required");
       return;
     }
-    if (specs.some((s) => s.customer.toLowerCase() === name.toLowerCase())) {
-      toast.error("That customer already has specs");
+    const dupe = specs.find(
+      (s) => s.customer.toLowerCase() === name.toLowerCase() && s.id !== customerInfoDraft.id,
+    );
+    if (dupe) {
+      toast.error("That customer already exists");
       return;
     }
-    const spec = createEmpty(name);
+    const base = customerInfoDraft.id
+      ? specs.find((s) => s.id === customerInfoDraft.id)
+      : undefined;
+    const spec: CustomerSpec = {
+      ...(base ?? createEmpty(name)),
+      customer: name,
+      contactName: customerInfoDraft.contactName.trim() || undefined,
+      email: customerInfoDraft.email.trim() || undefined,
+      phone: customerInfoDraft.phone.trim() || undefined,
+      address: customerInfoDraft.address.trim() || undefined,
+      notes: customerInfoDraft.notes.trim() || undefined,
+    };
     upsertSpec(spec);
     setSelected(name);
-    setNewCustomerName("");
-    setEdit({ kind: "customer", draft: JSON.parse(JSON.stringify(spec)) });
+    setCustomerInfoDraft(null);
+    toast.success(base ? `Updated ${name}` : `Added ${name}`);
   }
 
   function removeSelected() {
@@ -165,19 +220,9 @@ function CustomerSpecsPage() {
               Customer defaults and per-product overrides that flow automatically into every job.
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <Input
-              ref={newCustomerInputRef}
-              placeholder="New customer name"
-              value={newCustomerName}
-              onChange={(e) => setNewCustomerName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") addCustomer(); }}
-              className="w-56"
-            />
-            <Button onClick={addCustomer}>
-              <Plus className="size-4 mr-1" /> Add customer
-            </Button>
-          </div>
+          <Button onClick={openAddCustomerDialog}>
+            <UserPlus className="size-4 mr-1" /> Add customer
+          </Button>
         </div>
 
         <div className="grid lg:grid-cols-[260px_1fr] gap-4">
@@ -234,8 +279,8 @@ function CustomerSpecsPage() {
                 <p className="text-sm text-muted-foreground">
                   No specs saved for <strong>{selected}</strong> yet.
                 </p>
-                <Button onClick={startEditCustomer}>
-                  <Plus className="size-4 mr-1" /> Create specs
+                <Button onClick={openAddCustomerDialog}>
+                  <UserPlus className="size-4 mr-1" /> Add customer details
                 </Button>
               </CardContent></Card>
             ) : edit.kind === "customer" ? (
@@ -321,18 +366,30 @@ function CustomerSpecsPage() {
               </div>
             ) : (
               <>
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="space-y-1">
                     <h2 className="text-xl font-semibold">{existing.customer}</h2>
                     <p className="text-xs text-muted-foreground">
-                      Customer defaults · updated {new Date(existing.updatedAt).toLocaleString()}
+                      Updated {new Date(existing.updatedAt).toLocaleString()}
                     </p>
+                    {(existing.contactName || existing.email || existing.phone || existing.address) && (
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground pt-1">
+                        {existing.contactName && <span className="font-medium text-foreground">{existing.contactName}</span>}
+                        {existing.email && <span className="flex items-center gap-1"><Mail className="size-3" />{existing.email}</span>}
+                        {existing.phone && <span className="flex items-center gap-1"><Phone className="size-3" />{existing.phone}</span>}
+                        {existing.address && <span className="flex items-center gap-1"><MapPin className="size-3" />{existing.address}</span>}
+                      </div>
+                    )}
+                    {existing.notes && (
+                      <p className="text-xs text-muted-foreground italic max-w-2xl">{existing.notes}</p>
+                    )}
                   </div>
                   <div className="flex gap-2">
                     <Button variant="outline" onClick={removeSelected}>
                       <Trash2 className="size-4 mr-1" /> Delete customer
                     </Button>
-                    <Button onClick={startEditCustomer}>Edit defaults</Button>
+                    <Button variant="outline" onClick={openEditCustomerDialog}>Edit details</Button>
+                    <Button variant="ghost" onClick={startEditCustomer}>Edit fallback specs</Button>
                   </div>
                 </div>
 
@@ -404,6 +461,80 @@ function CustomerSpecsPage() {
           </div>
         </div>
       </div>
+
+      <Dialog open={!!customerInfoDraft} onOpenChange={(o) => !o && setCustomerInfoDraft(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{customerInfoDraft?.id ? "Edit customer" : "Add customer"}</DialogTitle>
+            <DialogDescription>
+              Save the customer's details. You can add their products and production specs after.
+            </DialogDescription>
+          </DialogHeader>
+          {customerInfoDraft && (
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Customer name *</Label>
+                <Input
+                  autoFocus
+                  value={customerInfoDraft.customer}
+                  onChange={(e) => setCustomerInfoDraft({ ...customerInfoDraft, customer: e.target.value })}
+                  placeholder="e.g. AquaPure Industries"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Contact name</Label>
+                  <Input
+                    value={customerInfoDraft.contactName}
+                    onChange={(e) => setCustomerInfoDraft({ ...customerInfoDraft, contactName: e.target.value })}
+                    placeholder="Jane Smith"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Phone</Label>
+                  <Input
+                    value={customerInfoDraft.phone}
+                    onChange={(e) => setCustomerInfoDraft({ ...customerInfoDraft, phone: e.target.value })}
+                    placeholder="+61 ..."
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Email</Label>
+                <Input
+                  type="email"
+                  value={customerInfoDraft.email}
+                  onChange={(e) => setCustomerInfoDraft({ ...customerInfoDraft, email: e.target.value })}
+                  placeholder="orders@example.com"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Address</Label>
+                <Input
+                  value={customerInfoDraft.address}
+                  onChange={(e) => setCustomerInfoDraft({ ...customerInfoDraft, address: e.target.value })}
+                  placeholder="Street, suburb, state"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Notes</Label>
+                <Textarea
+                  rows={3}
+                  value={customerInfoDraft.notes}
+                  onChange={(e) => setCustomerInfoDraft({ ...customerInfoDraft, notes: e.target.value })}
+                  placeholder="Account context, delivery preferences, etc."
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCustomerInfoDraft(null)}>Cancel</Button>
+            <Button onClick={saveCustomerInfo}>
+              <Save className="size-4 mr-1" /> Save customer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppShell>
   );
 }
