@@ -15,7 +15,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Save, Plus, Trash2, Upload, ClipboardList, Package2, ArrowLeft } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Save, Plus, Trash2, Upload, ClipboardList, Package2, ArrowLeft, UserPlus, Mail, Phone, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { useStore } from "@/lib/store";
 import {
@@ -34,6 +42,16 @@ type EditMode =
   | { kind: "none" }
   | { kind: "customer"; draft: CustomerSpec }
   | { kind: "product"; customerId: string; draft: ProductSpec };
+
+interface CustomerInfoDraft {
+  id?: string;
+  customer: string;
+  contactName: string;
+  email: string;
+  phone: string;
+  address: string;
+  notes: string;
+}
 
 function CustomerSpecsPage() {
   const { jobs } = useStore();
