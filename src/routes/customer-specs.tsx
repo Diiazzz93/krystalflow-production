@@ -135,22 +135,60 @@ function CustomerSpecsPage() {
     }
   }
 
-  function addCustomer() {
-    const name = newCustomerName.trim();
+  function openAddCustomerDialog() {
+    setCustomerInfoDraft({
+      customer: "",
+      contactName: "",
+      email: "",
+      phone: "",
+      address: "",
+      notes: "",
+    });
+  }
+
+  function openEditCustomerDialog() {
+    if (!existing) return;
+    setCustomerInfoDraft({
+      id: existing.id,
+      customer: existing.customer,
+      contactName: existing.contactName ?? "",
+      email: existing.email ?? "",
+      phone: existing.phone ?? "",
+      address: existing.address ?? "",
+      notes: existing.notes ?? "",
+    });
+  }
+
+  function saveCustomerInfo() {
+    if (!customerInfoDraft) return;
+    const name = customerInfoDraft.customer.trim();
     if (!name) {
-      toast.error("Enter a customer name first");
-      newCustomerInputRef.current?.focus();
+      toast.error("Customer name is required");
       return;
     }
-    if (specs.some((s) => s.customer.toLowerCase() === name.toLowerCase())) {
-      toast.error("That customer already has specs");
+    const dupe = specs.find(
+      (s) => s.customer.toLowerCase() === name.toLowerCase() && s.id !== customerInfoDraft.id,
+    );
+    if (dupe) {
+      toast.error("That customer already exists");
       return;
     }
-    const spec = createEmpty(name);
+    const base = customerInfoDraft.id
+      ? specs.find((s) => s.id === customerInfoDraft.id)
+      : undefined;
+    const spec: CustomerSpec = {
+      ...(base ?? createEmpty(name)),
+      customer: name,
+      contactName: customerInfoDraft.contactName.trim() || undefined,
+      email: customerInfoDraft.email.trim() || undefined,
+      phone: customerInfoDraft.phone.trim() || undefined,
+      address: customerInfoDraft.address.trim() || undefined,
+      notes: customerInfoDraft.notes.trim() || undefined,
+    };
     upsertSpec(spec);
     setSelected(name);
-    setNewCustomerName("");
-    setEdit({ kind: "customer", draft: JSON.parse(JSON.stringify(spec)) });
+    setCustomerInfoDraft(null);
+    toast.success(base ? `Updated ${name}` : `Added ${name}`);
   }
 
   function removeSelected() {
