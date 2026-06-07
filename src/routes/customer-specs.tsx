@@ -321,49 +321,6 @@ function CustomerSpecsPage() {
                 onCancel={cancelEdit}
                 onSave={save}
               />
-            ) : viewingProduct ? (
-              <div className="space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="sm" onClick={() => setViewingProductId(null)}>
-                      <ArrowLeft className="size-4 mr-1" /> Back to {existing.customer}
-                    </Button>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => removeProduct(viewingProduct)}>
-                      <Trash2 className="size-4 mr-1" /> Delete product
-                    </Button>
-                    <Button onClick={() => startEditProduct(viewingProduct)}>Edit product</Button>
-                  </div>
-                </div>
-                <div>
-                  <h2 className="text-xl font-semibold flex items-center gap-2">
-                    <Package2 className="size-5 text-primary" />
-                    {viewingProduct.productName}
-                  </h2>
-                  <p className="text-xs text-muted-foreground">
-                    {existing.customer} · updated {new Date(viewingProduct.updatedAt).toLocaleString()}
-                  </p>
-                </div>
-                <CustomerSpecsView spec={viewingProduct} />
-                {(viewingProduct.lineSetupNotes || viewingProduct.specialInstructions) && (
-                  <Card>
-                    <CardHeader className="py-3">
-                      <CardTitle className="text-base">Line setup & special instructions</CardTitle>
-                    </CardHeader>
-                    <CardContent className="grid md:grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Line setup notes</div>
-                        <div className="whitespace-pre-wrap">{viewingProduct.lineSetupNotes || "—"}</div>
-                      </div>
-                      <div>
-                        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Special instructions</div>
-                        <div className="whitespace-pre-wrap">{viewingProduct.specialInstructions || "—"}</div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
             ) : (
               <>
                 <div className="flex flex-wrap items-start justify-between gap-2">
@@ -401,7 +358,7 @@ function CustomerSpecsPage() {
                         Product specifications ({existing.products.length})
                       </CardTitle>
                       <CardDescription>
-                        Per-product overrides — used automatically when a job matches.
+                        Click a product to view its specs below. Per-product overrides are used automatically when a job matches.
                       </CardDescription>
                     </div>
                     <div className="flex gap-2">
@@ -425,37 +382,90 @@ function CustomerSpecsPage() {
                       </div>
                     ) : (
                       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {existing.products.map((p) => (
-                          <button
-                            key={p.id}
-                            onClick={() => setViewingProductId(p.id)}
-                            className="text-left rounded-md border border-border bg-card/60 hover:bg-accent/40 transition-colors p-3 space-y-2"
-                          >
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="font-medium truncate">{p.productName}</div>
-                              <Badge variant="secondary" className="shrink-0">product</Badge>
-                            </div>
-                            <div className="text-xs text-muted-foreground space-x-2">
-                              <span>{p.packing.unitsPerCarton}/ctn</span>
-                              <span>·</span>
-                              <span>{p.palletising.cartonsPerLayer}×{p.palletising.layersHigh} pallet</span>
-                            </div>
-                            {p.specialInstructions && (
-                              <div className="text-xs line-clamp-2 text-muted-foreground">{p.specialInstructions}</div>
-                            )}
-                          </button>
-                        ))}
+                        {existing.products.map((p) => {
+                          const isActive = viewingProductId === p.id;
+                          return (
+                            <button
+                              key={p.id}
+                              onClick={() => setViewingProductId(isActive ? null : p.id)}
+                              className={
+                                "text-left rounded-md border transition-colors p-3 space-y-2 " +
+                                (isActive
+                                  ? "border-primary bg-accent/60 ring-1 ring-primary"
+                                  : "border-border bg-card/60 hover:bg-accent/40")
+                              }
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="font-medium truncate">{p.productName}</div>
+                                <Badge variant={isActive ? "default" : "secondary"} className="shrink-0">
+                                  {isActive ? "viewing" : "product"}
+                                </Badge>
+                              </div>
+                              <div className="text-xs text-muted-foreground space-x-2">
+                                <span>{p.packing.unitsPerCarton}/ctn</span>
+                                <span>·</span>
+                                <span>{p.palletising.cartonsPerLayer}×{p.palletising.layersHigh} pallet</span>
+                              </div>
+                              {p.specialInstructions && (
+                                <div className="text-xs line-clamp-2 text-muted-foreground">{p.specialInstructions}</div>
+                              )}
+                            </button>
+                          );
+                        })}
                       </div>
                     )}
                   </CardContent>
                 </Card>
 
-                <div>
-                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                    Customer defaults
-                  </h3>
-                  <CustomerSpecsView spec={existing} />
-                </div>
+                {viewingProduct ? (
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <h3 className="text-lg font-semibold flex items-center gap-2">
+                          <Package2 className="size-5 text-primary" />
+                          {viewingProduct.productName}
+                        </h3>
+                        <p className="text-xs text-muted-foreground">
+                          Product override · updated {new Date(viewingProduct.updatedAt).toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button variant="ghost" size="sm" onClick={() => setViewingProductId(null)}>
+                          Show customer defaults
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => removeProduct(viewingProduct)}>
+                          <Trash2 className="size-4 mr-1" /> Delete
+                        </Button>
+                        <Button size="sm" onClick={() => startEditProduct(viewingProduct)}>Edit product</Button>
+                      </div>
+                    </div>
+                    <CustomerSpecsView spec={viewingProduct} />
+                    {(viewingProduct.lineSetupNotes || viewingProduct.specialInstructions) && (
+                      <Card>
+                        <CardHeader className="py-3">
+                          <CardTitle className="text-base">Line setup & special instructions</CardTitle>
+                        </CardHeader>
+                        <CardContent className="grid md:grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Line setup notes</div>
+                            <div className="whitespace-pre-wrap">{viewingProduct.lineSetupNotes || "—"}</div>
+                          </div>
+                          <div>
+                            <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Special instructions</div>
+                            <div className="whitespace-pre-wrap">{viewingProduct.specialInstructions || "—"}</div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
+                ) : (
+                  <div>
+                    <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                      Customer defaults
+                    </h3>
+                    <CustomerSpecsView spec={existing} />
+                  </div>
+                )}
               </>
             )}
           </div>
