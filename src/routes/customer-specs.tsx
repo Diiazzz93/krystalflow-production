@@ -349,9 +349,11 @@ function CustomerSpecsPage() {
                     </div>
                     <div className="flex gap-2">
                       <Input
+                        ref={newProductInputRef}
                         placeholder="New product name"
                         value={newProductName}
                         onChange={(e) => setNewProductName(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") startNewProduct(); }}
                         className="w-64"
                       />
                       <Button onClick={startNewProduct}>
