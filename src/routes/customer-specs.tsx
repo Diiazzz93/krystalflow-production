@@ -366,18 +366,30 @@ function CustomerSpecsPage() {
               </div>
             ) : (
               <>
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="space-y-1">
                     <h2 className="text-xl font-semibold">{existing.customer}</h2>
                     <p className="text-xs text-muted-foreground">
-                      Customer defaults · updated {new Date(existing.updatedAt).toLocaleString()}
+                      Updated {new Date(existing.updatedAt).toLocaleString()}
                     </p>
+                    {(existing.contactName || existing.email || existing.phone || existing.address) && (
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground pt-1">
+                        {existing.contactName && <span className="font-medium text-foreground">{existing.contactName}</span>}
+                        {existing.email && <span className="flex items-center gap-1"><Mail className="size-3" />{existing.email}</span>}
+                        {existing.phone && <span className="flex items-center gap-1"><Phone className="size-3" />{existing.phone}</span>}
+                        {existing.address && <span className="flex items-center gap-1"><MapPin className="size-3" />{existing.address}</span>}
+                      </div>
+                    )}
+                    {existing.notes && (
+                      <p className="text-xs text-muted-foreground italic max-w-2xl">{existing.notes}</p>
+                    )}
                   </div>
                   <div className="flex gap-2">
                     <Button variant="outline" onClick={removeSelected}>
                       <Trash2 className="size-4 mr-1" /> Delete customer
                     </Button>
-                    <Button onClick={startEditCustomer}>Edit defaults</Button>
+                    <Button variant="outline" onClick={openEditCustomerDialog}>Edit details</Button>
+                    <Button variant="ghost" onClick={startEditCustomer}>Edit fallback specs</Button>
                   </div>
                 </div>
 
