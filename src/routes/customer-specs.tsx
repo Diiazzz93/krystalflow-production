@@ -85,6 +85,7 @@ function CustomerSpecsPage() {
     const name = newProductName.trim();
     if (!name) {
       toast.error("Enter a product name first");
+      newProductInputRef.current?.focus();
       return;
     }
     if (existing.products.some((p) => p.productName.toLowerCase() === name.toLowerCase())) {
