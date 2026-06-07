@@ -461,6 +461,80 @@ function CustomerSpecsPage() {
           </div>
         </div>
       </div>
+
+      <Dialog open={!!customerInfoDraft} onOpenChange={(o) => !o && setCustomerInfoDraft(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{customerInfoDraft?.id ? "Edit customer" : "Add customer"}</DialogTitle>
+            <DialogDescription>
+              Save the customer's details. You can add their products and production specs after.
+            </DialogDescription>
+          </DialogHeader>
+          {customerInfoDraft && (
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Customer name *</Label>
+                <Input
+                  autoFocus
+                  value={customerInfoDraft.customer}
+                  onChange={(e) => setCustomerInfoDraft({ ...customerInfoDraft, customer: e.target.value })}
+                  placeholder="e.g. AquaPure Industries"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Contact name</Label>
+                  <Input
+                    value={customerInfoDraft.contactName}
+                    onChange={(e) => setCustomerInfoDraft({ ...customerInfoDraft, contactName: e.target.value })}
+                    placeholder="Jane Smith"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Phone</Label>
+                  <Input
+                    value={customerInfoDraft.phone}
+                    onChange={(e) => setCustomerInfoDraft({ ...customerInfoDraft, phone: e.target.value })}
+                    placeholder="+61 ..."
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Email</Label>
+                <Input
+                  type="email"
+                  value={customerInfoDraft.email}
+                  onChange={(e) => setCustomerInfoDraft({ ...customerInfoDraft, email: e.target.value })}
+                  placeholder="orders@example.com"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Address</Label>
+                <Input
+                  value={customerInfoDraft.address}
+                  onChange={(e) => setCustomerInfoDraft({ ...customerInfoDraft, address: e.target.value })}
+                  placeholder="Street, suburb, state"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Notes</Label>
+                <Textarea
+                  rows={3}
+                  value={customerInfoDraft.notes}
+                  onChange={(e) => setCustomerInfoDraft({ ...customerInfoDraft, notes: e.target.value })}
+                  placeholder="Account context, delivery preferences, etc."
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCustomerInfoDraft(null)}>Cancel</Button>
+            <Button onClick={saveCustomerInfo}>
+              <Save className="size-4 mr-1" /> Save customer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppShell>
   );
 }
