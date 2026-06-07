@@ -72,11 +72,10 @@ function CustomerSpecsPage() {
   }, [specs, jobs]);
 
   const [selected, setSelected] = useState<string>(specs[0]?.customer ?? allCustomers[0] ?? "");
-  const [newCustomerName, setNewCustomerName] = useState("");
   const [newProductName, setNewProductName] = useState("");
   const [edit, setEdit] = useState<EditMode>({ kind: "none" });
   const [viewingProductId, setViewingProductId] = useState<string | null>(null);
-  const newCustomerInputRef = useRef<HTMLInputElement>(null);
+  const [customerInfoDraft, setCustomerInfoDraft] = useState<CustomerInfoDraft | null>(null);
   const newProductInputRef = useRef<HTMLInputElement>(null);
 
   const existing = useMemo(
