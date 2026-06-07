@@ -120,7 +120,11 @@ function CustomerSpecsPage() {
 
   function addCustomer() {
     const name = newCustomerName.trim();
-    if (!name) return;
+    if (!name) {
+      toast.error("Enter a customer name first");
+      newCustomerInputRef.current?.focus();
+      return;
+    }
     if (specs.some((s) => s.customer.toLowerCase() === name.toLowerCase())) {
       toast.error("That customer already has specs");
       return;
