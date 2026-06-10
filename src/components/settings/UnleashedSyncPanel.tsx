@@ -68,12 +68,7 @@ export function UnleashedSyncPanel() {
 
   function save() {
     saveCredentials(creds);
-    if (creds.apiId && creds.apiKey) {
-      const at = markConnectedIfNew();
-      if (at === getConnectedAt() && !getConnectedAt()) {
-        // no-op safeguard
-      }
-    }
+    if (creds.apiId && creds.apiKey) markConnectedIfNew();
     toast.success("Unleashed credentials saved");
   }
 
