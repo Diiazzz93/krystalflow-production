@@ -58,6 +58,14 @@ import {
   type RuleField,
   type RuleMatch,
 } from "@/lib/unleashed/mapping";
+import {
+  getConnectedAt,
+  getLastStockSyncAt,
+  getStockSnapshot,
+  subscribeStockMirror,
+  syncStockOnHand,
+  type StockSnapshot,
+} from "@/lib/unleashed/stock-mirror";
 
 export const Route = createFileRoute("/unleashed-sync")({
   component: UnleashedSyncPage,
