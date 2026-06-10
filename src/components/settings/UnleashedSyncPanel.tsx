@@ -25,6 +25,7 @@ import {
 } from "@/lib/unleashed/sync-service";
 import { MOCK_WAREHOUSES } from "@/lib/unleashed/mock-data";
 import type { SyncStatus, UnleashedCredentials } from "@/lib/unleashed/types";
+import { markConnectedIfNew, getConnectedAt } from "@/lib/unleashed/stock-mirror";
 
 function statusBadge(status: SyncStatus) {
   if (status === "success")
