@@ -97,6 +97,14 @@ export function UnleashedSyncPanel() {
         </Button>
       </CardHeader>
       <CardContent className="space-y-6">
+        <div className="rounded-md border border-border bg-accent/30 p-3 text-sm flex items-center justify-between gap-3 flex-wrap">
+          <span className="text-muted-foreground">
+            Choose what to sync and map Unleashed products to KrystalFlow categories.
+          </span>
+          <Button asChild size="sm" variant="outline">
+            <Link to="/unleashed-sync">Open sync &amp; mapping →</Link>
+          </Button>
+        </div>
         <section className="grid gap-3 md:grid-cols-2">
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">API ID</Label>
