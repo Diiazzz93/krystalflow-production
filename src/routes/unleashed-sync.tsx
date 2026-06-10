@@ -37,7 +37,7 @@ import {
   CATEGORY_LABELS,
   SYNC_CATEGORIES,
 } from "@/lib/unleashed/sync-service";
-import type { UnleashedCategory, UnleashedProduct } from "@/lib/unleashed/types";
+import type { UnleashedProduct } from "@/lib/unleashed/types";
 import {
   addKfCategory,
   addRule,
@@ -576,6 +576,3 @@ function ProductRow({
     </tr>
   );
 }
-
-// Suppress unused-variable lint when SYNC_CATEGORIES order is required externally.
-void ([] as UnleashedCategory[]);
