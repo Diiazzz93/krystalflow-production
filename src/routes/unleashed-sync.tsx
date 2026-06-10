@@ -587,3 +587,139 @@ function ProductRow({
     </tr>
   );
 }
+
+// ---------- Live stock mirror ---------------------------------------------
+
+function formatTime(iso: string | null) {
+  if (!iso) return "Never";
+  return new Date(iso).toLocaleString();
+}
+
+function StockMirrorCard() {
+  const [snapshot, setSnapshot] = useState<StockSnapshot | null>(() => getStockSnapshot());
+  const [lastSyncAt, setLastSyncAt] = useState<string | null>(() => getLastStockSyncAt());
+  const [connectedAt, setConnectedAt] = useState<string | null>(() => getConnectedAt());
+  const [busy, setBusy] = useState(false);
+  const [query, setQuery] = useState("");
+
+  useEffect(
+    () =>
+      subscribeStockMirror(() => {
+        setSnapshot(getStockSnapshot());
+        setLastSyncAt(getLastStockSyncAt());
+        setConnectedAt(getConnectedAt());
+      }),
+    [],
+  );
+
+  async function runSync() {
+    setBusy(true);
+    try {
+      await syncStockOnHand();
+      toast.success("Stock mirror updated from Unleashed");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Stock sync failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const items = snapshot?.items ?? [];
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter(
+      (i) =>
+        i.ProductCode.toLowerCase().includes(q) ||
+        i.ProductDescription.toLowerCase().includes(q),
+    );
+  }, [items, query]);
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-start justify-between gap-3 flex-wrap">
+        <div>
+          <CardTitle>2. Live stock mirror (from Unleashed)</CardTitle>
+          <CardDescription>
+            Unleashed is the source of truth for stock. This is a read-only snapshot —
+            when you receive stock, enter it in Unleashed and re-sync here.
+          </CardDescription>
+          <div className="mt-2 flex flex-wrap gap-2 text-xs">
+            <Badge variant="outline">
+              Connected since: {connectedAt ? formatTime(connectedAt) : "Not yet connected"}
+            </Badge>
+            <Badge variant="outline">Last stock sync: {formatTime(lastSyncAt)}</Badge>
+            <Badge variant="outline">{items.length} items mirrored</Badge>
+          </div>
+        </div>
+        <Button onClick={runSync} disabled={busy}>
+          <RefreshCw className={`size-4 ${busy ? "animate-spin" : ""}`} />
+          {busy ? "Syncing…" : "Sync stock now"}
+        </Button>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {items.length === 0 ? (
+          <div className="rounded-md border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+            No stock snapshot yet. Click <span className="font-medium">Sync stock now</span> to pull
+            current quantities from Unleashed.
+          </div>
+        ) : (
+          <>
+            <div className="relative max-w-sm">
+              <Search className="size-3 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search stock code or name"
+                className="pl-7"
+              />
+            </div>
+            <div className="rounded-md border border-border overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
+                  <tr>
+                    <th className="text-left p-2">Product</th>
+                    <th className="text-left p-2 w-28">Warehouse</th>
+                    <th className="text-right p-2 w-24">On hand</th>
+                    <th className="text-right p-2 w-24">Available</th>
+                    <th className="text-right p-2 w-24">Allocated</th>
+                    <th className="text-right p-2 w-24">Reorder ≤</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visible.slice(0, 200).map((s) => {
+                    const low = s.AvailableQty <= s.MinStockAlertLevel;
+                    return (
+                      <tr key={`${s.ProductCode}-${s.Warehouse.WarehouseCode}`} className="border-t border-border">
+                        <td className="p-2">
+                          <div className="font-medium">{s.ProductCode}</div>
+                          <div className="text-xs text-muted-foreground">{s.ProductDescription}</div>
+                        </td>
+                        <td className="p-2 text-xs text-muted-foreground">
+                          {s.Warehouse.WarehouseCode}
+                        </td>
+                        <td className={`p-2 text-right tabular-nums ${low ? "text-amber-400 font-medium" : ""}`}>
+                          {s.QtyOnHand}
+                        </td>
+                        <td className="p-2 text-right tabular-nums">{s.AvailableQty}</td>
+                        <td className="p-2 text-right tabular-nums">{s.AllocatedQty}</td>
+                        <td className="p-2 text-right tabular-nums text-muted-foreground">
+                          {s.MinStockAlertLevel}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {visible.length > 200 && (
+                <div className="p-2 text-xs text-muted-foreground text-center border-t border-border">
+                  Showing first 200 of {visible.length} matches — refine your search.
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
