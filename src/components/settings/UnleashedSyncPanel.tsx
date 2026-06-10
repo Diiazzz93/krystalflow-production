@@ -25,6 +25,7 @@ import {
 } from "@/lib/unleashed/sync-service";
 import { MOCK_WAREHOUSES } from "@/lib/unleashed/mock-data";
 import type { SyncStatus, UnleashedCredentials } from "@/lib/unleashed/types";
+import { markConnectedIfNew } from "@/lib/unleashed/stock-mirror";
 
 function statusBadge(status: SyncStatus) {
   if (status === "success")
@@ -67,6 +68,7 @@ export function UnleashedSyncPanel() {
 
   function save() {
     saveCredentials(creds);
+    if (creds.apiId && creds.apiKey) markConnectedIfNew();
     toast.success("Unleashed credentials saved");
   }
 
