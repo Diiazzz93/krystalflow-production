@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as UnleashedSyncRouteImport } from './routes/unleashed-sync'
 import { Route as StockRouteImport } from './routes/stock'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as QcRouteImport } from './routes/qc'
@@ -21,6 +22,11 @@ import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as IndexRouteImport } from './routes/index'
 
+const UnleashedSyncRoute = UnleashedSyncRouteImport.update({
+  id: '/unleashed-sync',
+  path: '/unleashed-sync',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const StockRoute = StockRouteImport.update({
   id: '/stock',
   path: '/stock',
@@ -89,6 +95,7 @@ export interface FileRoutesByFullPath {
   '/qc': typeof QcRoute
   '/settings': typeof SettingsRoute
   '/stock': typeof StockRoute
+  '/unleashed-sync': typeof UnleashedSyncRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -102,6 +109,7 @@ export interface FileRoutesByTo {
   '/qc': typeof QcRoute
   '/settings': typeof SettingsRoute
   '/stock': typeof StockRoute
+  '/unleashed-sync': typeof UnleashedSyncRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -116,6 +124,7 @@ export interface FileRoutesById {
   '/qc': typeof QcRoute
   '/settings': typeof SettingsRoute
   '/stock': typeof StockRoute
+  '/unleashed-sync': typeof UnleashedSyncRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -131,6 +140,7 @@ export interface FileRouteTypes {
     | '/qc'
     | '/settings'
     | '/stock'
+    | '/unleashed-sync'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -144,6 +154,7 @@ export interface FileRouteTypes {
     | '/qc'
     | '/settings'
     | '/stock'
+    | '/unleashed-sync'
   id:
     | '__root__'
     | '/'
@@ -157,6 +168,7 @@ export interface FileRouteTypes {
     | '/qc'
     | '/settings'
     | '/stock'
+    | '/unleashed-sync'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -171,10 +183,18 @@ export interface RootRouteChildren {
   QcRoute: typeof QcRoute
   SettingsRoute: typeof SettingsRoute
   StockRoute: typeof StockRoute
+  UnleashedSyncRoute: typeof UnleashedSyncRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/unleashed-sync': {
+      id: '/unleashed-sync'
+      path: '/unleashed-sync'
+      fullPath: '/unleashed-sync'
+      preLoaderRoute: typeof UnleashedSyncRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/stock': {
       id: '/stock'
       path: '/stock'
@@ -267,6 +287,7 @@ const rootRouteChildren: RootRouteChildren = {
   QcRoute: QcRoute,
   SettingsRoute: SettingsRoute,
   StockRoute: StockRoute,
+  UnleashedSyncRoute: UnleashedSyncRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
