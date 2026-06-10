@@ -196,6 +196,9 @@ function UnleashedSyncPage() {
         </Card>
 
         {/* Categories */}
+        {/* Live stock mirror */}
+        <StockMirrorCard />
+
         <CategoriesCard categories={categories} />
 
         {/* Rules */}
