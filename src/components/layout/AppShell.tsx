@@ -94,6 +94,7 @@ const NAV: NavNode[] = [
     ],
   },
   { kind: "link", to: "/analytics", label: "Analytics", icon: TrendingUp, permission: "page:analytics" },
+  { kind: "link", to: "/unleashed-sync", label: "Unleashed Sync", icon: FileCog, permission: "page:settings" },
   { kind: "link", to: "/settings", label: "Settings", icon: Settings, permission: "page:settings" },
 ];
 
