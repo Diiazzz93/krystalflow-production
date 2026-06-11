@@ -39,7 +39,7 @@ const StoreContext = createContext<StoreContextValue | null>(null);
 
 function loadLocal(): LocalState {
   if (typeof window === "undefined") {
-    return { lines: SEED_LINES, qc: [] };
+    return { lines: [], qc: [] };
   }
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -47,8 +47,9 @@ function loadLocal(): LocalState {
   } catch {
     /* ignore */
   }
-  return { lines: SEED_LINES, qc: [] };
+  return { lines: [], qc: [] };
 }
+
 
 // ---- Job <-> DB row mapping ----
 // Columns mirror frequent filters; everything else lives in `data` jsonb so
