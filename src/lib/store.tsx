@@ -223,9 +223,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   );
 
   const reset = useCallback(() => {
-    setLocal({ lines: SEED_LINES, qc: [] });
+    setLocal({ lines: [], qc: [] });
     void loadJobs();
   }, [loadJobs]);
+
 
   const value = useMemo<StoreContextValue>(
     () => ({
