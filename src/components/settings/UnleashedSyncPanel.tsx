@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { RefreshCw, Save, CheckCircle2, AlertCircle, Clock } from "lucide-react";
+import { RefreshCw, Save, CheckCircle2, AlertCircle, Clock, PlugZap } from "lucide-react";
 import { toast } from "sonner";
 import {
   CATEGORY_LABELS,
@@ -26,6 +26,8 @@ import {
 import { MOCK_WAREHOUSES } from "@/lib/unleashed/mock-data";
 import type { SyncStatus, UnleashedCredentials } from "@/lib/unleashed/types";
 import { markConnectedIfNew } from "@/lib/unleashed/stock-mirror";
+import { unleashedPing } from "@/lib/unleashed/api.functions";
+
 
 function statusBadge(status: SyncStatus) {
   if (status === "success")
