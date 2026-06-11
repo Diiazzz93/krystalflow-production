@@ -291,13 +291,13 @@ function UnleashedSyncPage() {
         <Card>
           <CardHeader className="flex flex-row items-start justify-between gap-3 flex-wrap">
             <div>
-              <CardTitle>4. Map Unleashed products to KrystalFlow categories</CardTitle>
+              <CardTitle>4. Choose products to import into KrystalFlow</CardTitle>
               <CardDescription>
                 {stats.total} items · {stats.mapped} manually mapped · {stats.ruleMatched} matched by rule ·{" "}
-                {stats.unmapped} unmapped
+                {stats.unmapped} unmapped · {selected.size} selected
               </CardDescription>
             </div>
-            <div className="flex gap-2 items-center">
+            <div className="flex gap-2 items-center flex-wrap">
               <div className="relative">
                 <Search className="size-3 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -321,18 +321,31 @@ function UnleashedSyncPage() {
                   ))}
                 </SelectContent>
               </Select>
+              <Button onClick={importSelected} disabled={importing || selected.size === 0}>
+                <Download className={`size-4 ${importing ? "animate-pulse" : ""}`} />
+                {importing ? "Importing…" : `Import ${selected.size || ""} selected`}
+              </Button>
             </div>
           </CardHeader>
           <CardContent>
             {visibleProducts.length === 0 ? (
               <div className="rounded-md border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-                No products to display. Adjust filters or enable more sources above.
+                {products.length === 0
+                  ? "No products loaded. Click Reload from Unleashed above."
+                  : "No products match your filters."}
               </div>
             ) : (
               <div className="rounded-md border border-border overflow-hidden">
                 <table className="w-full text-sm">
                   <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
                     <tr>
+                      <th className="p-2 w-10">
+                        <Checkbox
+                          checked={allVisibleSelected}
+                          onCheckedChange={(v) => toggleAllVisible(Boolean(v))}
+                          aria-label="Select all visible"
+                        />
+                      </th>
                       <th className="text-left p-2">Unleashed product</th>
                       <th className="text-left p-2 w-32">Source</th>
                       <th className="text-left p-2 w-64">KrystalFlow category</th>
@@ -347,6 +360,8 @@ function UnleashedSyncPage() {
                         product={p}
                         categories={categories}
                         manualMapping={mappingByCode.get(p.ProductCode)}
+                        selected={selected.has(p.ProductCode)}
+                        onToggleSelected={(on) => toggleOne(p.ProductCode, on)}
                       />
                     ))}
                   </tbody>
