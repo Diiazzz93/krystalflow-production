@@ -70,8 +70,25 @@ export function UnleashedSyncPanel() {
 
   function save() {
     saveCredentials(creds);
-    if (creds.apiId && creds.apiKey) markConnectedIfNew();
-    toast.success("Unleashed credentials saved");
+    markConnectedIfNew();
+    toast.success("Warehouse preference saved");
+  }
+
+  async function testConnection() {
+    setBusy(true);
+    try {
+      const res = await unleashedPing();
+      if (res.ok) {
+        toast.success(`Connected to Unleashed (${res.warehouses} warehouses)`);
+        markConnectedIfNew();
+      } else {
+        toast.error(`Unleashed connection failed: ${res.error}`);
+      }
+    } catch (e) {
+      toast.error(`Unleashed connection failed: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function runSync() {
@@ -84,6 +101,7 @@ export function UnleashedSyncPanel() {
       setBusy(false);
     }
   }
+
 
   return (
     <Card>
