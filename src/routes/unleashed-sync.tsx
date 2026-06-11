@@ -30,6 +30,7 @@ import {
   RefreshCw,
   ArrowLeft,
   Search,
+  Download,
 } from "lucide-react";
 import { toast } from "sonner";
 import { createUnleashedClient } from "@/lib/unleashed/client";
@@ -38,6 +39,8 @@ import {
   SYNC_CATEGORIES,
 } from "@/lib/unleashed/sync-service";
 import type { UnleashedProduct } from "@/lib/unleashed/types";
+import { useStockStore } from "@/lib/stock-store";
+import type { StockCategory } from "@/lib/stock";
 import {
   addKfCategory,
   addRule,
