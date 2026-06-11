@@ -154,7 +154,7 @@ export function StockStoreProvider({ children }: { children: ReactNode }) {
     return mapped;
   }, []);
 
-  // Initial load + one-time seed for empty table (admin/manager only).
+  // Initial load. Demo seed disabled: real stock now comes from Unleashed sync.
   useEffect(() => {
     if (!user) {
       setItems([]);
@@ -164,35 +164,14 @@ export function StockStoreProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const loaded = await load();
-      if (cancelled) return;
-      if (loaded.length === 0 && !seededRef.current && hasRole("admin", "manager")) {
-        seededRef.current = true;
-        const rows = MOCK_STOCK.map((m) => ({
-          sku: m.sku,
-          name: m.name,
-          category: m.category ?? "Other",
-          quantity_on_hand: m.quantityOnHand,
-          available_stock: m.availableStock,
-          allocated_stock: m.allocatedStock,
-          reorder_level: m.reorderLevel,
-          location: m.location,
-          unit: m.unit,
-          last_updated: m.lastUpdated,
-        }));
-        const { error: seedErr } = await supabase.from("inventory_items").insert(rows);
-        if (seedErr) {
-          console.error("[stock] seed failed", seedErr);
-        } else {
-          await load();
-        }
-      }
+      await load();
       if (!cancelled) setLoading(false);
     })();
     return () => {
       cancelled = true;
     };
-  }, [user, hasRole, load]);
+  }, [user, load]);
+
 
   const addItem = useCallback<StockStoreValue["addItem"]>(
     async (input) => {
