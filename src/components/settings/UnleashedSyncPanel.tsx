@@ -110,7 +110,7 @@ export function UnleashedSyncPanel() {
           <CardTitle>Unleashed inventory sync</CardTitle>
           <CardDescription>
             Connect Unleashed to keep stock levels for bottles, caps, labels, cartons, and
-            liquid/IBCs up to date. Mock mode is active — sync uses bundled demo data.
+            liquid/IBCs up to date. Credentials are stored securely server-side.
           </CardDescription>
         </div>
         <Button onClick={runSync} disabled={busy}>
@@ -127,26 +127,24 @@ export function UnleashedSyncPanel() {
             <Link to="/unleashed-sync">Open sync &amp; mapping →</Link>
           </Button>
         </div>
+        <section className="rounded-md border border-border p-3 space-y-3">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div className="text-sm">
+              <div className="font-medium flex items-center gap-2">
+                <CheckCircle2 className="size-4 text-emerald-400" /> Credentials configured
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">
+                API ID &amp; Key are stored as encrypted server secrets and never sent to the browser.
+              </div>
+            </div>
+            <Button variant="outline" size="sm" onClick={testConnection} disabled={busy}>
+              <PlugZap className="size-4" /> Test connection
+            </Button>
+          </div>
+        </section>
         <section className="grid gap-3 md:grid-cols-2">
           <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">API ID</Label>
-            <Input
-              value={creds.apiId}
-              onChange={(e) => setCreds({ ...creds, apiId: e.target.value })}
-              placeholder="Unleashed API ID"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">API Key</Label>
-            <Input
-              type="password"
-              value={creds.apiKey}
-              onChange={(e) => setCreds({ ...creds, apiKey: e.target.value })}
-              placeholder="Unleashed API Key"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Warehouse</Label>
+            <Label className="text-xs text-muted-foreground">Default warehouse</Label>
             <Select
               value={creds.warehouseCode || undefined}
               onValueChange={(v) => setCreds({ ...creds, warehouseCode: v })}
@@ -165,9 +163,10 @@ export function UnleashedSyncPanel() {
           </div>
           <div className="flex items-end">
             <Button variant="outline" onClick={save}>
-              <Save className="size-4" /> Save credentials
+              <Save className="size-4" /> Save warehouse
             </Button>
           </div>
+
         </section>
 
         <section className="rounded-md border border-border p-3 space-y-3">
