@@ -31,6 +31,7 @@ import {
   ArrowLeft,
   Search,
   Download,
+  Download,
 } from "lucide-react";
 import { toast } from "sonner";
 import { createUnleashedClient } from "@/lib/unleashed/client";
