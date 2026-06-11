@@ -83,6 +83,9 @@ function UnleashedSyncPage() {
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState("");
   const [filterCat, setFilterCat] = useState<string>("all");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [importing, setImporting] = useState(false);
+  const stockStore = useStockStore();
 
   useEffect(
     () =>
@@ -101,6 +104,7 @@ function UnleashedSyncPage() {
       const client = createUnleashedClient();
       const all = await client.fetchProducts();
       setProducts(all);
+      toast.success(`Loaded ${all.length} products from Unleashed`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to load products");
     } finally {
@@ -118,16 +122,19 @@ function UnleashedSyncPage() {
     return m;
   }, [mappings]);
 
-  // Only show products from enabled sources
+  // Only filter by Unleashed source toggles when the API returned a LovableCategory.
+  // Real Unleashed responses don't include that custom field, so by default everything shows.
   const visibleProducts = useMemo(() => {
     const q = filter.trim().toLowerCase();
     return products.filter((p) => {
-      if (!sources[p.LovableCategory]) return false;
+      if (p.LovableCategory && !sources[p.LovableCategory]) return false;
       if (q && !p.ProductCode.toLowerCase().includes(q) && !p.ProductDescription.toLowerCase().includes(q)) {
         return false;
       }
       if (filterCat === "unmapped") {
         if (mappingByCode.has(p.ProductCode)) return false;
+        const resolved = resolveCategory(p.ProductCode, p.ProductDescription);
+        if (resolved.via !== "none") return false;
       } else if (filterCat !== "all") {
         const resolved = resolveCategory(p.ProductCode, p.ProductDescription).kfCategoryId;
         if (resolved !== filterCat) return false;
@@ -137,13 +144,86 @@ function UnleashedSyncPage() {
   }, [products, sources, filter, filterCat, mappingByCode]);
 
   const stats = useMemo(() => {
-    const enabled = products.filter((p) => sources[p.LovableCategory]);
+    const enabled = products.filter((p) => !p.LovableCategory || sources[p.LovableCategory]);
     const mapped = enabled.filter((p) => mappingByCode.has(p.ProductCode)).length;
     const ruleMatched = enabled.filter(
       (p) => !mappingByCode.has(p.ProductCode) && resolveCategory(p.ProductCode, p.ProductDescription).via === "rule",
     ).length;
     return { total: enabled.length, mapped, ruleMatched, unmapped: enabled.length - mapped - ruleMatched };
   }, [products, sources, mappingByCode, rules]);
+
+  const allVisibleSelected =
+    visibleProducts.length > 0 && visibleProducts.every((p) => selected.has(p.ProductCode));
+
+  function toggleAllVisible(on: boolean) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (on) visibleProducts.forEach((p) => next.add(p.ProductCode));
+      else visibleProducts.forEach((p) => next.delete(p.ProductCode));
+      return next;
+    });
+  }
+  function toggleOne(code: string, on: boolean) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(code);
+      else next.delete(code);
+      return next;
+    });
+  }
+
+  function kfNameToStockCategory(name: string | undefined): StockCategory {
+    if (!name) return "Other";
+    const lower = name.toLowerCase();
+    if (lower.includes("bottle")) return "Bottles";
+    if (lower.includes("cap")) return "Caps";
+    if (lower.includes("label")) return "Labels";
+    if (lower.includes("carton")) return "Cartons";
+    if (lower.includes("pallet")) return "Pallets";
+    if (lower.includes("liquid") || lower.includes("ibc") || lower.includes("chemical")) return "Liquid / IBC";
+    if (lower.includes("raw")) return "Raw Materials";
+    if (lower.includes("finish")) return "Finished Goods";
+    return "Other";
+  }
+
+  async function importSelected() {
+    if (selected.size === 0) {
+      toast.error("Pick at least one item to import");
+      return;
+    }
+    setImporting(true);
+    let added = 0;
+    let skipped = 0;
+    try {
+      const existing = new Set(stockStore.items.map((i) => i.sku.toLowerCase()));
+      for (const p of products) {
+        if (!selected.has(p.ProductCode)) continue;
+        if (existing.has(p.ProductCode.toLowerCase())) {
+          skipped++;
+          continue;
+        }
+        const resolvedId = mappingByCode.get(p.ProductCode)
+          ?? resolveCategory(p.ProductCode, p.ProductDescription).kfCategoryId;
+        const kfName = categories.find((c) => c.id === resolvedId)?.name;
+        const category = kfNameToStockCategory(kfName);
+        const result = await stockStore.addItem({
+          name: p.ProductDescription || p.ProductCode,
+          sku: p.ProductCode,
+          category,
+          quantityOnHand: 0,
+          unit: p.UnitOfMeasure?.Name || "units",
+          location: "",
+          source: "Unleashed",
+        });
+        if (result) added++;
+      }
+      toast.success(`Imported ${added} item${added === 1 ? "" : "s"}${skipped ? ` (${skipped} already existed)` : ""}`);
+      setSelected(new Set());
+    } finally {
+      setImporting(false);
+    }
+  }
+
 
   return (
     <AppShell>
