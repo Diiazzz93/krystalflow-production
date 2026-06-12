@@ -154,11 +154,11 @@ export const unleashedFetchProducts = createServerFn({ method: "GET" })
 
     const byCode = new Map<string, UnleashedProduct>();
     for (const group of groups) {
-      const params = new URLSearchParams({
-        pageSize: String(pageSize),
-        productGroup: group,
-      });
-      const items = await signedFetchAllPages<UnleashedProduct>("/Products", params);
+      const entries: Array<[string, string]> = [
+        ["pageSize", String(pageSize)],
+        ["productGroup", group],
+      ];
+      const items = await signedFetchAllPages<UnleashedProduct>("/Products", entries);
       for (const p of items) {
         if (!byCode.has(p.ProductCode)) byCode.set(p.ProductCode, p);
       }
@@ -170,9 +170,12 @@ export const unleashedFetchStockOnHand = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { warehouseCode?: string } | undefined) => input ?? {})
   .handler(async ({ data }) => {
-    const params = new URLSearchParams({ pageSize: "200" });
-    if (data.warehouseCode) params.set("warehouseCode", data.warehouseCode);
-    return signedFetchAllPages<UnleashedStockOnHand>("/StockOnHand", params);
+    // /StockOnHand does NOT support the `/{pageNumber}` path style — it 404s.
+    // Use the base path with query params only.
+    const entries: Array<[string, string]> = [["pageSize", "200"]];
+    if (data.warehouseCode) entries.push(["warehouseCode", data.warehouseCode]);
+    const query = entries.map(([k, v]) => `${k}=${v}`).join("&");
+    return signedFetch<UnleashedStockOnHand>("/StockOnHand", query);
   });
 
 export const unleashedPing = createServerFn({ method: "GET" })
