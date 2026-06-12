@@ -30,13 +30,15 @@ interface UnleashedListResponse<T> {
 }
 
 /**
- * Signed Unleashed GET. The string used to sign MUST equal the request's
- * query string (without the leading `?`). Pass `query` already serialized
- * exactly as it will appear in the URL.
+ * Signed Unleashed GET.
+ *
+ * Unleashed signs the **decoded** query string (e.g. `productGroup=Recochem Bottles`)
+ * even though the request sends the URL-encoded form. Pass the decoded query;
+ * we URL-encode it for the request line.
  */
 async function signedFetchRaw<T>(
   path: string,
-  query: string,
+  decodedQuery: string,
 ): Promise<UnleashedListResponse<T>> {
   const apiId = process.env.UNLEASHED_API_ID;
   const apiKey = process.env.UNLEASHED_API_KEY;
@@ -45,9 +47,22 @@ async function signedFetchRaw<T>(
   }
 
   const { createHmac } = await import("crypto");
-  const signature = createHmac("sha256", apiKey).update(query).digest("base64");
+  const signature = createHmac("sha256", apiKey).update(decodedQuery).digest("base64");
 
-  const url = `${BASE_URL}${path}${query ? `?${query}` : ""}`;
+  // Re-encode each value for the actual request URL.
+  const encodedQuery = decodedQuery
+    .split("&")
+    .filter(Boolean)
+    .map((pair) => {
+      const eq = pair.indexOf("=");
+      if (eq === -1) return encodeURIComponent(pair);
+      const k = pair.slice(0, eq);
+      const v = pair.slice(eq + 1);
+      return `${encodeURIComponent(k)}=${encodeURIComponent(v)}`;
+    })
+    .join("&");
+
+  const url = `${BASE_URL}${path}${encodedQuery ? `?${encodedQuery}` : ""}`;
   const res = await fetch(url, {
     method: "GET",
     headers: {
@@ -72,25 +87,25 @@ async function signedFetch<T>(path: string, query: string): Promise<T[]> {
   return json.Items ?? [];
 }
 
+/** Build a decoded querystring (k=v&k=v) from entries. */
+function buildDecodedQuery(entries: Array<[string, string]>): string {
+  return entries.map(([k, v]) => `${k}=${v}`).join("&");
+}
+
 /**
- * Page through every Unleashed result page for `basePath` + `baseQuery`.
- * Unleashed paginates with /Endpoint/{pageNumber} and a Pagination block in
- * the response body.
+ * Page through every Unleashed result page for `basePath`.
+ * Unleashed paginates with `/Endpoint/{pageNumber}` and a Pagination block
+ * in the response body.
  */
 async function signedFetchAllPages<T>(
   basePath: string,
-  baseParams: URLSearchParams,
+  baseEntries: Array<[string, string]>,
 ): Promise<T[]> {
   const all: T[] = [];
   const MAX_PAGES = 50;
   let page = 1;
+  const query = buildDecodedQuery(baseEntries);
   while (page <= MAX_PAGES) {
-    const params = new URLSearchParams(baseParams);
-    // Unleashed re-canonicalizes the query server-side using %20 for spaces.
-    // URLSearchParams encodes spaces as `+`, which produces a different
-    // signature and a 403. Normalize to %20 so signed string == sent string
-    // == what Unleashed re-signs.
-    const query = params.toString().replace(/\+/g, "%20");
     const json = await signedFetchRaw<T>(`${basePath}/${page}`, query);
     const items = json.Items ?? [];
     all.push(...items);
