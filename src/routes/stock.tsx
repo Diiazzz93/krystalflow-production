@@ -157,10 +157,6 @@ function StockPage() {
 
   async function syncLiveStock() {
     const selectedGroups = getSelectedProductGroups();
-    if (selectedGroups.length === 0) {
-      toast.error("Pick Unleashed Product Groups in Settings first");
-      return;
-    }
     const imported = items.filter((item) => item.source === "Unleashed");
     if (imported.length === 0) {
       toast.error("No Unleashed stock items have been imported yet");
@@ -169,10 +165,18 @@ function StockPage() {
 
     setSyncingLive(true);
     try {
-      const client = createUnleashedClient();
-      const products = await client.fetchProducts(selectedGroups);
-      const allowedCodes = new Set(products.map((product) => product.ProductCode));
-      const allowedKeys = new Set(products.map((product) => product.ProductCode.trim().toLowerCase()));
+      const importedCodes = new Set(imported.map((item) => item.sku));
+      let allowedCodes = importedCodes;
+      let allowedKeys = new Set(imported.map((item) => item.sku.trim().toLowerCase()));
+      if (selectedGroups.length > 0) {
+        const client = createUnleashedClient();
+        const products = await client.fetchProducts(selectedGroups);
+        const selectedCodes = new Set(products.map((product) => product.ProductCode));
+        const selectedKeys = new Set(products.map((product) => product.ProductCode.trim().toLowerCase()));
+        allowedCodes = new Set(imported.filter((item) => selectedKeys.has(item.sku.trim().toLowerCase())).map((item) => item.sku));
+        allowedKeys = selectedKeys;
+        if (allowedCodes.size === 0) allowedCodes = selectedCodes;
+      }
       const snapshot = await syncStockOnHand(undefined, allowedCodes, selectedGroups);
       const liveByCode = new Map(
         snapshot.items.map((stock) => [stock.ProductCode.trim().toLowerCase(), stock]),
@@ -206,7 +210,7 @@ function StockPage() {
     const needsInitialLiveSync =
       imported.length > 0 &&
       imported.every((item) => item.quantityOnHand <= 0 && item.availableStock <= 0) &&
-      getSelectedProductGroups().length > 0;
+      imported.length > 0;
 
     if (autoSyncAttemptedRef.current || syncingLive || !needsInitialLiveSync) return;
     autoSyncAttemptedRef.current = true;
