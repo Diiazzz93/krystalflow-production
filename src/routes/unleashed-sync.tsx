@@ -785,6 +785,14 @@ function formatTime(iso: string | null) {
   return new Date(iso).toLocaleString();
 }
 
+function sameGroupSelection(a: string[] | undefined, b: string[]) {
+  const normalise = (value: string) => value.trim().toLowerCase();
+  const left = new Set((a ?? []).map(normalise).filter(Boolean));
+  const right = new Set(b.map(normalise).filter(Boolean));
+  if (left.size !== right.size) return false;
+  return Array.from(left).every((group) => right.has(group));
+}
+
 function StockMirrorCard({
   selectedGroups,
   onProductsLoaded,
@@ -810,6 +818,13 @@ function StockMirrorCard({
       }),
     [],
   );
+
+  useEffect(() => {
+    if (snapshot && !sameGroupSelection(snapshot.selectedGroups, selectedGroups)) {
+      clearStockSnapshot();
+      setSelected(new Set());
+    }
+  }, [snapshot, selectedGroups]);
 
   async function runSync() {
     if (selectedGroups.length === 0) {
