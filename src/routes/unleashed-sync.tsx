@@ -169,12 +169,11 @@ function UnleashedSyncPage() {
     return m;
   }, [mappings]);
 
-  // Only filter by Unleashed source toggles when the API returned a LovableCategory.
-  // Real Unleashed responses don't include that custom field, so by default everything shows.
+  // Products list already comes back filtered to the selected groups, so we
+  // only need to apply the local search/category filters here.
   const visibleProducts = useMemo(() => {
     const q = filter.trim().toLowerCase();
     return products.filter((p) => {
-      if (p.LovableCategory && !sources[p.LovableCategory]) return false;
       if (q && !p.ProductCode.toLowerCase().includes(q) && !p.ProductDescription.toLowerCase().includes(q)) {
         return false;
       }
@@ -188,16 +187,15 @@ function UnleashedSyncPage() {
       }
       return true;
     });
-  }, [products, sources, filter, filterCat, mappingByCode]);
+  }, [products, filter, filterCat, mappingByCode]);
 
   const stats = useMemo(() => {
-    const enabled = products.filter((p) => !p.LovableCategory || sources[p.LovableCategory]);
-    const mapped = enabled.filter((p) => mappingByCode.has(p.ProductCode)).length;
-    const ruleMatched = enabled.filter(
+    const mapped = products.filter((p) => mappingByCode.has(p.ProductCode)).length;
+    const ruleMatched = products.filter(
       (p) => !mappingByCode.has(p.ProductCode) && resolveCategory(p.ProductCode, p.ProductDescription).via === "rule",
     ).length;
-    return { total: enabled.length, mapped, ruleMatched, unmapped: enabled.length - mapped - ruleMatched };
-  }, [products, sources, mappingByCode, rules]);
+    return { total: products.length, mapped, ruleMatched, unmapped: products.length - mapped - ruleMatched };
+  }, [products, mappingByCode, rules]);
 
   const allVisibleSelected =
     visibleProducts.length > 0 && visibleProducts.every((p) => selected.has(p.ProductCode));
