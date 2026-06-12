@@ -14,6 +14,24 @@ const SOURCES_KEY = "unleashed.sources";
 const CATEGORIES_KEY = "unleashed.kf-categories";
 const MAPPINGS_KEY = "unleashed.product-mappings";
 const RULES_KEY = "unleashed.mapping-rules";
+const SELECTED_GROUPS_KEY = "unleashed.selected-product-groups";
+
+// ---- Selected Unleashed product groups -------------------------------------
+
+export function getSelectedProductGroups(): string[] {
+  return read<string[]>(SELECTED_GROUPS_KEY, []);
+}
+export function setSelectedProductGroups(groups: string[]) {
+  // dedupe + trim
+  const cleaned = Array.from(new Set(groups.map((g) => g.trim()).filter(Boolean)));
+  write(SELECTED_GROUPS_KEY, cleaned);
+}
+export function toggleSelectedProductGroup(group: string, enabled: boolean) {
+  const cur = new Set(getSelectedProductGroups());
+  if (enabled) cur.add(group.trim());
+  else cur.delete(group.trim());
+  setSelectedProductGroups(Array.from(cur));
+}
 
 export interface KfCategory {
   id: string;
