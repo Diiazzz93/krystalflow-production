@@ -83,11 +83,20 @@ export function getLastStockSyncAt(): string | null {
 
 /**
  * Pull stock-on-hand from Unleashed and persist the snapshot.
- * Returns the fresh snapshot so callers can act on it immediately.
+ * If `allowedProductCodes` is provided, the snapshot is filtered to only
+ * those codes (Unleashed's /StockOnHand endpoint can't filter by product
+ * group server-side, so callers compute the allowed set from /Products).
  */
-export async function syncStockOnHand(warehouseCode?: string): Promise<StockSnapshot> {
+export async function syncStockOnHand(
+  warehouseCode?: string,
+  allowedProductCodes?: Set<string>,
+): Promise<StockSnapshot> {
   const client = createUnleashedClient();
-  const items = await client.fetchStockOnHand(warehouseCode);
+  const allItems = await client.fetchStockOnHand(warehouseCode);
+  const items =
+    allowedProductCodes && allowedProductCodes.size > 0
+      ? allItems.filter((i) => allowedProductCodes.has(i.ProductCode))
+      : allItems;
   const snapshot: StockSnapshot = {
     fetchedAt: new Date().toISOString(),
     items,

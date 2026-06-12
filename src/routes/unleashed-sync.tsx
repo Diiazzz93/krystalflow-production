@@ -345,9 +345,12 @@ function UnleashedSyncPage() {
           </CardContent>
         </Card>
 
-        {/* Categories */}
         {/* Live stock mirror */}
-        <StockMirrorCard />
+        <StockMirrorCard
+          selectedGroups={selectedGroups}
+          onProductsLoaded={setProducts}
+        />
+
 
         <CategoriesCard categories={categories} />
 
@@ -775,12 +778,21 @@ function formatTime(iso: string | null) {
   return new Date(iso).toLocaleString();
 }
 
-function StockMirrorCard() {
+function StockMirrorCard({
+  selectedGroups,
+  onProductsLoaded,
+}: {
+  selectedGroups: string[];
+  onProductsLoaded: (products: UnleashedProduct[]) => void;
+}) {
   const [snapshot, setSnapshot] = useState<StockSnapshot | null>(() => getStockSnapshot());
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(() => getLastStockSyncAt());
   const [connectedAt, setConnectedAt] = useState<string | null>(() => getConnectedAt());
   const [busy, setBusy] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const stockStore = useStockStore();
 
   useEffect(
     () =>
@@ -793,10 +805,22 @@ function StockMirrorCard() {
   );
 
   async function runSync() {
+    if (selectedGroups.length === 0) {
+      toast.error("Pick at least one Product Group above first");
+      return;
+    }
     setBusy(true);
     try {
-      await syncStockOnHand();
-      toast.success("Stock mirror updated from Unleashed");
+      // 1) Fetch products in the selected groups (also feeds Section 4).
+      const client = createUnleashedClient();
+      const products = await client.fetchProducts(selectedGroups);
+      onProductsLoaded(products);
+      const allowed = new Set(products.map((p) => p.ProductCode));
+      // 2) Pull stock-on-hand and filter to the allowed codes.
+      const snap = await syncStockOnHand(undefined, allowed);
+      toast.success(
+        `Mirrored ${snap.items.length} stock rows from ${products.length} products in ${selectedGroups.length} group${selectedGroups.length === 1 ? "" : "s"}`,
+      );
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Stock sync failed");
     } finally {
@@ -815,14 +839,89 @@ function StockMirrorCard() {
     );
   }, [items, query]);
 
+  const allVisibleSelected =
+    visible.length > 0 && visible.every((i) => selected.has(i.ProductCode));
+
+  function toggleAll(on: boolean) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (on) visible.forEach((i) => next.add(i.ProductCode));
+      else visible.forEach((i) => next.delete(i.ProductCode));
+      return next;
+    });
+  }
+  function toggleOne(code: string, on: boolean) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(code);
+      else next.delete(code);
+      return next;
+    });
+  }
+
+  function kfNameToStockCategory(name: string | undefined): StockCategory {
+    if (!name) return "Other";
+    const lower = name.toLowerCase();
+    if (lower.includes("bottle")) return "Bottles";
+    if (lower.includes("cap")) return "Caps";
+    if (lower.includes("label")) return "Labels";
+    if (lower.includes("carton")) return "Cartons";
+    if (lower.includes("pallet")) return "Pallets";
+    if (lower.includes("liquid") || lower.includes("ibc") || lower.includes("chemical"))
+      return "Liquid / IBC";
+    if (lower.includes("raw")) return "Raw Materials";
+    if (lower.includes("finish")) return "Finished Goods";
+    return "Other";
+  }
+
+  async function importSelectedFromMirror() {
+    if (selected.size === 0) {
+      toast.error("Tick the rows you want to import first");
+      return;
+    }
+    setImporting(true);
+    let added = 0;
+    let skipped = 0;
+    try {
+      const existing = new Set(stockStore.items.map((i) => i.sku.toLowerCase()));
+      const cats = getKfCategories();
+      for (const s of items) {
+        if (!selected.has(s.ProductCode)) continue;
+        if (existing.has(s.ProductCode.toLowerCase())) {
+          skipped++;
+          continue;
+        }
+        const resolved = resolveCategory(s.ProductCode, s.ProductDescription);
+        const kfName = cats.find((c) => c.id === resolved.kfCategoryId)?.name;
+        const category = kfNameToStockCategory(kfName);
+        const result = await stockStore.addItem({
+          name: s.ProductDescription || s.ProductCode,
+          sku: s.ProductCode,
+          category,
+          quantityOnHand: s.QtyOnHand ?? 0,
+          unit: "units",
+          location: s.Warehouse?.WarehouseCode ?? "",
+          source: "Unleashed",
+        });
+        if (result) added++;
+      }
+      toast.success(
+        `Imported ${added} item${added === 1 ? "" : "s"}${skipped ? ` (${skipped} already existed)` : ""}`,
+      );
+      setSelected(new Set());
+    } finally {
+      setImporting(false);
+    }
+  }
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-start justify-between gap-3 flex-wrap">
         <div>
           <CardTitle>2. Live stock mirror (from Unleashed)</CardTitle>
           <CardDescription>
-            Unleashed is the source of truth for stock. This is a read-only snapshot —
-            when you receive stock, enter it in Unleashed and re-sync here.
+            Pulls stock-on-hand for products in the groups you selected above. Tick rows
+            and click Import to add them to KrystalFlow with their current quantities.
           </CardDescription>
           <div className="mt-2 flex flex-wrap gap-2 text-xs">
             <Badge variant="outline">
@@ -830,18 +929,29 @@ function StockMirrorCard() {
             </Badge>
             <Badge variant="outline">Last stock sync: {formatTime(lastSyncAt)}</Badge>
             <Badge variant="outline">{items.length} items mirrored</Badge>
+            <Badge variant="outline">{selected.size} selected</Badge>
           </div>
         </div>
-        <Button onClick={runSync} disabled={busy}>
-          <RefreshCw className={`size-4 ${busy ? "animate-spin" : ""}`} />
-          {busy ? "Syncing…" : "Sync stock now"}
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={importSelectedFromMirror}
+            disabled={importing || selected.size === 0}
+          >
+            <Download className={`size-4 ${importing ? "animate-pulse" : ""}`} />
+            {importing ? "Importing…" : `Import ${selected.size || ""} to app`}
+          </Button>
+          <Button onClick={runSync} disabled={busy}>
+            <RefreshCw className={`size-4 ${busy ? "animate-spin" : ""}`} />
+            {busy ? "Syncing…" : "Sync stock now"}
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-3">
         {items.length === 0 ? (
           <div className="rounded-md border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
             No stock snapshot yet. Click <span className="font-medium">Sync stock now</span> to pull
-            current quantities from Unleashed.
+            current quantities from Unleashed for the selected Product Groups.
           </div>
         ) : (
           <>
@@ -858,6 +968,13 @@ function StockMirrorCard() {
               <table className="w-full text-sm">
                 <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
                   <tr>
+                    <th className="p-2 w-10">
+                      <Checkbox
+                        checked={allVisibleSelected}
+                        onCheckedChange={(v) => toggleAll(Boolean(v))}
+                        aria-label="Select all visible"
+                      />
+                    </th>
                     <th className="text-left p-2">Product</th>
                     <th className="text-left p-2 w-28">Warehouse</th>
                     <th className="text-right p-2 w-24">On hand</th>
@@ -869,8 +986,16 @@ function StockMirrorCard() {
                 <tbody>
                   {visible.slice(0, 200).map((s) => {
                     const low = s.AvailableQty <= s.MinStockAlertLevel;
+                    const isSel = selected.has(s.ProductCode);
                     return (
                       <tr key={`${s.ProductCode}-${s.Warehouse.WarehouseCode}`} className="border-t border-border">
+                        <td className="p-2">
+                          <Checkbox
+                            checked={isSel}
+                            onCheckedChange={(v) => toggleOne(s.ProductCode, Boolean(v))}
+                            aria-label={`Select ${s.ProductCode}`}
+                          />
+                        </td>
                         <td className="p-2">
                           <div className="font-medium">{s.ProductCode}</div>
                           <div className="text-xs text-muted-foreground">{s.ProductDescription}</div>
