@@ -46,6 +46,12 @@ export interface UnleashedWarehouse {
   IsDefault: boolean;
 }
 
+/** Mirrors Unleashed `/ProductGroups` response item. */
+export interface UnleashedProductGroup {
+  Guid: string;
+  GroupName: string;
+}
+
 export interface UnleashedCredentials {
   apiId: string;
   apiKey: string;

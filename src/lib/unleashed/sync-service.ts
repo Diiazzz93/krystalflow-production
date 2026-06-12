@@ -102,7 +102,7 @@ export async function syncCategory(category: UnleashedCategory): Promise<SyncRes
   const startedAt = new Date().toISOString();
 
   try {
-    const products = await client.fetchProducts(category);
+    const products = await client.fetchProducts();
     const finishedAt = new Date().toISOString();
     return {
       category,

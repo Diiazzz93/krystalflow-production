@@ -34,11 +34,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { createUnleashedClient } from "@/lib/unleashed/client";
-import {
-  CATEGORY_LABELS,
-  SYNC_CATEGORIES,
-} from "@/lib/unleashed/sync-service";
-import type { UnleashedProduct } from "@/lib/unleashed/types";
+import { CATEGORY_LABELS } from "@/lib/unleashed/sync-service";
+import type { UnleashedProduct, UnleashedProductGroup } from "@/lib/unleashed/types";
 import { useStockStore } from "@/lib/stock-store";
 import type { StockCategory } from "@/lib/stock";
 import {
@@ -50,12 +47,13 @@ import {
   getKfCategories,
   getProductMappings,
   getRules,
-  getSourceToggles,
+  getSelectedProductGroups,
   renameKfCategory,
   resolveCategory,
   setProductMapping,
-  setSourceToggle,
+  setSelectedProductGroups,
   subscribeMapping,
+  toggleSelectedProductGroup,
   type KfCategory,
   type MappingRule,
   type RuleField,
@@ -75,7 +73,6 @@ export const Route = createFileRoute("/unleashed-sync")({
 });
 
 function UnleashedSyncPage() {
-  const [sources, setSources] = useState(() => getSourceToggles());
   const [categories, setCategories] = useState<KfCategory[]>(() => getKfCategories());
   const [mappings, setMappings] = useState(() => getProductMappings());
   const [rules, setRules] = useState<MappingRule[]>(() => getRules());
@@ -85,26 +82,53 @@ function UnleashedSyncPage() {
   const [filterCat, setFilterCat] = useState<string>("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [importing, setImporting] = useState(false);
+  const [productGroups, setProductGroups] = useState<UnleashedProductGroup[]>([]);
+  const [selectedGroups, setSelectedGroupsState] = useState<string[]>(() =>
+    getSelectedProductGroups(),
+  );
+  const [loadingGroups, setLoadingGroups] = useState(false);
   const stockStore = useStockStore();
 
   useEffect(
     () =>
       subscribeMapping(() => {
-        setSources(getSourceToggles());
         setCategories(getKfCategories());
         setMappings(getProductMappings());
         setRules(getRules());
+        setSelectedGroupsState(getSelectedProductGroups());
       }),
     [],
   );
 
+  async function loadProductGroups() {
+    setLoadingGroups(true);
+    try {
+      const client = createUnleashedClient();
+      const groups = await client.fetchProductGroups();
+      // sort by name for a stable list
+      groups.sort((a, b) => a.GroupName.localeCompare(b.GroupName));
+      setProductGroups(groups);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to load product groups");
+    } finally {
+      setLoadingGroups(false);
+    }
+  }
+
   async function loadProducts() {
+    if (selectedGroups.length === 0) {
+      setProducts([]);
+      toast.error("Pick at least one Product Group above first");
+      return;
+    }
     setLoading(true);
     try {
       const client = createUnleashedClient();
-      const all = await client.fetchProducts();
+      const all = await client.fetchProducts(selectedGroups);
       setProducts(all);
-      toast.success(`Loaded ${all.length} products from Unleashed`);
+      toast.success(
+        `Loaded ${all.length} products from ${selectedGroups.length} group${selectedGroups.length === 1 ? "" : "s"}`,
+      );
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to load products");
     } finally {
@@ -112,9 +136,29 @@ function UnleashedSyncPage() {
     }
   }
 
+  // Initial load: groups always; products only when user has groups selected.
   useEffect(() => {
-    loadProducts();
+    loadProductGroups();
+    if (getSelectedProductGroups().length > 0) {
+      loadProducts();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  function toggleGroup(name: string, on: boolean) {
+    toggleSelectedProductGroup(name, on);
+    setSelectedGroupsState(getSelectedProductGroups());
+  }
+  function setAllGroups(on: boolean) {
+    if (on) {
+      const all = productGroups.map((g) => g.GroupName);
+      setSelectedProductGroups(all);
+    } else {
+      setSelectedProductGroups([]);
+    }
+    setSelectedGroupsState(getSelectedProductGroups());
+  }
+
 
   const mappingByCode = useMemo(() => {
     const m = new Map<string, string>();
@@ -122,12 +166,11 @@ function UnleashedSyncPage() {
     return m;
   }, [mappings]);
 
-  // Only filter by Unleashed source toggles when the API returned a LovableCategory.
-  // Real Unleashed responses don't include that custom field, so by default everything shows.
+  // Products list already comes back filtered to the selected groups, so we
+  // only need to apply the local search/category filters here.
   const visibleProducts = useMemo(() => {
     const q = filter.trim().toLowerCase();
     return products.filter((p) => {
-      if (p.LovableCategory && !sources[p.LovableCategory]) return false;
       if (q && !p.ProductCode.toLowerCase().includes(q) && !p.ProductDescription.toLowerCase().includes(q)) {
         return false;
       }
@@ -141,16 +184,15 @@ function UnleashedSyncPage() {
       }
       return true;
     });
-  }, [products, sources, filter, filterCat, mappingByCode]);
+  }, [products, filter, filterCat, mappingByCode]);
 
   const stats = useMemo(() => {
-    const enabled = products.filter((p) => !p.LovableCategory || sources[p.LovableCategory]);
-    const mapped = enabled.filter((p) => mappingByCode.has(p.ProductCode)).length;
-    const ruleMatched = enabled.filter(
+    const mapped = products.filter((p) => mappingByCode.has(p.ProductCode)).length;
+    const ruleMatched = products.filter(
       (p) => !mappingByCode.has(p.ProductCode) && resolveCategory(p.ProductCode, p.ProductDescription).via === "rule",
     ).length;
-    return { total: enabled.length, mapped, ruleMatched, unmapped: enabled.length - mapped - ruleMatched };
-  }, [products, sources, mappingByCode, rules]);
+    return { total: products.length, mapped, ruleMatched, unmapped: products.length - mapped - ruleMatched };
+  }, [products, mappingByCode, rules]);
 
   const allVisibleSelected =
     visibleProducts.length > 0 && visibleProducts.every((p) => selected.has(p.ProductCode));
@@ -247,34 +289,59 @@ function UnleashedSyncPage() {
           </Button>
         </div>
 
-        {/* Sources */}
+        {/* Product Groups picker */}
         <Card>
-          <CardHeader>
-            <CardTitle>1. What to sync from Unleashed</CardTitle>
-            <CardDescription>
-              Only enabled item types will be pulled and shown for mapping below.
-            </CardDescription>
+          <CardHeader className="flex flex-row items-start justify-between gap-3 flex-wrap">
+            <div>
+              <CardTitle>1. Which Unleashed Product Groups should sync?</CardTitle>
+              <CardDescription>
+                Only products in the selected groups are pulled in. Saved automatically.
+                Note: Unleashed&apos;s <code>productGroup</code> filter does not include
+                sub-groups — add each sub-group separately if you need them.
+              </CardDescription>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => setAllGroups(true)} disabled={productGroups.length === 0}>
+                Select all
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setAllGroups(false)} disabled={selectedGroups.length === 0}>
+                Clear
+              </Button>
+              <Button variant="outline" size="sm" onClick={loadProductGroups} disabled={loadingGroups}>
+                <RefreshCw className={`size-4 ${loadingGroups ? "animate-spin" : ""}`} />
+                Refresh
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {SYNC_CATEGORIES.map((cat) => (
-                <label
-                  key={cat}
-                  className="flex items-center gap-3 rounded-md border border-border p-3 hover:bg-accent/40 cursor-pointer"
-                >
-                  <Checkbox
-                    checked={sources[cat]}
-                    onCheckedChange={(v) => setSourceToggle(cat, Boolean(v))}
-                  />
-                  <div>
-                    <div className="text-sm font-medium">{CATEGORY_LABELS[cat]}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {products.filter((p) => p.LovableCategory === cat).length} items in Unleashed
-                    </div>
-                  </div>
-                </label>
-              ))}
-            </div>
+            {productGroups.length === 0 ? (
+              <div className="rounded-md border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+                {loadingGroups ? "Loading product groups from Unleashed…" : "No product groups loaded yet."}
+              </div>
+            ) : (
+              <>
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 max-h-80 overflow-auto pr-1">
+                  {productGroups.map((g) => {
+                    const checked = selectedGroups.includes(g.GroupName);
+                    return (
+                      <label
+                        key={g.Guid}
+                        className="flex items-center gap-3 rounded-md border border-border p-3 hover:bg-accent/40 cursor-pointer"
+                      >
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={(v) => toggleGroup(g.GroupName, Boolean(v))}
+                        />
+                        <div className="text-sm font-medium truncate">{g.GroupName}</div>
+                      </label>
+                    );
+                  })}
+                </div>
+                <div className="mt-3 text-xs text-muted-foreground">
+                  {selectedGroups.length} of {productGroups.length} groups selected
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
 
