@@ -983,7 +983,7 @@ function StockMirrorCard({
     }
     setImporting(true);
     let added = 0;
-    let skipped = 0;
+    let updated = 0;
     try {
       const existing = new Map(stockStore.items.map((i) => [i.sku.toLowerCase(), i]));
       const cats = getKfCategories();
@@ -998,7 +998,7 @@ function StockMirrorCard({
             reorderLevel: Number(s.MinStockAlertLevel ?? existingItem.reorderLevel ?? 0),
             location: s.Warehouse?.WarehouseCode ?? existingItem.location,
           });
-          skipped++;
+          updated++;
           continue;
         }
         const resolved = resolveCategory(s.ProductCode, s.ProductDescription);
@@ -1019,7 +1019,7 @@ function StockMirrorCard({
         if (result) added++;
       }
       toast.success(
-        `Imported ${added} item${added === 1 ? "" : "s"}${skipped ? ` (${skipped} already existed)` : ""}`,
+        `Imported ${added} item${added === 1 ? "" : "s"}${updated ? `, updated ${updated}` : ""}`,
       );
       setSelected(new Set());
     } finally {
