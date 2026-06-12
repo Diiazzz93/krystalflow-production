@@ -82,13 +82,15 @@ async function signedFetchAllPages<T>(
   baseParams: URLSearchParams,
 ): Promise<T[]> {
   const all: T[] = [];
-  // Safety cap to avoid runaway loops.
   const MAX_PAGES = 50;
   let page = 1;
   while (page <= MAX_PAGES) {
     const params = new URLSearchParams(baseParams);
-    // Unleashed prefers page in the path; pageSize stays in the query.
-    const query = params.toString();
+    // Unleashed re-canonicalizes the query server-side using %20 for spaces.
+    // URLSearchParams encodes spaces as `+`, which produces a different
+    // signature and a 403. Normalize to %20 so signed string == sent string
+    // == what Unleashed re-signs.
+    const query = params.toString().replace(/\+/g, "%20");
     const json = await signedFetchRaw<T>(`${basePath}/${page}`, query);
     const items = json.Items ?? [];
     all.push(...items);
