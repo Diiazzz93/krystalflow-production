@@ -21,7 +21,6 @@ import {
   getSyncState,
   saveCredentials,
   subscribe,
-  syncAll,
 } from "@/lib/unleashed/sync-service";
 import { MOCK_WAREHOUSES } from "@/lib/unleashed/mock-data";
 import type { SyncStatus, UnleashedCredentials } from "@/lib/unleashed/types";
@@ -91,16 +90,6 @@ export function UnleashedSyncPanel() {
     }
   }
 
-  async function runSync() {
-    setBusy(true);
-    try {
-      const result = await syncAll();
-      if (result.status === "success") toast.success("Inventory sync complete");
-      else toast.error(`Sync finished with errors: ${result.lastError ?? "unknown"}`);
-    } finally {
-      setBusy(false);
-    }
-  }
 
 
   return (
@@ -113,9 +102,8 @@ export function UnleashedSyncPanel() {
             liquid/IBCs up to date. Credentials are stored securely server-side.
           </CardDescription>
         </div>
-        <Button onClick={runSync} disabled={busy}>
-          <RefreshCw className={`size-4 ${busy ? "animate-spin" : ""}`} />
-          {busy ? "Syncing…" : "Sync now"}
+        <Button asChild>
+          <Link to="/unleashed-sync">Open sync &amp; import →</Link>
         </Button>
       </CardHeader>
       <CardContent className="space-y-6">

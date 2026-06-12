@@ -30,6 +30,7 @@ import {
   RefreshCw,
   ArrowLeft,
   Search,
+  Download,
 } from "lucide-react";
 import { toast } from "sonner";
 import { createUnleashedClient } from "@/lib/unleashed/client";
@@ -38,6 +39,8 @@ import {
   SYNC_CATEGORIES,
 } from "@/lib/unleashed/sync-service";
 import type { UnleashedProduct } from "@/lib/unleashed/types";
+import { useStockStore } from "@/lib/stock-store";
+import type { StockCategory } from "@/lib/stock";
 import {
   addKfCategory,
   addRule,
@@ -80,6 +83,9 @@ function UnleashedSyncPage() {
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState("");
   const [filterCat, setFilterCat] = useState<string>("all");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [importing, setImporting] = useState(false);
+  const stockStore = useStockStore();
 
   useEffect(
     () =>
@@ -98,6 +104,7 @@ function UnleashedSyncPage() {
       const client = createUnleashedClient();
       const all = await client.fetchProducts();
       setProducts(all);
+      toast.success(`Loaded ${all.length} products from Unleashed`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to load products");
     } finally {
@@ -115,16 +122,19 @@ function UnleashedSyncPage() {
     return m;
   }, [mappings]);
 
-  // Only show products from enabled sources
+  // Only filter by Unleashed source toggles when the API returned a LovableCategory.
+  // Real Unleashed responses don't include that custom field, so by default everything shows.
   const visibleProducts = useMemo(() => {
     const q = filter.trim().toLowerCase();
     return products.filter((p) => {
-      if (!sources[p.LovableCategory]) return false;
+      if (p.LovableCategory && !sources[p.LovableCategory]) return false;
       if (q && !p.ProductCode.toLowerCase().includes(q) && !p.ProductDescription.toLowerCase().includes(q)) {
         return false;
       }
       if (filterCat === "unmapped") {
         if (mappingByCode.has(p.ProductCode)) return false;
+        const resolved = resolveCategory(p.ProductCode, p.ProductDescription);
+        if (resolved.via !== "none") return false;
       } else if (filterCat !== "all") {
         const resolved = resolveCategory(p.ProductCode, p.ProductDescription).kfCategoryId;
         if (resolved !== filterCat) return false;
@@ -134,13 +144,86 @@ function UnleashedSyncPage() {
   }, [products, sources, filter, filterCat, mappingByCode]);
 
   const stats = useMemo(() => {
-    const enabled = products.filter((p) => sources[p.LovableCategory]);
+    const enabled = products.filter((p) => !p.LovableCategory || sources[p.LovableCategory]);
     const mapped = enabled.filter((p) => mappingByCode.has(p.ProductCode)).length;
     const ruleMatched = enabled.filter(
       (p) => !mappingByCode.has(p.ProductCode) && resolveCategory(p.ProductCode, p.ProductDescription).via === "rule",
     ).length;
     return { total: enabled.length, mapped, ruleMatched, unmapped: enabled.length - mapped - ruleMatched };
   }, [products, sources, mappingByCode, rules]);
+
+  const allVisibleSelected =
+    visibleProducts.length > 0 && visibleProducts.every((p) => selected.has(p.ProductCode));
+
+  function toggleAllVisible(on: boolean) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (on) visibleProducts.forEach((p) => next.add(p.ProductCode));
+      else visibleProducts.forEach((p) => next.delete(p.ProductCode));
+      return next;
+    });
+  }
+  function toggleOne(code: string, on: boolean) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(code);
+      else next.delete(code);
+      return next;
+    });
+  }
+
+  function kfNameToStockCategory(name: string | undefined): StockCategory {
+    if (!name) return "Other";
+    const lower = name.toLowerCase();
+    if (lower.includes("bottle")) return "Bottles";
+    if (lower.includes("cap")) return "Caps";
+    if (lower.includes("label")) return "Labels";
+    if (lower.includes("carton")) return "Cartons";
+    if (lower.includes("pallet")) return "Pallets";
+    if (lower.includes("liquid") || lower.includes("ibc") || lower.includes("chemical")) return "Liquid / IBC";
+    if (lower.includes("raw")) return "Raw Materials";
+    if (lower.includes("finish")) return "Finished Goods";
+    return "Other";
+  }
+
+  async function importSelected() {
+    if (selected.size === 0) {
+      toast.error("Pick at least one item to import");
+      return;
+    }
+    setImporting(true);
+    let added = 0;
+    let skipped = 0;
+    try {
+      const existing = new Set(stockStore.items.map((i) => i.sku.toLowerCase()));
+      for (const p of products) {
+        if (!selected.has(p.ProductCode)) continue;
+        if (existing.has(p.ProductCode.toLowerCase())) {
+          skipped++;
+          continue;
+        }
+        const resolvedId = mappingByCode.get(p.ProductCode)
+          ?? resolveCategory(p.ProductCode, p.ProductDescription).kfCategoryId;
+        const kfName = categories.find((c) => c.id === resolvedId)?.name;
+        const category = kfNameToStockCategory(kfName);
+        const result = await stockStore.addItem({
+          name: p.ProductDescription || p.ProductCode,
+          sku: p.ProductCode,
+          category,
+          quantityOnHand: 0,
+          unit: p.UnitOfMeasure?.Name || "units",
+          location: "",
+          source: "Unleashed",
+        });
+        if (result) added++;
+      }
+      toast.success(`Imported ${added} item${added === 1 ? "" : "s"}${skipped ? ` (${skipped} already existed)` : ""}`);
+      setSelected(new Set());
+    } finally {
+      setImporting(false);
+    }
+  }
+
 
   return (
     <AppShell>
@@ -208,13 +291,13 @@ function UnleashedSyncPage() {
         <Card>
           <CardHeader className="flex flex-row items-start justify-between gap-3 flex-wrap">
             <div>
-              <CardTitle>4. Map Unleashed products to KrystalFlow categories</CardTitle>
+              <CardTitle>4. Choose products to import into KrystalFlow</CardTitle>
               <CardDescription>
                 {stats.total} items · {stats.mapped} manually mapped · {stats.ruleMatched} matched by rule ·{" "}
-                {stats.unmapped} unmapped
+                {stats.unmapped} unmapped · {selected.size} selected
               </CardDescription>
             </div>
-            <div className="flex gap-2 items-center">
+            <div className="flex gap-2 items-center flex-wrap">
               <div className="relative">
                 <Search className="size-3 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -238,18 +321,31 @@ function UnleashedSyncPage() {
                   ))}
                 </SelectContent>
               </Select>
+              <Button onClick={importSelected} disabled={importing || selected.size === 0}>
+                <Download className={`size-4 ${importing ? "animate-pulse" : ""}`} />
+                {importing ? "Importing…" : `Import ${selected.size || ""} selected`}
+              </Button>
             </div>
           </CardHeader>
           <CardContent>
             {visibleProducts.length === 0 ? (
               <div className="rounded-md border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-                No products to display. Adjust filters or enable more sources above.
+                {products.length === 0
+                  ? "No products loaded. Click Reload from Unleashed above."
+                  : "No products match your filters."}
               </div>
             ) : (
               <div className="rounded-md border border-border overflow-hidden">
                 <table className="w-full text-sm">
                   <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
                     <tr>
+                      <th className="p-2 w-10">
+                        <Checkbox
+                          checked={allVisibleSelected}
+                          onCheckedChange={(v) => toggleAllVisible(Boolean(v))}
+                          aria-label="Select all visible"
+                        />
+                      </th>
                       <th className="text-left p-2">Unleashed product</th>
                       <th className="text-left p-2 w-32">Source</th>
                       <th className="text-left p-2 w-64">KrystalFlow category</th>
@@ -264,6 +360,8 @@ function UnleashedSyncPage() {
                         product={p}
                         categories={categories}
                         manualMapping={mappingByCode.get(p.ProductCode)}
+                        selected={selected.has(p.ProductCode)}
+                        onToggleSelected={(on) => toggleOne(p.ProductCode, on)}
                       />
                     ))}
                   </tbody>
@@ -514,10 +612,14 @@ function ProductRow({
   product,
   categories,
   manualMapping,
+  selected,
+  onToggleSelected,
 }: {
   product: UnleashedProduct;
   categories: KfCategory[];
   manualMapping: string | undefined;
+  selected: boolean;
+  onToggleSelected: (on: boolean) => void;
 }) {
   const resolved = resolveCategory(product.ProductCode, product.ProductDescription);
   const effective = manualMapping ?? resolved.kfCategoryId;
@@ -525,13 +627,24 @@ function ProductRow({
   return (
     <tr className="border-t border-border hover:bg-accent/30">
       <td className="p-2">
+        <Checkbox
+          checked={selected}
+          onCheckedChange={(v) => onToggleSelected(Boolean(v))}
+          aria-label={`Select ${product.ProductCode}`}
+        />
+      </td>
+      <td className="p-2">
         <div className="font-medium text-sm">{product.ProductCode}</div>
         <div className="text-xs text-muted-foreground truncate max-w-[28rem]">
           {product.ProductDescription}
         </div>
       </td>
       <td className="p-2">
-        <Badge variant="outline">{CATEGORY_LABELS[product.LovableCategory]}</Badge>
+        {product.LovableCategory ? (
+          <Badge variant="outline">{CATEGORY_LABELS[product.LovableCategory]}</Badge>
+        ) : (
+          <span className="text-xs text-muted-foreground">—</span>
+        )}
       </td>
       <td className="p-2">
         <Select
