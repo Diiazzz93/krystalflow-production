@@ -34,10 +34,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { createUnleashedClient } from "@/lib/unleashed/client";
-import {
-  CATEGORY_LABELS,
-  SYNC_CATEGORIES,
-} from "@/lib/unleashed/sync-service";
+import { CATEGORY_LABELS } from "@/lib/unleashed/sync-service";
 import type { UnleashedProduct, UnleashedProductGroup } from "@/lib/unleashed/types";
 import { useStockStore } from "@/lib/stock-store";
 import type { StockCategory } from "@/lib/stock";
