@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/layout/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -113,6 +113,7 @@ function StockPage() {
   const { items, updateItem } = useStockStore();
   const { hasRole } = useAuth();
   const canEdit = hasRole("admin", "manager");
+  const autoSyncAttemptedRef = useRef(false);
   const [addOpen, setAddOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [editItem, setEditItem] = useState<StockItem | null>(null);
@@ -199,6 +200,18 @@ function StockPage() {
       setSyncingLive(false);
     }
   }
+
+  useEffect(() => {
+    const imported = items.filter((item) => item.source === "Unleashed");
+    const needsInitialLiveSync =
+      imported.length > 0 &&
+      imported.every((item) => item.quantityOnHand <= 0 && item.availableStock <= 0) &&
+      getSelectedProductGroups().length > 0;
+
+    if (autoSyncAttemptedRef.current || syncingLive || !needsInitialLiveSync) return;
+    autoSyncAttemptedRef.current = true;
+    void syncLiveStock();
+  }, [items, syncingLive]);
 
   return (
     <AppShell>
