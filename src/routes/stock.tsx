@@ -110,7 +110,7 @@ function categoryBadge(cat: StockCategory) {
 }
 
 function StockPage() {
-  const { items } = useStockStore();
+  const { items, updateItem } = useStockStore();
   const { hasRole } = useAuth();
   const canEdit = hasRole("admin", "manager");
   const [addOpen, setAddOpen] = useState(false);
