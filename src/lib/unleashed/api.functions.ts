@@ -116,6 +116,25 @@ async function signedFetchAllPages<T>(
   return all;
 }
 
+async function signedFetchAllQueryPages<T>(
+  path: string,
+  baseEntries: Array<[string, string]>,
+): Promise<T[]> {
+  const all: T[] = [];
+  const MAX_PAGES = 200;
+  let page = 1;
+  while (page <= MAX_PAGES) {
+    const query = buildDecodedQuery([...baseEntries, ["pageNumber", String(page)]]);
+    const json = await signedFetchRaw<T>(path, query);
+    const items = json.Items ?? [];
+    all.push(...items);
+    const totalPages = json.Pagination?.NumberOfPages ?? 1;
+    if (page >= totalPages || items.length === 0) break;
+    page++;
+  }
+  return all;
+}
+
 export const unleashedFetchWarehouses = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async () => {
@@ -172,11 +191,10 @@ export const unleashedFetchStockOnHand = createServerFn({ method: "GET" })
   .inputValidator((input: { warehouseCode?: string } | undefined) => input ?? {})
   .handler(async ({ data }) => {
     // /StockOnHand does NOT support the `/{pageNumber}` path style — it 404s.
-    // Use the base path with query params only.
+    // Use the base path and page through with query params.
     const entries: Array<[string, string]> = [["pageSize", "200"]];
     if (data.warehouseCode) entries.push(["warehouseCode", data.warehouseCode]);
-    const query = entries.map(([k, v]) => `${k}=${v}`).join("&");
-    return signedFetch<UnleashedStockOnHand>("/StockOnHand", query);
+    return signedFetchAllQueryPages<UnleashedStockOnHand>("/StockOnHand", entries);
   });
 
 export const unleashedPing = createServerFn({ method: "GET" })
