@@ -247,8 +247,12 @@ function UnleashedSyncPage() {
     let skipped = 0;
     try {
       const existing = new Map(stockStore.items.map((i) => [i.sku.toLowerCase(), i]));
+      const allowedCodes = new Set(products.map((p) => p.ProductCode));
+      const freshSnapshot = products.length > 0
+        ? await syncStockOnHand(undefined, allowedCodes, selectedGroups)
+        : getStockSnapshot();
       const liveByCode = new Map(
-        (getStockSnapshot()?.items ?? []).map((item) => [item.ProductCode.trim().toLowerCase(), item]),
+        (freshSnapshot?.items ?? []).map((item) => [item.ProductCode.trim().toLowerCase(), item]),
       );
       for (const p of products) {
         if (!selected.has(p.ProductCode)) continue;
@@ -985,7 +989,15 @@ function StockMirrorCard({
       const cats = getKfCategories();
       for (const s of items) {
         if (!selected.has(s.ProductCode)) continue;
-        if (existing.has(s.ProductCode.toLowerCase())) {
+        const existingItem = existing.get(s.ProductCode.toLowerCase());
+        if (existingItem) {
+          await stockStore.updateItem(existingItem.id, {
+            quantityOnHand: Number(s.QtyOnHand ?? 0),
+            availableStock: Number(s.AvailableQty ?? s.QtyOnHand ?? 0),
+            allocatedStock: Number(s.AllocatedQty ?? 0),
+            reorderLevel: Number(s.MinStockAlertLevel ?? existingItem.reorderLevel ?? 0),
+            location: s.Warehouse?.WarehouseCode ?? existingItem.location,
+          });
           skipped++;
           continue;
         }
@@ -997,6 +1009,9 @@ function StockMirrorCard({
           sku: s.ProductCode,
           category,
           quantityOnHand: s.QtyOnHand ?? 0,
+          availableStock: s.AvailableQty ?? s.QtyOnHand ?? 0,
+          allocatedStock: s.AllocatedQty ?? 0,
+          reorderLevel: s.MinStockAlertLevel ?? 0,
           unit: "units",
           location: s.Warehouse?.WarehouseCode ?? "",
           source: "Unleashed",
