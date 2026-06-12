@@ -21,7 +21,6 @@ import {
   getSyncState,
   saveCredentials,
   subscribe,
-  syncAll,
 } from "@/lib/unleashed/sync-service";
 import { MOCK_WAREHOUSES } from "@/lib/unleashed/mock-data";
 import type { SyncStatus, UnleashedCredentials } from "@/lib/unleashed/types";
