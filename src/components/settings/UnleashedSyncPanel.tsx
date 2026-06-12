@@ -81,7 +81,21 @@ export function UnleashedSyncPanel() {
         toast.success(`Connected to Unleashed (${res.warehouses} warehouses)`);
         markConnectedIfNew();
       } else {
-        toast.error(`Unleashed connection failed: ${res.error}`);
+        const detail = [
+          res.status ? `HTTP ${res.status}` : null,
+          res.url ? `URL: ${res.url}` : null,
+          res.apiIdPreview ? `api-auth-id: ${res.apiIdPreview}` : null,
+          res.stringToSign !== undefined ? `String to sign: "${res.stringToSign}"` : null,
+          res.body ? `Body: ${res.body}` : null,
+        ]
+          .filter(Boolean)
+          .join("\n");
+        toast.error(res.error ?? "Unleashed connection failed", {
+          description: detail || undefined,
+          duration: 20000,
+        });
+        // Also log full diagnostic to console for easy copy
+        console.error("[Unleashed] Ping failed:", res);
       }
     } catch (e) {
       toast.error(`Unleashed connection failed: ${e instanceof Error ? e.message : String(e)}`);
