@@ -19,6 +19,7 @@ const LAST_SYNC_KEY = "unleashed.stock-last-sync";
 export interface StockSnapshot {
   fetchedAt: string; // ISO
   items: UnleashedStockOnHand[];
+  selectedGroups?: string[];
 }
 
 const listeners = new Set<() => void>();
@@ -77,6 +78,12 @@ export function getStockSnapshot(): StockSnapshot | null {
   return read<StockSnapshot | null>(SNAPSHOT_KEY, null);
 }
 
+export function clearStockSnapshot() {
+  localStorage.removeItem(SNAPSHOT_KEY);
+  localStorage.removeItem(LAST_SYNC_KEY);
+  emit();
+}
+
 export function getLastStockSyncAt(): string | null {
   return read<string | null>(LAST_SYNC_KEY, null);
 }
@@ -87,19 +94,23 @@ export function getLastStockSyncAt(): string | null {
  * those codes (Unleashed's /StockOnHand endpoint can't filter by product
  * group server-side, so callers compute the allowed set from /Products).
  */
+function normaliseCode(code: string | undefined): string {
+  return (code ?? "").trim().toLowerCase();
+}
+
 export async function syncStockOnHand(
-  warehouseCode?: string,
-  allowedProductCodes?: Set<string>,
+  warehouseCode: string | undefined,
+  allowedProductCodes: Set<string>,
+  selectedGroups: string[],
 ): Promise<StockSnapshot> {
   const client = createUnleashedClient();
   const allItems = await client.fetchStockOnHand(warehouseCode);
-  const items =
-    allowedProductCodes && allowedProductCodes.size > 0
-      ? allItems.filter((i) => allowedProductCodes.has(i.ProductCode))
-      : allItems;
+  const normalisedAllowed = new Set(Array.from(allowedProductCodes, normaliseCode));
+  const items = allItems.filter((i) => normalisedAllowed.has(normaliseCode(i.ProductCode)));
   const snapshot: StockSnapshot = {
     fetchedAt: new Date().toISOString(),
     items,
+    selectedGroups: [...selectedGroups],
   };
   write(SNAPSHOT_KEY, snapshot);
   write(LAST_SYNC_KEY, snapshot.fetchedAt);
