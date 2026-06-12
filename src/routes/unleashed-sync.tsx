@@ -83,6 +83,7 @@ function UnleashedSyncPage() {
   const [filterCat, setFilterCat] = useState<string>("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [importing, setImporting] = useState(false);
+  const [syncingImported, setSyncingImported] = useState(false);
   const [productGroups, setProductGroups] = useState<UnleashedProductGroup[]>([]);
   const [selectedGroups, setSelectedGroupsState] = useState<string[]>(() =>
     getSelectedProductGroups(),
@@ -242,13 +243,34 @@ function UnleashedSyncPage() {
     }
     setImporting(true);
     let added = 0;
+    let updated = 0;
     let skipped = 0;
     try {
-      const existing = new Set(stockStore.items.map((i) => i.sku.toLowerCase()));
+      const existing = new Map(stockStore.items.map((i) => [i.sku.toLowerCase(), i]));
+      const allowedCodes = new Set(products.map((p) => p.ProductCode));
+      const freshSnapshot = products.length > 0
+        ? await syncStockOnHand(undefined, allowedCodes, selectedGroups)
+        : getStockSnapshot();
+      const liveByCode = new Map(
+        (freshSnapshot?.items ?? []).map((item) => [item.ProductCode.trim().toLowerCase(), item]),
+      );
       for (const p of products) {
         if (!selected.has(p.ProductCode)) continue;
-        if (existing.has(p.ProductCode.toLowerCase())) {
-          skipped++;
+        const live = liveByCode.get(p.ProductCode.trim().toLowerCase());
+        const existingItem = existing.get(p.ProductCode.toLowerCase());
+        if (existingItem) {
+          if (live) {
+            await stockStore.updateItem(existingItem.id, {
+              quantityOnHand: Number(live.QtyOnHand ?? 0),
+              availableStock: Number(live.AvailableQty ?? live.QtyOnHand ?? 0),
+              allocatedStock: Number(live.AllocatedQty ?? 0),
+              reorderLevel: Number(live.MinStockAlertLevel ?? existingItem.reorderLevel ?? 0),
+              location: live.Warehouse?.WarehouseCode ?? existingItem.location,
+            });
+            updated++;
+          } else {
+            skipped++;
+          }
           continue;
         }
         const resolvedId = mappingByCode.get(p.ProductCode)
@@ -259,17 +281,68 @@ function UnleashedSyncPage() {
           name: p.ProductDescription || p.ProductCode,
           sku: p.ProductCode,
           category,
-          quantityOnHand: 0,
+          quantityOnHand: Number(live?.QtyOnHand ?? 0),
+          availableStock: Number(live?.AvailableQty ?? live?.QtyOnHand ?? 0),
+          allocatedStock: Number(live?.AllocatedQty ?? 0),
+          reorderLevel: Number(live?.MinStockAlertLevel ?? 0),
           unit: p.UnitOfMeasure?.Name || "units",
-          location: "",
+          location: live?.Warehouse?.WarehouseCode ?? "",
           source: "Unleashed",
         });
         if (result) added++;
       }
-      toast.success(`Imported ${added} item${added === 1 ? "" : "s"}${skipped ? ` (${skipped} already existed)` : ""}`);
+      toast.success(
+        `Imported ${added} item${added === 1 ? "" : "s"}${updated ? `, updated ${updated}` : ""}${skipped ? ` (${skipped} already existed)` : ""}`,
+      );
       setSelected(new Set());
     } finally {
       setImporting(false);
+    }
+  }
+
+  async function refreshImportedStock() {
+    if (selectedGroups.length === 0) {
+      toast.error("Pick at least one Product Group above first");
+      return;
+    }
+    const imported = stockStore.items.filter((item) => item.source === "Unleashed");
+    if (imported.length === 0) {
+      toast.error("No Unleashed stock items have been imported yet");
+      return;
+    }
+
+    setSyncingImported(true);
+    try {
+      const client = createUnleashedClient();
+      const selectedProducts = await client.fetchProducts(selectedGroups);
+      setProducts(selectedProducts);
+      const allowedCodes = new Set(selectedProducts.map((p) => p.ProductCode));
+      const snapshot = await syncStockOnHand(undefined, allowedCodes, selectedGroups);
+      const allowedKeys = new Set(selectedProducts.map((p) => p.ProductCode.trim().toLowerCase()));
+      const liveByCode = new Map(
+        snapshot.items.map((item) => [item.ProductCode.trim().toLowerCase(), item]),
+      );
+      let updated = 0;
+
+      for (const item of imported) {
+        if (!allowedKeys.has(item.sku.trim().toLowerCase())) continue;
+        const live = liveByCode.get(item.sku.trim().toLowerCase());
+        if (!live) continue;
+        await stockStore.updateItem(item.id, {
+          quantityOnHand: Number(live.QtyOnHand ?? 0),
+          availableStock: Number(live.AvailableQty ?? live.QtyOnHand ?? 0),
+          allocatedStock: Number(live.AllocatedQty ?? 0),
+          reorderLevel: Number(live.MinStockAlertLevel ?? item.reorderLevel ?? 0),
+          location: live.Warehouse?.WarehouseCode ?? item.location,
+        });
+        updated++;
+      }
+
+      toast.success(`Updated live quantities for ${updated} imported item${updated === 1 ? "" : "s"}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not update imported stock");
+    } finally {
+      setSyncingImported(false);
     }
   }
 
@@ -290,10 +363,16 @@ function UnleashedSyncPage() {
               Choose what to pull from Unleashed and map each item to a KrystalFlow category.
             </p>
           </div>
-          <Button variant="outline" onClick={loadProducts} disabled={loading}>
-            <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
-            Reload from Unleashed
-          </Button>
+          <div className="flex gap-2 flex-wrap justify-end">
+            <Button variant="outline" onClick={loadProducts} disabled={loading}>
+              <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
+              Reload from Unleashed
+            </Button>
+            <Button onClick={refreshImportedStock} disabled={syncingImported}>
+              <RefreshCw className={`size-4 ${syncingImported ? "animate-spin" : ""}`} />
+              {syncingImported ? "Updating stock…" : "Update imported stock"}
+            </Button>
+          </div>
         </div>
 
         {/* Product Groups picker */}
@@ -904,14 +983,22 @@ function StockMirrorCard({
     }
     setImporting(true);
     let added = 0;
-    let skipped = 0;
+    let updated = 0;
     try {
-      const existing = new Set(stockStore.items.map((i) => i.sku.toLowerCase()));
+      const existing = new Map(stockStore.items.map((i) => [i.sku.toLowerCase(), i]));
       const cats = getKfCategories();
       for (const s of items) {
         if (!selected.has(s.ProductCode)) continue;
-        if (existing.has(s.ProductCode.toLowerCase())) {
-          skipped++;
+        const existingItem = existing.get(s.ProductCode.toLowerCase());
+        if (existingItem) {
+          await stockStore.updateItem(existingItem.id, {
+            quantityOnHand: Number(s.QtyOnHand ?? 0),
+            availableStock: Number(s.AvailableQty ?? s.QtyOnHand ?? 0),
+            allocatedStock: Number(s.AllocatedQty ?? 0),
+            reorderLevel: Number(s.MinStockAlertLevel ?? existingItem.reorderLevel ?? 0),
+            location: s.Warehouse?.WarehouseCode ?? existingItem.location,
+          });
+          updated++;
           continue;
         }
         const resolved = resolveCategory(s.ProductCode, s.ProductDescription);
@@ -922,6 +1009,9 @@ function StockMirrorCard({
           sku: s.ProductCode,
           category,
           quantityOnHand: s.QtyOnHand ?? 0,
+          availableStock: s.AvailableQty ?? s.QtyOnHand ?? 0,
+          allocatedStock: s.AllocatedQty ?? 0,
+          reorderLevel: s.MinStockAlertLevel ?? 0,
           unit: "units",
           location: s.Warehouse?.WarehouseCode ?? "",
           source: "Unleashed",
@@ -929,7 +1019,7 @@ function StockMirrorCard({
         if (result) added++;
       }
       toast.success(
-        `Imported ${added} item${added === 1 ? "" : "s"}${skipped ? ` (${skipped} already existed)` : ""}`,
+        `Imported ${added} item${added === 1 ? "" : "s"}${updated ? `, updated ${updated}` : ""}`,
       );
       setSelected(new Set());
     } finally {

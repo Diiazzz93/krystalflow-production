@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/layout/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { AlertTriangle, Boxes, CheckCircle2, History, Layers, Package, Pencil, Plus, Scale, Search } from "lucide-react";
+import { AlertTriangle, Boxes, CheckCircle2, History, Layers, Package, Pencil, Plus, RefreshCw, Scale, Search } from "lucide-react";
 import {
   getStockStatus,
   resolveCategory,
@@ -38,6 +38,10 @@ import { StockHistoryDialog } from "@/components/stock/StockHistoryDialog";
 import { LowStockReportDialog } from "@/components/stock/LowStockReportDialog";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
+import { createUnleashedClient } from "@/lib/unleashed/client";
+import { getSelectedProductGroups } from "@/lib/unleashed/mapping";
+import { syncStockOnHand } from "@/lib/unleashed/stock-mirror";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/stock")({
   head: () => ({
@@ -106,14 +110,16 @@ function categoryBadge(cat: StockCategory) {
 }
 
 function StockPage() {
-  const { items } = useStockStore();
+  const { items, updateItem } = useStockStore();
   const { hasRole } = useAuth();
   const canEdit = hasRole("admin", "manager");
+  const autoSyncAttemptedRef = useRef(false);
   const [addOpen, setAddOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [editItem, setEditItem] = useState<StockItem | null>(null);
   const [adjustItem, setAdjustItem] = useState<StockItem | null>(null);
   const [historyItem, setHistoryItem] = useState<StockItem | null>(null);
+  const [syncingLive, setSyncingLive] = useState(false);
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<"all" | StockStatus>("all");
   const [category, setCategory] = useState<"all" | StockCategory>("all");
@@ -149,6 +155,68 @@ function StockPage() {
     };
   }, [enriched]);
 
+  async function syncLiveStock() {
+    const selectedGroups = getSelectedProductGroups();
+    const imported = items.filter((item) => item.source === "Unleashed");
+    if (imported.length === 0) {
+      toast.error("No Unleashed stock items have been imported yet");
+      return;
+    }
+
+    setSyncingLive(true);
+    try {
+      const importedCodes = new Set(imported.map((item) => item.sku));
+      let allowedCodes = importedCodes;
+      let allowedKeys = new Set(imported.map((item) => item.sku.trim().toLowerCase()));
+      if (selectedGroups.length > 0) {
+        const client = createUnleashedClient();
+        const products = await client.fetchProducts(selectedGroups);
+        const selectedCodes = new Set(products.map((product) => product.ProductCode));
+        const selectedKeys = new Set(products.map((product) => product.ProductCode.trim().toLowerCase()));
+        allowedCodes = new Set(imported.filter((item) => selectedKeys.has(item.sku.trim().toLowerCase())).map((item) => item.sku));
+        allowedKeys = selectedKeys;
+        if (allowedCodes.size === 0) allowedCodes = selectedCodes;
+      }
+      const snapshot = await syncStockOnHand(undefined, allowedCodes, selectedGroups);
+      const liveByCode = new Map(
+        snapshot.items.map((stock) => [stock.ProductCode.trim().toLowerCase(), stock]),
+      );
+      let updated = 0;
+
+      for (const item of imported) {
+        if (!allowedKeys.has(item.sku.trim().toLowerCase())) continue;
+        const live = liveByCode.get(item.sku.trim().toLowerCase());
+        if (!live) continue;
+        await updateItem(item.id, {
+          quantityOnHand: Number(live.QtyOnHand ?? 0),
+          availableStock: Number(live.AvailableQty ?? live.QtyOnHand ?? 0),
+          allocatedStock: Number(live.AllocatedQty ?? 0),
+          reorderLevel: Number(live.MinStockAlertLevel ?? item.reorderLevel ?? 0),
+          location: live.Warehouse?.WarehouseCode ?? item.location,
+        });
+        updated++;
+      }
+
+      toast.success(`Updated live quantities for ${updated} item${updated === 1 ? "" : "s"}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not sync live stock");
+    } finally {
+      setSyncingLive(false);
+    }
+  }
+
+  useEffect(() => {
+    const imported = items.filter((item) => item.source === "Unleashed");
+    const needsInitialLiveSync =
+      imported.length > 0 &&
+      imported.every((item) => item.quantityOnHand <= 0 && item.availableStock <= 0) &&
+      imported.length > 0;
+
+    if (autoSyncAttemptedRef.current || syncingLive || !needsInitialLiveSync) return;
+    autoSyncAttemptedRef.current = true;
+    void syncLiveStock();
+  }, [items, syncingLive]);
+
   return (
     <AppShell>
       <div className="space-y-6">
@@ -162,6 +230,10 @@ function StockPage() {
             </p>
           </div>
           <div className="flex gap-2">
+            <Button variant="outline" onClick={syncLiveStock} disabled={syncingLive} className="h-11 gap-2">
+              <RefreshCw className={cn("size-4", syncingLive && "animate-spin")} />
+              {syncingLive ? "Syncing…" : "Sync live stock"}
+            </Button>
             <Button variant="outline" onClick={() => setReportOpen(true)} className="h-11 gap-2">
               <AlertTriangle className="size-4" />
               Low stock report

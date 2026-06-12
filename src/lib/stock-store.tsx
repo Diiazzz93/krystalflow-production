@@ -24,6 +24,8 @@ export interface NewStockInput {
   sku: string;
   category: StockCategory;
   quantityOnHand: number;
+  availableStock?: number;
+  allocatedStock?: number;
   unit: string;
   location: string;
   source?: string;
@@ -100,8 +102,8 @@ function inputToRow(input: NewStockInput) {
     name: input.name.trim(),
     category: input.category,
     quantity_on_hand: input.quantityOnHand,
-    available_stock: input.quantityOnHand,
-    allocated_stock: 0,
+    available_stock: input.availableStock ?? input.quantityOnHand,
+    allocated_stock: input.allocatedStock ?? 0,
     reorder_level: input.reorderLevel ?? 0,
     location: input.location.trim(),
     unit: input.unit.trim(),
