@@ -786,6 +786,7 @@ function formatTime(iso: string | null) {
 }
 
 function sameGroupSelection(a: string[] | undefined, b: string[]) {
+  if (!a || a.length === 0 || b.length === 0) return false;
   const normalise = (value: string) => value.trim().toLowerCase();
   const left = new Set((a ?? []).map(normalise).filter(Boolean));
   const right = new Set(b.map(normalise).filter(Boolean));
