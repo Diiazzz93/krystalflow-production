@@ -345,9 +345,12 @@ function UnleashedSyncPage() {
           </CardContent>
         </Card>
 
-        {/* Categories */}
         {/* Live stock mirror */}
-        <StockMirrorCard />
+        <StockMirrorCard
+          selectedGroups={selectedGroups}
+          onProductsLoaded={setProducts}
+        />
+
 
         <CategoriesCard categories={categories} />
 
