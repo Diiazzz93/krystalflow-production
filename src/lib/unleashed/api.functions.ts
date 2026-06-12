@@ -79,12 +79,56 @@ export const unleashedPing = createServerFn({ method: "GET" })
     const apiId = process.env.UNLEASHED_API_ID;
     const apiKey = process.env.UNLEASHED_API_KEY;
     if (!apiId || !apiKey) {
-      return { ok: false as const, error: "Credentials not configured" };
+      return {
+        ok: false as const,
+        error: "Credentials not configured (UNLEASHED_API_ID / UNLEASHED_API_KEY)",
+      };
     }
+
+    // Diagnostic call — bypasses signedFetch so we can return status + body
+    // verbatim for debugging signature / endpoint issues.
+    const path = "/Warehouses";
+    const query = ""; // no query params → signature is HMAC of empty string
+    const url = `${BASE_URL}${path}${query ? `?${query}` : ""}`;
+    const { createHmac } = await import("crypto");
+    const signature = createHmac("sha256", apiKey).update(query).digest("base64");
+
     try {
-      const items = await signedFetch<UnleashedWarehouse>("/Warehouses", "");
-      return { ok: true as const, warehouses: items.length };
+      const res = await fetch(url, {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          "api-auth-id": apiId,
+          "api-auth-signature": signature,
+          "client-type": "krystalflow/1.0",
+        },
+      });
+      const bodyText = await res.text().catch(() => "");
+      if (!res.ok) {
+        return {
+          ok: false as const,
+          status: res.status,
+          url,
+          stringToSign: query,
+          apiIdPreview: `${apiId.slice(0, 4)}…${apiId.slice(-4)} (len ${apiId.length})`,
+          body: bodyText.slice(0, 500),
+          error: `Unleashed ${path} returned ${res.status} ${res.statusText}`,
+        };
+      }
+      let warehouses = 0;
+      try {
+        const json = JSON.parse(bodyText) as { Items?: unknown[] };
+        warehouses = json.Items?.length ?? 0;
+      } catch {
+        /* ignore */
+      }
+      return { ok: true as const, status: res.status, url, warehouses };
     } catch (e) {
-      return { ok: false as const, error: e instanceof Error ? e.message : String(e) };
+      return {
+        ok: false as const,
+        url,
+        error: e instanceof Error ? e.message : String(e),
+      };
     }
   });
