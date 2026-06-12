@@ -612,10 +612,14 @@ function ProductRow({
   product,
   categories,
   manualMapping,
+  selected,
+  onToggleSelected,
 }: {
   product: UnleashedProduct;
   categories: KfCategory[];
   manualMapping: string | undefined;
+  selected: boolean;
+  onToggleSelected: (on: boolean) => void;
 }) {
   const resolved = resolveCategory(product.ProductCode, product.ProductDescription);
   const effective = manualMapping ?? resolved.kfCategoryId;
@@ -623,13 +627,24 @@ function ProductRow({
   return (
     <tr className="border-t border-border hover:bg-accent/30">
       <td className="p-2">
+        <Checkbox
+          checked={selected}
+          onCheckedChange={(v) => onToggleSelected(Boolean(v))}
+          aria-label={`Select ${product.ProductCode}`}
+        />
+      </td>
+      <td className="p-2">
         <div className="font-medium text-sm">{product.ProductCode}</div>
         <div className="text-xs text-muted-foreground truncate max-w-[28rem]">
           {product.ProductDescription}
         </div>
       </td>
       <td className="p-2">
-        <Badge variant="outline">{CATEGORY_LABELS[product.LovableCategory]}</Badge>
+        {product.LovableCategory ? (
+          <Badge variant="outline">{CATEGORY_LABELS[product.LovableCategory]}</Badge>
+        ) : (
+          <span className="text-xs text-muted-foreground">—</span>
+        )}
       </td>
       <td className="p-2">
         <Select
