@@ -292,34 +292,59 @@ function UnleashedSyncPage() {
           </Button>
         </div>
 
-        {/* Sources */}
+        {/* Product Groups picker */}
         <Card>
-          <CardHeader>
-            <CardTitle>1. What to sync from Unleashed</CardTitle>
-            <CardDescription>
-              Only enabled item types will be pulled and shown for mapping below.
-            </CardDescription>
+          <CardHeader className="flex flex-row items-start justify-between gap-3 flex-wrap">
+            <div>
+              <CardTitle>1. Which Unleashed Product Groups should sync?</CardTitle>
+              <CardDescription>
+                Only products in the selected groups are pulled in. Saved automatically.
+                Note: Unleashed&apos;s <code>productGroup</code> filter does not include
+                sub-groups — add each sub-group separately if you need them.
+              </CardDescription>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => setAllGroups(true)} disabled={productGroups.length === 0}>
+                Select all
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setAllGroups(false)} disabled={selectedGroups.length === 0}>
+                Clear
+              </Button>
+              <Button variant="outline" size="sm" onClick={loadProductGroups} disabled={loadingGroups}>
+                <RefreshCw className={`size-4 ${loadingGroups ? "animate-spin" : ""}`} />
+                Refresh
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {SYNC_CATEGORIES.map((cat) => (
-                <label
-                  key={cat}
-                  className="flex items-center gap-3 rounded-md border border-border p-3 hover:bg-accent/40 cursor-pointer"
-                >
-                  <Checkbox
-                    checked={sources[cat]}
-                    onCheckedChange={(v) => setSourceToggle(cat, Boolean(v))}
-                  />
-                  <div>
-                    <div className="text-sm font-medium">{CATEGORY_LABELS[cat]}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {products.filter((p) => p.LovableCategory === cat).length} items in Unleashed
-                    </div>
-                  </div>
-                </label>
-              ))}
-            </div>
+            {productGroups.length === 0 ? (
+              <div className="rounded-md border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+                {loadingGroups ? "Loading product groups from Unleashed…" : "No product groups loaded yet."}
+              </div>
+            ) : (
+              <>
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 max-h-80 overflow-auto pr-1">
+                  {productGroups.map((g) => {
+                    const checked = selectedGroups.includes(g.GroupName);
+                    return (
+                      <label
+                        key={g.Guid}
+                        className="flex items-center gap-3 rounded-md border border-border p-3 hover:bg-accent/40 cursor-pointer"
+                      >
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={(v) => toggleGroup(g.GroupName, Boolean(v))}
+                        />
+                        <div className="text-sm font-medium truncate">{g.GroupName}</div>
+                      </label>
+                    );
+                  })}
+                </div>
+                <div className="mt-3 text-xs text-muted-foreground">
+                  {selectedGroups.length} of {productGroups.length} groups selected
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
 
