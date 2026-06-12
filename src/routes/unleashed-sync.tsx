@@ -83,6 +83,7 @@ function UnleashedSyncPage() {
   const [filterCat, setFilterCat] = useState<string>("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [importing, setImporting] = useState(false);
+  const [syncingImported, setSyncingImported] = useState(false);
   const [productGroups, setProductGroups] = useState<UnleashedProductGroup[]>([]);
   const [selectedGroups, setSelectedGroupsState] = useState<string[]>(() =>
     getSelectedProductGroups(),
@@ -273,6 +274,51 @@ function UnleashedSyncPage() {
     }
   }
 
+  async function refreshImportedStock() {
+    if (selectedGroups.length === 0) {
+      toast.error("Pick at least one Product Group above first");
+      return;
+    }
+    const imported = stockStore.items.filter((item) => item.source === "Unleashed");
+    if (imported.length === 0) {
+      toast.error("No Unleashed stock items have been imported yet");
+      return;
+    }
+
+    setSyncingImported(true);
+    try {
+      const client = createUnleashedClient();
+      const selectedProducts = await client.fetchProducts(selectedGroups);
+      setProducts(selectedProducts);
+      const allowedCodes = new Set(selectedProducts.map((p) => p.ProductCode));
+      const snapshot = await syncStockOnHand(undefined, allowedCodes, selectedGroups);
+      const liveByCode = new Map(
+        snapshot.items.map((item) => [item.ProductCode.trim().toLowerCase(), item]),
+      );
+      let updated = 0;
+
+      for (const item of imported) {
+        if (!allowedCodes.has(item.sku)) continue;
+        const live = liveByCode.get(item.sku.trim().toLowerCase());
+        if (!live) continue;
+        await stockStore.updateItem(item.id, {
+          quantityOnHand: Number(live.QtyOnHand ?? 0),
+          availableStock: Number(live.AvailableQty ?? live.QtyOnHand ?? 0),
+          allocatedStock: Number(live.AllocatedQty ?? 0),
+          reorderLevel: Number(live.MinStockAlertLevel ?? item.reorderLevel ?? 0),
+          location: live.Warehouse?.WarehouseCode ?? item.location,
+        });
+        updated++;
+      }
+
+      toast.success(`Updated live quantities for ${updated} imported item${updated === 1 ? "" : "s"}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not update imported stock");
+    } finally {
+      setSyncingImported(false);
+    }
+  }
+
 
   return (
     <AppShell>
@@ -290,10 +336,16 @@ function UnleashedSyncPage() {
               Choose what to pull from Unleashed and map each item to a KrystalFlow category.
             </p>
           </div>
-          <Button variant="outline" onClick={loadProducts} disabled={loading}>
-            <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
-            Reload from Unleashed
-          </Button>
+          <div className="flex gap-2 flex-wrap justify-end">
+            <Button variant="outline" onClick={loadProducts} disabled={loading}>
+              <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
+              Reload from Unleashed
+            </Button>
+            <Button onClick={refreshImportedStock} disabled={syncingImported}>
+              <RefreshCw className={`size-4 ${syncingImported ? "animate-spin" : ""}`} />
+              {syncingImported ? "Updating stock…" : "Update imported stock"}
+            </Button>
+          </div>
         </div>
 
         {/* Product Groups picker */}
