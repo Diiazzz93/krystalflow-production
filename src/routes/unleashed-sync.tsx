@@ -985,7 +985,7 @@ function StockMirrorCard({
     let added = 0;
     let skipped = 0;
     try {
-      const existing = new Set(stockStore.items.map((i) => i.sku.toLowerCase()));
+      const existing = new Map(stockStore.items.map((i) => [i.sku.toLowerCase(), i]));
       const cats = getKfCategories();
       for (const s of items) {
         if (!selected.has(s.ProductCode)) continue;
