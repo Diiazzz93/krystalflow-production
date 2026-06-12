@@ -38,7 +38,7 @@ import {
   CATEGORY_LABELS,
   SYNC_CATEGORIES,
 } from "@/lib/unleashed/sync-service";
-import type { UnleashedProduct } from "@/lib/unleashed/types";
+import type { UnleashedProduct, UnleashedProductGroup } from "@/lib/unleashed/types";
 import { useStockStore } from "@/lib/stock-store";
 import type { StockCategory } from "@/lib/stock";
 import {
@@ -50,12 +50,13 @@ import {
   getKfCategories,
   getProductMappings,
   getRules,
-  getSourceToggles,
+  getSelectedProductGroups,
   renameKfCategory,
   resolveCategory,
   setProductMapping,
-  setSourceToggle,
+  setSelectedProductGroups,
   subscribeMapping,
+  toggleSelectedProductGroup,
   type KfCategory,
   type MappingRule,
   type RuleField,
