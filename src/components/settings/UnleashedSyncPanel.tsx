@@ -91,16 +91,6 @@ export function UnleashedSyncPanel() {
     }
   }
 
-  async function runSync() {
-    setBusy(true);
-    try {
-      const result = await syncAll();
-      if (result.status === "success") toast.success("Inventory sync complete");
-      else toast.error(`Sync finished with errors: ${result.lastError ?? "unknown"}`);
-    } finally {
-      setBusy(false);
-    }
-  }
 
 
   return (
