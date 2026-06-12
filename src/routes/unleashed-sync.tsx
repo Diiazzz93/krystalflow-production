@@ -75,7 +75,6 @@ export const Route = createFileRoute("/unleashed-sync")({
 });
 
 function UnleashedSyncPage() {
-  const [sources, setSources] = useState(() => getSourceToggles());
   const [categories, setCategories] = useState<KfCategory[]>(() => getKfCategories());
   const [mappings, setMappings] = useState(() => getProductMappings());
   const [rules, setRules] = useState<MappingRule[]>(() => getRules());
@@ -85,26 +84,53 @@ function UnleashedSyncPage() {
   const [filterCat, setFilterCat] = useState<string>("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [importing, setImporting] = useState(false);
+  const [productGroups, setProductGroups] = useState<UnleashedProductGroup[]>([]);
+  const [selectedGroups, setSelectedGroupsState] = useState<string[]>(() =>
+    getSelectedProductGroups(),
+  );
+  const [loadingGroups, setLoadingGroups] = useState(false);
   const stockStore = useStockStore();
 
   useEffect(
     () =>
       subscribeMapping(() => {
-        setSources(getSourceToggles());
         setCategories(getKfCategories());
         setMappings(getProductMappings());
         setRules(getRules());
+        setSelectedGroupsState(getSelectedProductGroups());
       }),
     [],
   );
 
+  async function loadProductGroups() {
+    setLoadingGroups(true);
+    try {
+      const client = createUnleashedClient();
+      const groups = await client.fetchProductGroups();
+      // sort by name for a stable list
+      groups.sort((a, b) => a.GroupName.localeCompare(b.GroupName));
+      setProductGroups(groups);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to load product groups");
+    } finally {
+      setLoadingGroups(false);
+    }
+  }
+
   async function loadProducts() {
+    if (selectedGroups.length === 0) {
+      setProducts([]);
+      toast.error("Pick at least one Product Group above first");
+      return;
+    }
     setLoading(true);
     try {
       const client = createUnleashedClient();
-      const all = await client.fetchProducts();
+      const all = await client.fetchProducts(selectedGroups);
       setProducts(all);
-      toast.success(`Loaded ${all.length} products from Unleashed`);
+      toast.success(
+        `Loaded ${all.length} products from ${selectedGroups.length} group${selectedGroups.length === 1 ? "" : "s"}`,
+      );
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to load products");
     } finally {
@@ -112,9 +138,29 @@ function UnleashedSyncPage() {
     }
   }
 
+  // Initial load: groups always; products only when user has groups selected.
   useEffect(() => {
-    loadProducts();
+    loadProductGroups();
+    if (getSelectedProductGroups().length > 0) {
+      loadProducts();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  function toggleGroup(name: string, on: boolean) {
+    toggleSelectedProductGroup(name, on);
+    setSelectedGroupsState(getSelectedProductGroups());
+  }
+  function setAllGroups(on: boolean) {
+    if (on) {
+      const all = productGroups.map((g) => g.GroupName);
+      setSelectedProductGroups(all);
+    } else {
+      setSelectedProductGroups([]);
+    }
+    setSelectedGroupsState(getSelectedProductGroups());
+  }
+
 
   const mappingByCode = useMemo(() => {
     const m = new Map<string, string>();
