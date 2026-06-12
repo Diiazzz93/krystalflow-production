@@ -243,13 +243,30 @@ function UnleashedSyncPage() {
     }
     setImporting(true);
     let added = 0;
+    let updated = 0;
     let skipped = 0;
     try {
-      const existing = new Set(stockStore.items.map((i) => i.sku.toLowerCase()));
+      const existing = new Map(stockStore.items.map((i) => [i.sku.toLowerCase(), i]));
+      const liveByCode = new Map(
+        (getStockSnapshot()?.items ?? []).map((item) => [item.ProductCode.trim().toLowerCase(), item]),
+      );
       for (const p of products) {
         if (!selected.has(p.ProductCode)) continue;
-        if (existing.has(p.ProductCode.toLowerCase())) {
-          skipped++;
+        const live = liveByCode.get(p.ProductCode.trim().toLowerCase());
+        const existingItem = existing.get(p.ProductCode.toLowerCase());
+        if (existingItem) {
+          if (live) {
+            await stockStore.updateItem(existingItem.id, {
+              quantityOnHand: Number(live.QtyOnHand ?? 0),
+              availableStock: Number(live.AvailableQty ?? live.QtyOnHand ?? 0),
+              allocatedStock: Number(live.AllocatedQty ?? 0),
+              reorderLevel: Number(live.MinStockAlertLevel ?? existingItem.reorderLevel ?? 0),
+              location: live.Warehouse?.WarehouseCode ?? existingItem.location,
+            });
+            updated++;
+          } else {
+            skipped++;
+          }
           continue;
         }
         const resolvedId = mappingByCode.get(p.ProductCode)
@@ -260,14 +277,19 @@ function UnleashedSyncPage() {
           name: p.ProductDescription || p.ProductCode,
           sku: p.ProductCode,
           category,
-          quantityOnHand: 0,
+          quantityOnHand: Number(live?.QtyOnHand ?? 0),
+          availableStock: Number(live?.AvailableQty ?? live?.QtyOnHand ?? 0),
+          allocatedStock: Number(live?.AllocatedQty ?? 0),
+          reorderLevel: Number(live?.MinStockAlertLevel ?? 0),
           unit: p.UnitOfMeasure?.Name || "units",
-          location: "",
+          location: live?.Warehouse?.WarehouseCode ?? "",
           source: "Unleashed",
         });
         if (result) added++;
       }
-      toast.success(`Imported ${added} item${added === 1 ? "" : "s"}${skipped ? ` (${skipped} already existed)` : ""}`);
+      toast.success(
+        `Imported ${added} item${added === 1 ? "" : "s"}${updated ? `, updated ${updated}` : ""}${skipped ? ` (${skipped} already existed)` : ""}`,
+      );
       setSelected(new Set());
     } finally {
       setImporting(false);
@@ -292,13 +314,14 @@ function UnleashedSyncPage() {
       setProducts(selectedProducts);
       const allowedCodes = new Set(selectedProducts.map((p) => p.ProductCode));
       const snapshot = await syncStockOnHand(undefined, allowedCodes, selectedGroups);
+      const allowedKeys = new Set(selectedProducts.map((p) => p.ProductCode.trim().toLowerCase()));
       const liveByCode = new Map(
         snapshot.items.map((item) => [item.ProductCode.trim().toLowerCase(), item]),
       );
       let updated = 0;
 
       for (const item of imported) {
-        if (!allowedCodes.has(item.sku)) continue;
+        if (!allowedKeys.has(item.sku.trim().toLowerCase())) continue;
         const live = liveByCode.get(item.sku.trim().toLowerCase());
         if (!live) continue;
         await stockStore.updateItem(item.id, {
