@@ -824,7 +824,7 @@ function StockMirrorCard({
       onProductsLoaded(products);
       const allowed = new Set(products.map((p) => p.ProductCode));
       // 2) Pull stock-on-hand and filter to the allowed codes.
-      const snap = await syncStockOnHand(undefined, allowed);
+      const snap = await syncStockOnHand(undefined, allowed, selectedGroups);
       toast.success(
         `Mirrored ${snap.items.length} stock rows from ${products.length} products in ${selectedGroups.length} group${selectedGroups.length === 1 ? "" : "s"}`,
       );
