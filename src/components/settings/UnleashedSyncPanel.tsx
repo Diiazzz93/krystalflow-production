@@ -113,9 +113,8 @@ export function UnleashedSyncPanel() {
             liquid/IBCs up to date. Credentials are stored securely server-side.
           </CardDescription>
         </div>
-        <Button onClick={runSync} disabled={busy}>
-          <RefreshCw className={`size-4 ${busy ? "animate-spin" : ""}`} />
-          {busy ? "Syncing…" : "Sync now"}
+        <Button asChild>
+          <Link to="/unleashed-sync">Open sync &amp; import →</Link>
         </Button>
       </CardHeader>
       <CardContent className="space-y-6">
