@@ -12,21 +12,38 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type {
   UnleashedProduct,
+  UnleashedProductGroup,
   UnleashedStockOnHand,
   UnleashedWarehouse,
 } from "./types";
 
 const BASE_URL = "https://api.unleashedsoftware.com";
 
-async function signedFetch<T>(path: string, query: string): Promise<T[]> {
+interface UnleashedListResponse<T> {
+  Items?: T[];
+  Pagination?: {
+    NumberOfItems?: number;
+    PageSize?: number;
+    PageNumber?: number;
+    NumberOfPages?: number;
+  };
+}
+
+/**
+ * Signed Unleashed GET. The string used to sign MUST equal the request's
+ * query string (without the leading `?`). Pass `query` already serialized
+ * exactly as it will appear in the URL.
+ */
+async function signedFetchRaw<T>(
+  path: string,
+  query: string,
+): Promise<UnleashedListResponse<T>> {
   const apiId = process.env.UNLEASHED_API_ID;
   const apiKey = process.env.UNLEASHED_API_KEY;
   if (!apiId || !apiKey) {
     throw new Error("Unleashed credentials are not configured");
   }
 
-  // Per Unleashed docs: signature = base64(HMAC-SHA256(apiKey, queryString))
-  // where queryString excludes the leading "?".
   const { createHmac } = await import("crypto");
   const signature = createHmac("sha256", apiKey).update(query).digest("base64");
 
@@ -47,8 +64,39 @@ async function signedFetch<T>(path: string, query: string): Promise<T[]> {
     throw new Error(`Unleashed ${path} failed: ${res.status} ${body.slice(0, 200)}`);
   }
 
-  const json = (await res.json()) as { Items?: T[] };
+  return (await res.json()) as UnleashedListResponse<T>;
+}
+
+async function signedFetch<T>(path: string, query: string): Promise<T[]> {
+  const json = await signedFetchRaw<T>(path, query);
   return json.Items ?? [];
+}
+
+/**
+ * Page through every Unleashed result page for `basePath` + `baseQuery`.
+ * Unleashed paginates with /Endpoint/{pageNumber} and a Pagination block in
+ * the response body.
+ */
+async function signedFetchAllPages<T>(
+  basePath: string,
+  baseParams: URLSearchParams,
+): Promise<T[]> {
+  const all: T[] = [];
+  // Safety cap to avoid runaway loops.
+  const MAX_PAGES = 50;
+  let page = 1;
+  while (page <= MAX_PAGES) {
+    const params = new URLSearchParams(baseParams);
+    // Unleashed prefers page in the path; pageSize stays in the query.
+    const query = params.toString();
+    const json = await signedFetchRaw<T>(`${basePath}/${page}`, query);
+    const items = json.Items ?? [];
+    all.push(...items);
+    const totalPages = json.Pagination?.NumberOfPages ?? 1;
+    if (page >= totalPages || items.length === 0) break;
+    page++;
+  }
+  return all;
 }
 
 export const unleashedFetchWarehouses = createServerFn({ method: "GET" })
@@ -57,20 +105,57 @@ export const unleashedFetchWarehouses = createServerFn({ method: "GET" })
     return signedFetch<UnleashedWarehouse>("/Warehouses", "");
   });
 
-export const unleashedFetchProducts = createServerFn({ method: "GET" })
+export const unleashedFetchProductGroups = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async () => {
-    // Page 1, large page size — fine for KrystalFlow's catalogue size.
-    return signedFetch<UnleashedProduct>("/Products", "pageSize=500");
+    return signedFetch<UnleashedProductGroup>("/ProductGroups", "");
+  });
+
+/**
+ * Fetch products across selected product groups, with pagination.
+ * - No groups passed → returns nothing (we don't want to silently flood
+ *   the app — user must pick groups first).
+ * - One or more groups → one paginated call per group, results merged
+ *   and deduplicated by ProductCode.
+ *
+ * Unleashed's `productGroup` filter matches the parent group only and
+ * does NOT recurse into sub-groups (per Unleashed docs), so callers that
+ * need sub-groups must pass them explicitly.
+ */
+export const unleashedFetchProducts = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    (input: { groupNames?: string[]; pageSize?: number } | undefined) => input ?? {},
+  )
+  .handler(async ({ data }) => {
+    const pageSize = Math.min(Math.max(data.pageSize ?? 200, 50), 500);
+    const groups = (data.groupNames ?? []).map((g) => g.trim()).filter(Boolean);
+
+    if (groups.length === 0) {
+      return [] as UnleashedProduct[];
+    }
+
+    const byCode = new Map<string, UnleashedProduct>();
+    for (const group of groups) {
+      const params = new URLSearchParams({
+        pageSize: String(pageSize),
+        productGroup: group,
+      });
+      const items = await signedFetchAllPages<UnleashedProduct>("/Products", params);
+      for (const p of items) {
+        if (!byCode.has(p.ProductCode)) byCode.set(p.ProductCode, p);
+      }
+    }
+    return Array.from(byCode.values());
   });
 
 export const unleashedFetchStockOnHand = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { warehouseCode?: string } | undefined) => input ?? {})
   .handler(async ({ data }) => {
-    const params = new URLSearchParams({ pageSize: "500" });
+    const params = new URLSearchParams({ pageSize: "200" });
     if (data.warehouseCode) params.set("warehouseCode", data.warehouseCode);
-    return signedFetch<UnleashedStockOnHand>("/StockOnHand", params.toString());
+    return signedFetchAllPages<UnleashedStockOnHand>("/StockOnHand", params);
   });
 
 export const unleashedPing = createServerFn({ method: "GET" })
@@ -85,10 +170,8 @@ export const unleashedPing = createServerFn({ method: "GET" })
       };
     }
 
-    // Diagnostic call — bypasses signedFetch so we can return status + body
-    // verbatim for debugging signature / endpoint issues.
     const path = "/Warehouses";
-    const query = ""; // no query params → signature is HMAC of empty string
+    const query = "";
     const url = `${BASE_URL}${path}${query ? `?${query}` : ""}`;
     const { createHmac } = await import("crypto");
     const signature = createHmac("sha256", apiKey).update(query).digest("base64");
