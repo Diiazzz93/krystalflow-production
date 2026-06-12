@@ -63,6 +63,7 @@ import {
   getConnectedAt,
   getLastStockSyncAt,
   getStockSnapshot,
+  clearStockSnapshot,
   subscribeStockMirror,
   syncStockOnHand,
   type StockSnapshot,
@@ -148,6 +149,9 @@ function UnleashedSyncPage() {
   function toggleGroup(name: string, on: boolean) {
     toggleSelectedProductGroup(name, on);
     setSelectedGroupsState(getSelectedProductGroups());
+    setProducts([]);
+    setSelected(new Set());
+    clearStockSnapshot();
   }
   function setAllGroups(on: boolean) {
     if (on) {
@@ -157,6 +161,9 @@ function UnleashedSyncPage() {
       setSelectedProductGroups([]);
     }
     setSelectedGroupsState(getSelectedProductGroups());
+    setProducts([]);
+    setSelected(new Set());
+    clearStockSnapshot();
   }
 
 
@@ -778,6 +785,15 @@ function formatTime(iso: string | null) {
   return new Date(iso).toLocaleString();
 }
 
+function sameGroupSelection(a: string[] | undefined, b: string[]) {
+  if (!a || a.length === 0 || b.length === 0) return false;
+  const normalise = (value: string) => value.trim().toLowerCase();
+  const left = new Set((a ?? []).map(normalise).filter(Boolean));
+  const right = new Set(b.map(normalise).filter(Boolean));
+  if (left.size !== right.size) return false;
+  return Array.from(left).every((group) => right.has(group));
+}
+
 function StockMirrorCard({
   selectedGroups,
   onProductsLoaded,
@@ -804,6 +820,13 @@ function StockMirrorCard({
     [],
   );
 
+  useEffect(() => {
+    if (snapshot && !sameGroupSelection(snapshot.selectedGroups, selectedGroups)) {
+      clearStockSnapshot();
+      setSelected(new Set());
+    }
+  }, [snapshot, selectedGroups]);
+
   async function runSync() {
     if (selectedGroups.length === 0) {
       toast.error("Pick at least one Product Group above first");
@@ -817,7 +840,7 @@ function StockMirrorCard({
       onProductsLoaded(products);
       const allowed = new Set(products.map((p) => p.ProductCode));
       // 2) Pull stock-on-hand and filter to the allowed codes.
-      const snap = await syncStockOnHand(undefined, allowed);
+      const snap = await syncStockOnHand(undefined, allowed, selectedGroups);
       toast.success(
         `Mirrored ${snap.items.length} stock rows from ${products.length} products in ${selectedGroups.length} group${selectedGroups.length === 1 ? "" : "s"}`,
       );

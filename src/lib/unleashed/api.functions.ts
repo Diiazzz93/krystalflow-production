@@ -159,7 +159,8 @@ export const unleashedFetchProducts = createServerFn({ method: "GET" })
         ["productGroup", group],
       ];
       const items = await signedFetchAllPages<UnleashedProduct>("/Products", entries);
-      for (const p of items) {
+      const matchingItems = items.filter((p) => p.ProductGroup?.GroupName?.trim() === group);
+      for (const p of matchingItems) {
         if (!byCode.has(p.ProductCode)) byCode.set(p.ProductCode, p);
       }
     }
