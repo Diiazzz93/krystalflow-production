@@ -63,6 +63,7 @@ import {
   getConnectedAt,
   getLastStockSyncAt,
   getStockSnapshot,
+  clearStockSnapshot,
   subscribeStockMirror,
   syncStockOnHand,
   type StockSnapshot,
@@ -148,6 +149,9 @@ function UnleashedSyncPage() {
   function toggleGroup(name: string, on: boolean) {
     toggleSelectedProductGroup(name, on);
     setSelectedGroupsState(getSelectedProductGroups());
+    setProducts([]);
+    setSelected(new Set());
+    clearStockSnapshot();
   }
   function setAllGroups(on: boolean) {
     if (on) {
@@ -157,6 +161,9 @@ function UnleashedSyncPage() {
       setSelectedProductGroups([]);
     }
     setSelectedGroupsState(getSelectedProductGroups());
+    setProducts([]);
+    setSelected(new Set());
+    clearStockSnapshot();
   }
 
 
