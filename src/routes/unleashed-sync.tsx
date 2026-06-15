@@ -1146,3 +1146,117 @@ function StockMirrorCard({
     </Card>
   );
 }
+
+interface SyncLogRow {
+  id: string;
+  sales_order_number: string | null;
+  outcome: string;
+  message: string | null;
+  created_at: string;
+}
+
+function FillReadyImportCard() {
+  const runImport = useServerFn(runFillReadyImport);
+  const [running, setRunning] = useState(false);
+  const [last, setLast] = useState<{ imported: number; skipped: number; errors: number; fetched: number } | null>(null);
+  const [log, setLog] = useState<SyncLogRow[]>([]);
+
+  async function loadLog() {
+    const { data } = await supabase
+      .from("unleashed_sync_log")
+      .select("id, sales_order_number, outcome, message, created_at")
+      .order("created_at", { ascending: false })
+      .limit(20);
+    setLog((data ?? []) as SyncLogRow[]);
+  }
+
+  useEffect(() => {
+    loadLog();
+  }, []);
+
+  async function run() {
+    setRunning(true);
+    try {
+      const summary = await runImport({});
+      setLast({
+        imported: summary.imported,
+        skipped: summary.skipped,
+        errors: summary.errors,
+        fetched: summary.fetched,
+      });
+      toast.success(
+        `Fill Ready sync: ${summary.imported} imported, ${summary.skipped} skipped, ${summary.errors} errors (of ${summary.fetched} fetched)`,
+      );
+      await loadLog();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Sync failed");
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-start justify-between gap-3 flex-wrap">
+        <div>
+          <CardTitle>Sales Orders — Fill Ready</CardTitle>
+          <CardDescription>
+            Imports any Unleashed Sales Order with status <strong>Fill Ready</strong> as a
+            Production Job and creates a linked Assembly. Runs every 5 minutes automatically;
+            use the button for an ad-hoc check.
+          </CardDescription>
+        </div>
+        <Button onClick={run} disabled={running}>
+          <RefreshCw className={`size-4 ${running ? "animate-spin" : ""}`} />
+          {running ? "Checking…" : "Check now"}
+        </Button>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {last && (
+          <div className="flex flex-wrap gap-2 text-xs">
+            <Badge variant="secondary">Fetched {last.fetched}</Badge>
+            <Badge variant="secondary" className="bg-emerald-500/15 text-emerald-400 border-emerald-500/30">Imported {last.imported}</Badge>
+            <Badge variant="secondary">Skipped {last.skipped}</Badge>
+            {last.errors > 0 && (
+              <Badge variant="secondary" className="bg-red-500/15 text-red-400 border-red-500/30">Errors {last.errors}</Badge>
+            )}
+          </div>
+        )}
+        <div className="rounded-md border border-border overflow-hidden">
+          <div className="px-3 py-2 text-xs font-medium bg-muted/40 border-b border-border">
+            Recent sync activity
+          </div>
+          {log.length === 0 ? (
+            <div className="p-4 text-sm text-muted-foreground text-center">No sync activity yet.</div>
+          ) : (
+            <div className="divide-y divide-border max-h-72 overflow-auto">
+              {log.map((r) => (
+                <div key={r.id} className="px-3 py-2 text-xs flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="font-medium truncate">
+                      {r.sales_order_number ?? "—"}{" "}
+                      <span className="text-muted-foreground font-normal">{r.message}</span>
+                    </div>
+                    <div className="text-muted-foreground">{new Date(r.created_at).toLocaleString()}</div>
+                  </div>
+                  <Badge
+                    variant="secondary"
+                    className={
+                      r.outcome === "imported"
+                        ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+                        : r.outcome === "error"
+                        ? "bg-red-500/15 text-red-400 border-red-500/30"
+                        : ""
+                    }
+                  >
+                    {r.outcome}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
