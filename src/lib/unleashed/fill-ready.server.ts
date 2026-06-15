@@ -16,6 +16,7 @@ interface UnleashedSalesOrder {
   Guid: string;
   OrderNumber: string;
   OrderStatus: string;
+  CustomOrderStatus?: string | null;
   Customer?: { CustomerName?: string; CustomerCode?: string } | null;
   SalesOrderLines?: UnleashedSalesOrderLine[];
 }
@@ -28,7 +29,9 @@ interface UnleashedBomLine {
 interface UnleashedBom {
   Guid?: string;
   ProductOfBOM?: { Guid?: string; ProductCode?: string } | null;
+  Product?: { Guid?: string; ProductCode?: string } | null;
   BillOfMaterialLines?: UnleashedBomLine[];
+  BillOfMaterialsLines?: UnleashedBomLine[];
 }
 
 interface SupabaseLike {
@@ -63,9 +66,10 @@ export async function importFillReadyImpl(supabase: SupabaseLike): Promise<Impor
     details: [],
   };
 
-  // 1) Fetch all Fill Ready sales orders.
+  // 1) Fetch all Fill Ready sales orders. In Unleashed this workflow status is
+  // exposed as CustomOrderStatus, while OrderStatus remains Parked/Open.
   const orders = await ulFetchAllQueryPages<UnleashedSalesOrder>("/SalesOrders", [
-    ["orderStatus", FILL_READY],
+    ["customOrderStatus", FILL_READY],
     ["pageSize", "200"],
   ]);
   summary.fetched = orders.length;
@@ -86,8 +90,9 @@ export async function importFillReadyImpl(supabase: SupabaseLike): Promise<Impor
   }
 
   for (const so of orders) {
-    // Defensive: only act on Fill Ready (server filter should already do this).
-    if ((so.OrderStatus ?? "").trim() !== FILL_READY) continue;
+    // Defensive: only act on open Sales Orders whose custom status is Fill Ready.
+    if ((so.CustomOrderStatus ?? "").trim() !== FILL_READY) continue;
+    if ((so.OrderStatus ?? "").trim().toLowerCase() === "completed") continue;
 
     if (existingIds.has(so.Guid)) {
       summary.skipped++;
@@ -118,7 +123,8 @@ export async function importFillReadyImpl(supabase: SupabaseLike): Promise<Impor
 
       // 3) Fetch BOM for the product. Fail import if none.
       const bom = await fetchBom(productGuid);
-      if (!bom || !(bom.BillOfMaterialLines && bom.BillOfMaterialLines.length > 0)) {
+      const bomLines = bom?.BillOfMaterialsLines ?? bom?.BillOfMaterialLines ?? [];
+      if (!bom || bomLines.length === 0) {
         throw new Error(`No Bill of Materials found for product ${productCode}`);
       }
 
@@ -214,12 +220,11 @@ export async function importFillReadyImpl(supabase: SupabaseLike): Promise<Impor
 }
 
 async function fetchBom(productGuid: string): Promise<UnleashedBom | null> {
-  // Unleashed exposes BOM under /BillOfMaterials/{productGuid}.
+  // Unleashed lists BOMs by productGuid; /BillOfMaterials/{guid} expects the BOM guid,
+  // not the product guid.
   try {
-    const res = await ulFetchRaw<UnleashedBom>(`/BillOfMaterials/${productGuid}`, "");
-    // The endpoint returns the BOM object directly (not Items). Use the raw body via a re-fetch.
-    // Workaround: re-fetch without the Items wrapper assumption.
-    if ((res as any).BillOfMaterialLines || (res as any).ProductOfBOM) {
+    const res = await ulFetchRaw<UnleashedBom>("/BillOfMaterials", `productGuid=${productGuid}&pageSize=20`);
+    if ((res as any).BillOfMaterialsLines || (res as any).BillOfMaterialLines || (res as any).ProductOfBOM) {
       return res as unknown as UnleashedBom;
     }
     if (res.Items && res.Items.length > 0) return res.Items[0];
