@@ -145,7 +145,7 @@ export async function importFillReadyImpl(supabase: SupabaseLike): Promise<Impor
           assemblyPayload,
         );
         assemblyId = created?.Guid ?? null;
-        assemblyNumber = created?.AssemblyNumber ?? assemblyPayload.AssemblyNumber;
+        assemblyNumber = created?.AssemblyNumber ?? null;
       } catch (e) {
         // Surface but continue — we still want the Job created so production can run.
         // Approvers will see the missing assembly id and can retry.
