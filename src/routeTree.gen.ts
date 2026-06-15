@@ -21,6 +21,7 @@ import { Route as CustomerSpecsRouteImport } from './routes/customer-specs'
 import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiPublicHooksSyncFillReadyRouteImport } from './routes/api/public/hooks/sync-fill-ready'
 
 const UnleashedSyncRoute = UnleashedSyncRouteImport.update({
   id: '/unleashed-sync',
@@ -82,6 +83,12 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHooksSyncFillReadyRoute =
+  ApiPublicHooksSyncFillReadyRouteImport.update({
+    id: '/api/public/hooks/sync-fill-ready',
+    path: '/api/public/hooks/sync-fill-ready',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -96,6 +103,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/stock': typeof StockRoute
   '/unleashed-sync': typeof UnleashedSyncRoute
+  '/api/public/hooks/sync-fill-ready': typeof ApiPublicHooksSyncFillReadyRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -110,6 +118,7 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/stock': typeof StockRoute
   '/unleashed-sync': typeof UnleashedSyncRoute
+  '/api/public/hooks/sync-fill-ready': typeof ApiPublicHooksSyncFillReadyRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -125,6 +134,7 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/stock': typeof StockRoute
   '/unleashed-sync': typeof UnleashedSyncRoute
+  '/api/public/hooks/sync-fill-ready': typeof ApiPublicHooksSyncFillReadyRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -141,6 +151,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/stock'
     | '/unleashed-sync'
+    | '/api/public/hooks/sync-fill-ready'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -155,6 +166,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/stock'
     | '/unleashed-sync'
+    | '/api/public/hooks/sync-fill-ready'
   id:
     | '__root__'
     | '/'
@@ -169,6 +181,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/stock'
     | '/unleashed-sync'
+    | '/api/public/hooks/sync-fill-ready'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -184,6 +197,7 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   StockRoute: typeof StockRoute
   UnleashedSyncRoute: typeof UnleashedSyncRoute
+  ApiPublicHooksSyncFillReadyRoute: typeof ApiPublicHooksSyncFillReadyRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -272,6 +286,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/sync-fill-ready': {
+      id: '/api/public/hooks/sync-fill-ready'
+      path: '/api/public/hooks/sync-fill-ready'
+      fullPath: '/api/public/hooks/sync-fill-ready'
+      preLoaderRoute: typeof ApiPublicHooksSyncFillReadyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -288,6 +309,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   StockRoute: StockRoute,
   UnleashedSyncRoute: UnleashedSyncRoute,
+  ApiPublicHooksSyncFillReadyRoute: ApiPublicHooksSyncFillReadyRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
