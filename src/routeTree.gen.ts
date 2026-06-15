@@ -19,6 +19,7 @@ import { Route as LineSetupRouteImport } from './routes/line-setup'
 import { Route as JobsRouteImport } from './routes/jobs'
 import { Route as CustomerSpecsRouteImport } from './routes/customer-specs'
 import { Route as CalendarRouteImport } from './routes/calendar'
+import { Route as AssemblyApprovalsRouteImport } from './routes/assembly-approvals'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiPublicHooksSyncFillReadyRouteImport } from './routes/api/public/hooks/sync-fill-ready'
@@ -73,6 +74,11 @@ const CalendarRoute = CalendarRouteImport.update({
   path: '/calendar',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AssemblyApprovalsRoute = AssemblyApprovalsRouteImport.update({
+  id: '/assembly-approvals',
+  path: '/assembly-approvals',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AnalyticsRoute = AnalyticsRouteImport.update({
   id: '/analytics',
   path: '/analytics',
@@ -93,6 +99,7 @@ const ApiPublicHooksSyncFillReadyRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
+  '/assembly-approvals': typeof AssemblyApprovalsRoute
   '/calendar': typeof CalendarRoute
   '/customer-specs': typeof CustomerSpecsRoute
   '/jobs': typeof JobsRoute
@@ -108,6 +115,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
+  '/assembly-approvals': typeof AssemblyApprovalsRoute
   '/calendar': typeof CalendarRoute
   '/customer-specs': typeof CustomerSpecsRoute
   '/jobs': typeof JobsRoute
@@ -124,6 +132,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
+  '/assembly-approvals': typeof AssemblyApprovalsRoute
   '/calendar': typeof CalendarRoute
   '/customer-specs': typeof CustomerSpecsRoute
   '/jobs': typeof JobsRoute
@@ -141,6 +150,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/analytics'
+    | '/assembly-approvals'
     | '/calendar'
     | '/customer-specs'
     | '/jobs'
@@ -156,6 +166,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/analytics'
+    | '/assembly-approvals'
     | '/calendar'
     | '/customer-specs'
     | '/jobs'
@@ -171,6 +182,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/analytics'
+    | '/assembly-approvals'
     | '/calendar'
     | '/customer-specs'
     | '/jobs'
@@ -187,6 +199,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AnalyticsRoute: typeof AnalyticsRoute
+  AssemblyApprovalsRoute: typeof AssemblyApprovalsRoute
   CalendarRoute: typeof CalendarRoute
   CustomerSpecsRoute: typeof CustomerSpecsRoute
   JobsRoute: typeof JobsRoute
@@ -272,6 +285,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CalendarRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/assembly-approvals': {
+      id: '/assembly-approvals'
+      path: '/assembly-approvals'
+      fullPath: '/assembly-approvals'
+      preLoaderRoute: typeof AssemblyApprovalsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/analytics': {
       id: '/analytics'
       path: '/analytics'
@@ -299,6 +319,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AnalyticsRoute: AnalyticsRoute,
+  AssemblyApprovalsRoute: AssemblyApprovalsRoute,
   CalendarRoute: CalendarRoute,
   CustomerSpecsRoute: CustomerSpecsRoute,
   JobsRoute: JobsRoute,
