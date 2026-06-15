@@ -14,6 +14,7 @@ import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 
 const STORAGE_KEY = "krystalshield.v2.local";
+const JOB_COLORS = ["#0ea5e9", "#22c55e", "#f97316", "#a855f7", "#ec4899", "#14b8a6", "#eab308"];
 
 interface LocalState {
   lines: Line[];
@@ -72,6 +73,10 @@ function jobToRow(j: Job) {
 
 function rowToJob(r: Record<string, unknown>): Job {
   const data = (r.data as Partial<Job> | undefined) ?? {};
+  const scheduledStart = String(r.scheduled_start ?? data.scheduledStart ?? new Date().toISOString());
+  const fallbackDueDate = new Date(scheduledStart);
+  fallbackDueDate.setDate(fallbackDueDate.getDate() + 7);
+  const colorIndex = Math.abs(String(r.customer ?? data.customer ?? "").split("").reduce((sum, ch) => sum + ch.charCodeAt(0), 0)) % JOB_COLORS.length;
   // Prefer the column values as source of truth; merge richer fields from data.
   return {
     ...(data as Job),
@@ -79,11 +84,28 @@ function rowToJob(r: Record<string, unknown>): Job {
     customer: String(r.customer ?? data.customer ?? ""),
     product: String(r.product ?? data.product ?? ""),
     sku: String(r.sku ?? data.sku ?? ""),
+    bottleSize: data.bottleSize ?? "",
+    quantity: Number(data.quantity ?? 0),
+    pallets: Number(data.pallets ?? 1),
+    dueDate: String(data.dueDate ?? fallbackDueDate.toISOString().slice(0, 10)),
+    priority: data.priority ?? "Normal",
     status: (r.status as Job["status"]) ?? data.status ?? "Scheduled",
     operator: String(r.operator ?? data.operator ?? ""),
     line: String(r.line ?? data.line ?? ""),
-    scheduledStart: (r.scheduled_start as string) ?? data.scheduledStart ?? new Date().toISOString(),
+    rawMaterial: data.rawMaterial ?? "Pending",
+    labels: data.labels ?? "Pending",
+    packaging: data.packaging ?? "Pending",
+    scheduledStart,
     scheduledEnd: (r.scheduled_end as string) ?? data.scheduledEnd,
+    bottlesPerHour: Number(data.bottlesPerHour ?? 3000),
+    setupMinutes: Number(data.setupMinutes ?? 30),
+    notes: data.notes ?? "",
+    bottlesCompleted: Number(data.bottlesCompleted ?? 0),
+    palletsCompleted: Number(data.palletsCompleted ?? 0),
+    downtimeMinutes: Number(data.downtimeMinutes ?? 0),
+    actualRuntimeMinutes: Number(data.actualRuntimeMinutes ?? 0),
+    customerColor: data.customerColor ?? JOB_COLORS[colorIndex],
+    createdAt: data.createdAt ?? String(r.created_at ?? new Date().toISOString()),
   };
 }
 
