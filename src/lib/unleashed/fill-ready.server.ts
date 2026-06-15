@@ -17,6 +17,9 @@ interface UnleashedSalesOrder {
   OrderNumber: string;
   OrderStatus: string;
   CustomOrderStatus?: string | null;
+  OrderDate?: string | null;
+  RequiredDate?: string | null;
+  DueDate?: string | null;
   Warehouse?: { WarehouseCode?: string; WarehouseName?: string; Guid?: string } | null;
   Customer?: { CustomerName?: string; CustomerCode?: string } | null;
   SalesOrderLines?: UnleashedSalesOrderLine[];
@@ -159,6 +162,9 @@ export async function importFillReadyImpl(supabase: SupabaseLike): Promise<Impor
       }
 
       // 5) Create the production job.
+      const scheduledStart = normaliseUnleashedDate(so.OrderDate) ?? new Date().toISOString();
+      const dueDate = normaliseUnleashedDate(so.RequiredDate ?? so.DueDate) ?? scheduledStart;
+
       const { data: jobRows, error: insertError } = await supabase
         .from("production_jobs")
         .insert({
@@ -168,12 +174,41 @@ export async function importFillReadyImpl(supabase: SupabaseLike): Promise<Impor
           status: "Scheduled",
           operator: "",
           line: "",
+          scheduled_start: scheduledStart,
           unleashed_sales_order_id: so.Guid,
           unleashed_sales_order_number: so.OrderNumber,
           unleashed_assembly_id: assemblyId,
           unleashed_assembly_number: assemblyNumber,
           imported_from_unleashed_at: new Date().toISOString(),
-          data: { quantity: qty, importedFromUnleashed: true },
+          data: {
+            customer: so.Customer?.CustomerName ?? "Unknown",
+            product: productDesc,
+            sku: productCode,
+            bottleSize: "",
+            quantity: qty,
+            pallets: 1,
+            dueDate: dueDate.slice(0, 10),
+            priority: "Normal",
+            line: "",
+            operator: "",
+            bottlesPerHour: 3000,
+            setupMinutes: 30,
+            notes: `Imported from Unleashed Sales Order ${so.OrderNumber}`,
+            rawMaterial: "Pending",
+            labels: "Pending",
+            packaging: "Pending",
+            status: "Scheduled",
+            scheduledStart,
+            bottlesCompleted: 0,
+            palletsCompleted: 0,
+            downtimeMinutes: 0,
+            actualRuntimeMinutes: 0,
+            customerColor: customerColor(so.Customer?.CustomerName ?? "Unknown"),
+            createdAt: new Date().toISOString(),
+            importedFromUnleashed: true,
+            unleashedSalesOrderNumber: so.OrderNumber,
+            unleashedAssemblyNumber: assemblyNumber,
+          },
         })
         .select("id")
         .single();
@@ -229,6 +264,18 @@ async function fetchBom(productGuid: string): Promise<UnleashedBom | null> {
   } catch {
     return null;
   }
+}
+
+function normaliseUnleashedDate(value?: string | null): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
+function customerColor(customer: string): string {
+  const colors = ["#0ea5e9", "#22c55e", "#f97316", "#a855f7", "#ec4899", "#14b8a6", "#eab308"];
+  const idx = Math.abs(customer.split("").reduce((sum, ch) => sum + ch.charCodeAt(0), 0)) % colors.length;
+  return colors[idx];
 }
 
 export async function completeAssemblyImpl(
