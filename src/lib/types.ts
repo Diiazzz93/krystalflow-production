@@ -7,6 +7,8 @@ export type JobStatus =
   | "Packing"
   | "QC Review"
   | "Complete"
+  | "Pending Assembly Approval"
+  | "Assembly Completed"
   | "Delayed"
   | "On Hold"
   | "Requires Review";
