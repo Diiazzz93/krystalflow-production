@@ -135,16 +135,17 @@ export async function importFillReadyImpl(supabase: SupabaseLike): Promise<Impor
         Guid: assemblyGuid,
         AssemblyNumber: `KF-${so.OrderNumber}`,
         AssemblyDate: new Date().toISOString(),
-        AssemblyQuantity: qty,
+        Quantity: qty,
         Product: { Guid: productGuid },
-        Status: "Parked",
+        AssemblyStatus: "Parked",
+        SalesOrderNumber: so.OrderNumber,
         Comments: `Auto-created by KrystalFlow from Sales Order ${so.OrderNumber}`,
       };
       let assemblyId: string | null = null;
       let assemblyNumber: string | null = null;
       try {
         const created = await ulPost<{ Guid?: string; AssemblyNumber?: string }>(
-          `/Assemblies/${assemblyGuid}`,
+          "/Assemblies",
           assemblyPayload,
         );
         assemblyId = created?.Guid ?? assemblyGuid;
