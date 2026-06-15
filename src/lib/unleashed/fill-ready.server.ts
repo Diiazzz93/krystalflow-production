@@ -17,6 +17,7 @@ interface UnleashedSalesOrder {
   OrderNumber: string;
   OrderStatus: string;
   CustomOrderStatus?: string | null;
+  Warehouse?: { WarehouseCode?: string; WarehouseName?: string; Guid?: string } | null;
   Customer?: { CustomerName?: string; CustomerCode?: string } | null;
   SalesOrderLines?: UnleashedSalesOrderLine[];
 }
