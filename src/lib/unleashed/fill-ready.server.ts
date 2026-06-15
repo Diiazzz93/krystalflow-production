@@ -131,14 +131,10 @@ export async function importFillReadyImpl(supabase: SupabaseLike): Promise<Impor
 
       // 4) Create the linked Assembly in Unleashed.
       const assemblyPayload = {
-        AssemblyNumber: `KF-${so.OrderNumber}`,
-        AssemblyDate: new Date().toISOString(),
         Quantity: qty,
         Product: { Guid: productGuid },
         SourceWarehouse: so.Warehouse?.WarehouseCode ? { WarehouseCode: so.Warehouse.WarehouseCode } : undefined,
         DestinationWarehouse: so.Warehouse?.WarehouseCode ? { WarehouseCode: so.Warehouse.WarehouseCode } : undefined,
-        AssemblyStatus: "Parked",
-        SalesOrderNumber: so.OrderNumber,
         Comments: `Auto-created by KrystalFlow from Sales Order ${so.OrderNumber}`,
       };
       let assemblyId: string | null = null;
