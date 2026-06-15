@@ -129,14 +129,13 @@ export async function importFillReadyImpl(supabase: SupabaseLike): Promise<Impor
       }
 
       // 4) Create the linked Assembly in Unleashed.
-      const { randomUUID } = await import("crypto");
-      const assemblyGuid = randomUUID();
       const assemblyPayload = {
-        Guid: assemblyGuid,
         AssemblyNumber: `KF-${so.OrderNumber}`,
         AssemblyDate: new Date().toISOString(),
         Quantity: qty,
         Product: { Guid: productGuid },
+        SourceWarehouse: so.Warehouse?.WarehouseCode ? { WarehouseCode: so.Warehouse.WarehouseCode } : undefined,
+        DestinationWarehouse: so.Warehouse?.WarehouseCode ? { WarehouseCode: so.Warehouse.WarehouseCode } : undefined,
         AssemblyStatus: "Parked",
         SalesOrderNumber: so.OrderNumber,
         Comments: `Auto-created by KrystalFlow from Sales Order ${so.OrderNumber}`,
@@ -148,7 +147,7 @@ export async function importFillReadyImpl(supabase: SupabaseLike): Promise<Impor
           "/Assemblies",
           assemblyPayload,
         );
-        assemblyId = created?.Guid ?? assemblyGuid;
+        assemblyId = created?.Guid ?? null;
         assemblyNumber = created?.AssemblyNumber ?? assemblyPayload.AssemblyNumber;
       } catch (e) {
         // Surface but continue — we still want the Job created so production can run.
