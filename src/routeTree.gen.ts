@@ -19,8 +19,10 @@ import { Route as LineSetupRouteImport } from './routes/line-setup'
 import { Route as JobsRouteImport } from './routes/jobs'
 import { Route as CustomerSpecsRouteImport } from './routes/customer-specs'
 import { Route as CalendarRouteImport } from './routes/calendar'
+import { Route as AssemblyApprovalsRouteImport } from './routes/assembly-approvals'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiPublicHooksSyncFillReadyRouteImport } from './routes/api/public/hooks/sync-fill-ready'
 
 const UnleashedSyncRoute = UnleashedSyncRouteImport.update({
   id: '/unleashed-sync',
@@ -72,6 +74,11 @@ const CalendarRoute = CalendarRouteImport.update({
   path: '/calendar',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AssemblyApprovalsRoute = AssemblyApprovalsRouteImport.update({
+  id: '/assembly-approvals',
+  path: '/assembly-approvals',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AnalyticsRoute = AnalyticsRouteImport.update({
   id: '/analytics',
   path: '/analytics',
@@ -82,10 +89,17 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHooksSyncFillReadyRoute =
+  ApiPublicHooksSyncFillReadyRouteImport.update({
+    id: '/api/public/hooks/sync-fill-ready',
+    path: '/api/public/hooks/sync-fill-ready',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
+  '/assembly-approvals': typeof AssemblyApprovalsRoute
   '/calendar': typeof CalendarRoute
   '/customer-specs': typeof CustomerSpecsRoute
   '/jobs': typeof JobsRoute
@@ -96,10 +110,12 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/stock': typeof StockRoute
   '/unleashed-sync': typeof UnleashedSyncRoute
+  '/api/public/hooks/sync-fill-ready': typeof ApiPublicHooksSyncFillReadyRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
+  '/assembly-approvals': typeof AssemblyApprovalsRoute
   '/calendar': typeof CalendarRoute
   '/customer-specs': typeof CustomerSpecsRoute
   '/jobs': typeof JobsRoute
@@ -110,11 +126,13 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/stock': typeof StockRoute
   '/unleashed-sync': typeof UnleashedSyncRoute
+  '/api/public/hooks/sync-fill-ready': typeof ApiPublicHooksSyncFillReadyRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
+  '/assembly-approvals': typeof AssemblyApprovalsRoute
   '/calendar': typeof CalendarRoute
   '/customer-specs': typeof CustomerSpecsRoute
   '/jobs': typeof JobsRoute
@@ -125,12 +143,14 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/stock': typeof StockRoute
   '/unleashed-sync': typeof UnleashedSyncRoute
+  '/api/public/hooks/sync-fill-ready': typeof ApiPublicHooksSyncFillReadyRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/analytics'
+    | '/assembly-approvals'
     | '/calendar'
     | '/customer-specs'
     | '/jobs'
@@ -141,10 +161,12 @@ export interface FileRouteTypes {
     | '/settings'
     | '/stock'
     | '/unleashed-sync'
+    | '/api/public/hooks/sync-fill-ready'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/analytics'
+    | '/assembly-approvals'
     | '/calendar'
     | '/customer-specs'
     | '/jobs'
@@ -155,10 +177,12 @@ export interface FileRouteTypes {
     | '/settings'
     | '/stock'
     | '/unleashed-sync'
+    | '/api/public/hooks/sync-fill-ready'
   id:
     | '__root__'
     | '/'
     | '/analytics'
+    | '/assembly-approvals'
     | '/calendar'
     | '/customer-specs'
     | '/jobs'
@@ -169,11 +193,13 @@ export interface FileRouteTypes {
     | '/settings'
     | '/stock'
     | '/unleashed-sync'
+    | '/api/public/hooks/sync-fill-ready'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AnalyticsRoute: typeof AnalyticsRoute
+  AssemblyApprovalsRoute: typeof AssemblyApprovalsRoute
   CalendarRoute: typeof CalendarRoute
   CustomerSpecsRoute: typeof CustomerSpecsRoute
   JobsRoute: typeof JobsRoute
@@ -184,6 +210,7 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   StockRoute: typeof StockRoute
   UnleashedSyncRoute: typeof UnleashedSyncRoute
+  ApiPublicHooksSyncFillReadyRoute: typeof ApiPublicHooksSyncFillReadyRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -258,6 +285,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CalendarRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/assembly-approvals': {
+      id: '/assembly-approvals'
+      path: '/assembly-approvals'
+      fullPath: '/assembly-approvals'
+      preLoaderRoute: typeof AssemblyApprovalsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/analytics': {
       id: '/analytics'
       path: '/analytics'
@@ -272,12 +306,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/sync-fill-ready': {
+      id: '/api/public/hooks/sync-fill-ready'
+      path: '/api/public/hooks/sync-fill-ready'
+      fullPath: '/api/public/hooks/sync-fill-ready'
+      preLoaderRoute: typeof ApiPublicHooksSyncFillReadyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AnalyticsRoute: AnalyticsRoute,
+  AssemblyApprovalsRoute: AssemblyApprovalsRoute,
   CalendarRoute: CalendarRoute,
   CustomerSpecsRoute: CustomerSpecsRoute,
   JobsRoute: JobsRoute,
@@ -288,17 +330,8 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   StockRoute: StockRoute,
   UnleashedSyncRoute: UnleashedSyncRoute,
+  ApiPublicHooksSyncFillReadyRoute: ApiPublicHooksSyncFillReadyRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
