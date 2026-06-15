@@ -375,6 +375,8 @@ function UnleashedSyncPage() {
           </div>
         </div>
 
+        <FillReadyImportCard />
+
         {/* Product Groups picker */}
         <Card>
           <CardHeader className="flex flex-row items-start justify-between gap-3 flex-wrap">
