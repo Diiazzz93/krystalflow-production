@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_settings: {
+        Row: {
+          key: string
+          updated_at: string
+          updated_by: string | null
+          value: Json
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Relationships: []
+      }
       inventory_items: {
         Row: {
           alert_notes: string | null
@@ -85,11 +106,14 @@ export type Database = {
       }
       production_jobs: {
         Row: {
+          assembly_approved_at: string | null
+          assembly_approved_by: string | null
           created_at: string
           created_by: string | null
           customer: string
           data: Json
           id: string
+          imported_from_unleashed_at: string | null
           line: string
           operator: string
           product: string
@@ -97,14 +121,21 @@ export type Database = {
           scheduled_start: string | null
           sku: string
           status: string
+          unleashed_assembly_id: string | null
+          unleashed_assembly_number: string | null
+          unleashed_sales_order_id: string | null
+          unleashed_sales_order_number: string | null
           updated_at: string
         }
         Insert: {
+          assembly_approved_at?: string | null
+          assembly_approved_by?: string | null
           created_at?: string
           created_by?: string | null
           customer?: string
           data?: Json
           id?: string
+          imported_from_unleashed_at?: string | null
           line?: string
           operator?: string
           product?: string
@@ -112,14 +143,21 @@ export type Database = {
           scheduled_start?: string | null
           sku?: string
           status?: string
+          unleashed_assembly_id?: string | null
+          unleashed_assembly_number?: string | null
+          unleashed_sales_order_id?: string | null
+          unleashed_sales_order_number?: string | null
           updated_at?: string
         }
         Update: {
+          assembly_approved_at?: string | null
+          assembly_approved_by?: string | null
           created_at?: string
           created_by?: string | null
           customer?: string
           data?: Json
           id?: string
+          imported_from_unleashed_at?: string | null
           line?: string
           operator?: string
           product?: string
@@ -127,6 +165,10 @@ export type Database = {
           scheduled_start?: string | null
           sku?: string
           status?: string
+          unleashed_assembly_id?: string | null
+          unleashed_assembly_number?: string | null
+          unleashed_sales_order_id?: string | null
+          unleashed_sales_order_number?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -204,6 +246,44 @@ export type Database = {
             columns: ["inventory_item_id"]
             isOneToOne: false
             referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      unleashed_sync_log: {
+        Row: {
+          created_at: string
+          id: string
+          job_id: string | null
+          message: string | null
+          outcome: string
+          sales_order_id: string | null
+          sales_order_number: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          job_id?: string | null
+          message?: string | null
+          outcome: string
+          sales_order_id?: string | null
+          sales_order_number?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          job_id?: string | null
+          message?: string | null
+          outcome?: string
+          sales_order_id?: string | null
+          sales_order_number?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "unleashed_sync_log_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "production_jobs"
             referencedColumns: ["id"]
           },
         ]
