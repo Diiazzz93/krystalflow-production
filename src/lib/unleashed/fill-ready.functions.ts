@@ -4,22 +4,22 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
+async function assertAdminOrManager(supabase: any, userId: string) {
+  const { data, error } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId);
+  if (error) throw new Error(`Permission check failed: ${error.message}`);
+  const roles = new Set((data ?? []).map((r: { role: string }) => r.role));
+  if (!roles.has("admin") && !roles.has("manager")) {
+    throw new Error("Only admins and managers can perform this action");
+  }
+}
+
 export const runFillReadyImport = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    // Only admin/manager can trigger imports — they're the ones who'll see
-    // the resulting jobs and approve assemblies.
-    const { data: isAdmin } = await context.supabase.rpc("has_role", {
-      _user_id: context.userId,
-      _role: "admin",
-    });
-    const { data: isManager } = await context.supabase.rpc("has_role", {
-      _user_id: context.userId,
-      _role: "manager",
-    });
-    if (!isAdmin && !isManager) {
-      throw new Error("Only admins and managers can sync Unleashed sales orders");
-    }
+    await assertAdminOrManager(context.supabase, context.userId);
     const { importFillReadyImpl } = await import("./fill-ready.server");
     return importFillReadyImpl(context.supabase as any);
   });
@@ -31,17 +31,7 @@ export const completeAssembly = createServerFn({ method: "POST" })
     return input;
   })
   .handler(async ({ data, context }) => {
-    const { data: isAdmin } = await context.supabase.rpc("has_role", {
-      _user_id: context.userId,
-      _role: "admin",
-    });
-    const { data: isManager } = await context.supabase.rpc("has_role", {
-      _user_id: context.userId,
-      _role: "manager",
-    });
-    if (!isAdmin && !isManager) {
-      throw new Error("Only admins and managers can approve assemblies");
-    }
+    await assertAdminOrManager(context.supabase, context.userId);
     const { completeAssemblyImpl } = await import("./fill-ready.server");
     const result = await completeAssemblyImpl(context.supabase as any, data.jobId, context.userId);
     if (!result.ok) throw new Error(result.error);
