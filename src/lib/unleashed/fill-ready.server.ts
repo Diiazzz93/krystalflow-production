@@ -561,7 +561,7 @@ async function fetchAssembly(
 export async function refreshJobAssemblyComponentsImpl(supabase: SupabaseLike, jobId: string) {
   const { data: row, error } = await supabase
     .from("production_jobs")
-    .select("id, unleashed_assembly_id, unleashed_assembly_number, unleashed_sales_order_number, unleashed_product_code, data")
+    .select("id, unleashed_assembly_id, unleashed_assembly_number, unleashed_sales_order_number, data")
     .eq("id", jobId)
     .single();
   if (error || !row) return { ok: false as const, error: error?.message ?? "Job not found" };
