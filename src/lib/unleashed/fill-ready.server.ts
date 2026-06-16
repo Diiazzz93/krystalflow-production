@@ -745,18 +745,20 @@ export async function refreshJobAssemblyComponentsImpl(supabase: SupabaseLike, j
 
   const { error: updateError } = await supabase.from("production_jobs").update(updatePayload).eq("id", jobId);
   if (updateError) return { ok: false as const, error: updateError.message };
+  const numberValue = (value: unknown) => (typeof value === "number" && Number.isFinite(value) ? value : undefined);
+  const stringValue = (value: unknown) => (typeof value === "string" ? value : undefined);
   return {
     ok: true as const,
     relinked,
     assemblyComponents: components,
-    assemblyStatus: merged.assemblyStatus,
-    assemblyCreatedAt: merged.assemblyCreatedAt,
-    unleashedAssemblyNumber: merged.unleashedAssemblyNumber,
-    unleashedSalesOrderNumber: merged.unleashedSalesOrderNumber,
-    quantity: merged.quantity,
-    cartonsOrdered: merged.cartonsOrdered,
-    bottlesPerCarton: merged.bottlesPerCarton,
-    bottleSize: merged.bottleSize,
+    assemblyStatus: stringValue(merged.assemblyStatus) ?? null,
+    assemblyCreatedAt: stringValue(merged.assemblyCreatedAt) ?? null,
+    unleashedAssemblyNumber: stringValue(merged.unleashedAssemblyNumber) ?? null,
+    unleashedSalesOrderNumber: stringValue(merged.unleashedSalesOrderNumber) ?? null,
+    quantity: numberValue(merged.quantity),
+    cartonsOrdered: numberValue(merged.cartonsOrdered),
+    bottlesPerCarton: numberValue(merged.bottlesPerCarton),
+    bottleSize: stringValue(merged.bottleSize),
   };
 }
 

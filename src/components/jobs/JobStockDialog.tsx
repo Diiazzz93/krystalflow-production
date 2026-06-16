@@ -51,6 +51,18 @@ interface Props {
   onOpenChange: (open: boolean) => void;
 }
 
+type RefreshAssemblyResult = {
+  assemblyComponents?: Job["assemblyComponents"];
+  assemblyStatus?: string | null;
+  assemblyCreatedAt?: string | null;
+  unleashedAssemblyNumber?: string | null;
+  unleashedSalesOrderNumber?: string | null;
+  quantity?: number;
+  cartonsOrdered?: number;
+  bottlesPerCarton?: number;
+  bottleSize?: string;
+};
+
 function fmtDate(iso?: string) {
   if (!iso) return "—";
   return new Date(iso).toLocaleString(undefined, {
@@ -85,17 +97,18 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
     refreshAssembly({ data: { jobId } })
       .then((result) => {
         if (cancelled) return;
+        const refreshed = result as RefreshAssemblyResult;
         setAssemblyPatch({
           jobId,
-          assemblyComponents: result.assemblyComponents,
-          assemblyStatus: result.assemblyStatus ?? undefined,
-          assemblyCreatedAt: result.assemblyCreatedAt ?? undefined,
-          unleashedAssemblyNumber: result.unleashedAssemblyNumber ?? undefined,
-          unleashedSalesOrderNumber: result.unleashedSalesOrderNumber ?? undefined,
-          quantity: typeof result.quantity === "number" ? result.quantity : undefined,
-          cartonsOrdered: typeof result.cartonsOrdered === "number" ? result.cartonsOrdered : undefined,
-          bottlesPerCarton: typeof result.bottlesPerCarton === "number" ? result.bottlesPerCarton : undefined,
-          bottleSize: typeof result.bottleSize === "string" ? result.bottleSize : undefined,
+          assemblyComponents: refreshed.assemblyComponents,
+          assemblyStatus: refreshed.assemblyStatus ?? undefined,
+          assemblyCreatedAt: refreshed.assemblyCreatedAt ?? undefined,
+          unleashedAssemblyNumber: refreshed.unleashedAssemblyNumber ?? undefined,
+          unleashedSalesOrderNumber: refreshed.unleashedSalesOrderNumber ?? undefined,
+          quantity: refreshed.quantity,
+          cartonsOrdered: refreshed.cartonsOrdered,
+          bottlesPerCarton: refreshed.bottlesPerCarton,
+          bottleSize: refreshed.bottleSize,
         });
       })
       .catch((error) => console.error("[jobs] assembly component refresh failed", error));
