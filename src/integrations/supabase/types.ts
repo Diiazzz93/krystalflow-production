@@ -200,6 +200,47 @@ export type Database = {
         }
         Relationships: []
       }
+      shipped_pallets: {
+        Row: {
+          created_at: string
+          id: string
+          job_id: string
+          notes: string | null
+          pallet_number: number
+          shipped_at: string
+          shipped_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          job_id: string
+          notes?: string | null
+          pallet_number: number
+          shipped_at?: string
+          shipped_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          job_id?: string
+          notes?: string | null
+          pallet_number?: number
+          shipped_at?: string
+          shipped_by?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shipped_pallets_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "production_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stock_adjustments: {
         Row: {
           adjustment_date: string
