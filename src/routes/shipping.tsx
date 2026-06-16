@@ -24,12 +24,28 @@ function startOfToday() {
 }
 
 function ShippingPage() {
-  const { jobs } = useStore();
+  const { jobs, qc } = useStore();
   const { can } = useAuth();
   const canEdit = can("jobs:update-progress");
   const { items: shipments, markShipped, unmarkShipped } = useAllShipments();
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState<"open" | "today" | "all">("open");
+
+  // Ready pallets per job — sourced from QC entries (same as dashboard)
+  const readyByJob = useMemo(() => {
+    const m = new Map<string, number[]>();
+    for (const q of qc) {
+      if (!q.palletNumber) continue;
+      const arr = m.get(q.jobId);
+      if (arr) {
+        if (!arr.includes(q.palletNumber)) arr.push(q.palletNumber);
+      } else {
+        m.set(q.jobId, [q.palletNumber]);
+      }
+    }
+    for (const arr of m.values()) arr.sort((a, b) => a - b);
+    return m;
+  }, [qc]);
 
   const shippedByJob = useMemo(() => {
     const m = new Map<string, Set<number>>();
@@ -49,17 +65,21 @@ function ShippingPage() {
   const q = query.trim().toLowerCase();
   const rows = useMemo(() => {
     return jobs
-      .filter((j) => (j.pallets ?? 0) > 0)
       .map((j) => {
+        const ready = readyByJob.get(j.id) ?? [];
         const shipped = shippedByJob.get(j.id) ?? new Set<number>();
+        const shippedCount = ready.filter((n) => shipped.has(n)).length;
         return {
           job: j,
-          total: j.pallets,
-          shippedCount: shipped.size,
-          remaining: Math.max(0, j.pallets - shipped.size),
+          ready,
+          plannedTotal: j.pallets ?? 0,
+          readyCount: ready.length,
+          shippedCount,
+          remaining: Math.max(0, ready.length - shippedCount),
           shippedSet: shipped,
         };
       })
+      .filter((r) => r.readyCount > 0)
       .filter((r) => {
         if (tab === "open" && r.remaining === 0) return false;
         if (!q) return true;
@@ -71,18 +91,18 @@ function ShippingPage() {
         );
       })
       .sort((a, b) => a.job.customer.localeCompare(b.job.customer));
-  }, [jobs, shippedByJob, tab, q]);
+  }, [jobs, readyByJob, shippedByJob, tab, q]);
 
   const totals = useMemo(() => {
-    let total = 0;
+    let ready = 0;
     let shipped = 0;
-    for (const j of jobs) {
-      if (!j.pallets) continue;
-      total += j.pallets;
-      shipped += (shippedByJob.get(j.id)?.size ?? 0);
+    for (const [jobId, arr] of readyByJob.entries()) {
+      ready += arr.length;
+      const sh = shippedByJob.get(jobId);
+      if (sh) shipped += arr.filter((n) => sh.has(n)).length;
     }
-    return { total, shipped, remaining: Math.max(0, total - shipped) };
-  }, [jobs, shippedByJob]);
+    return { total: ready, shipped, remaining: Math.max(0, ready - shipped) };
+  }, [readyByJob, shippedByJob]);
 
   return (
     <AppShell>
