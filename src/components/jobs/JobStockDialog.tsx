@@ -111,6 +111,14 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
           <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="stock">Stock</TabsTrigger>
+            <TabsTrigger value="assembly">
+              Assembly
+              {job.assemblyComponents && job.assemblyComponents.length > 0 && (
+                <Badge variant="secondary" className="ml-2">
+                  {job.assemblyComponents.length}
+                </Badge>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="specs">
               Production Specs
               {resolvedSpec && (
@@ -134,11 +142,18 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
                 <Detail label="Status" value={<Badge variant="outline">{job.status}</Badge>} />
               </div>
             </div>
+            <AssemblyInfoBlock job={job} />
           </TabsContent>
 
           <TabsContent value="stock">
             <JobStockCheck job={job} />
           </TabsContent>
+
+          <TabsContent value="assembly" className="space-y-3">
+            <AssemblyInfoBlock job={job} />
+            <AssemblyComponentsTable job={job} stockItems={stockItems} />
+          </TabsContent>
+
 
           <TabsContent value="specs" className="space-y-3">
             {resolvedSpec ? (
