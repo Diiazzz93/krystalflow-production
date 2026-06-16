@@ -19,6 +19,7 @@ import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { computeJobStockCheck } from "@/lib/job-stock";
 import { JobStockCheck } from "./JobStockCheck";
+import { JobShipmentsBlock } from "./JobShipmentsBlock";
 import { cn } from "@/lib/utils";
 import { downloadJobPdf, printJobPdf } from "@/lib/job-pdf";
 import { useLineSetups } from "@/lib/line-setups";
