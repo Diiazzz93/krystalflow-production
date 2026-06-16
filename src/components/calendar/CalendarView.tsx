@@ -386,7 +386,7 @@ function MonthGrid({
                       title={`${job.customer} — ${job.product} (drag to move, drag right edge to extend)`}
                     >
                       {continuesBefore && "← "}
-                      {fmtTime(job.scheduledStart!)} {job.customer}
+                      {fmtTime(job.scheduledStart!)} {job.calendarLabel?.trim() || job.product}
                       {continuesAfter && " →"}
                     </div>
                     {!continuesBefore && (
