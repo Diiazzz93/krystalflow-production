@@ -1,4 +1,6 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useEffect, useMemo, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -14,6 +16,7 @@ import { CustomerSpecsView } from "@/components/customer-specs/CustomerSpecsView
 import { toast } from "sonner";
 import { useStockStore } from "@/lib/stock-store";
 import type { StockItem } from "@/lib/stock";
+import { refreshJobAssemblyComponents } from "@/lib/unleashed/fill-ready.functions";
 import {
   Table,
   TableBody,
@@ -44,7 +47,43 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
   const { presets } = useLineSetups();
   const { getSpecForJob } = useCustomerSpecs();
   const { items: stockItems } = useStockStore();
-  if (!job) return null;
+  const refreshAssembly = useServerFn(refreshJobAssemblyComponents);
+  const [assemblyPatch, setAssemblyPatch] = useState<(Partial<Job> & { jobId: string }) | null>(null);
+
+  useEffect(() => {
+    setAssemblyPatch(null);
+  }, [job?.id]);
+
+  useEffect(() => {
+    const hasComponents = (job?.assemblyComponents?.length ?? 0) > 0 || (assemblyPatch?.assemblyComponents?.length ?? 0) > 0;
+    const hasLinkedAssembly = Boolean(job?.unleashedAssemblyNumber || job?.assemblyStatus || (job as unknown as { unleashed_assembly_number?: string } | null)?.unleashed_assembly_number);
+    if (!open || !job || hasComponents || !hasLinkedAssembly || assemblyPatch?.jobId === job.id) return;
+    let cancelled = false;
+    refreshAssembly({ data: { jobId: job.id } })
+      .then((result) => {
+        if (cancelled) return;
+        setAssemblyPatch({
+          jobId: job.id,
+          assemblyComponents: result.assemblyComponents,
+          assemblyStatus: result.assemblyStatus ?? undefined,
+          assemblyCreatedAt: result.assemblyCreatedAt ?? undefined,
+          unleashedAssemblyNumber: result.unleashedAssemblyNumber ?? undefined,
+          unleashedSalesOrderNumber: result.unleashedSalesOrderNumber ?? undefined,
+        });
+      })
+      .catch((error) => console.error("[jobs] assembly component refresh failed", error));
+    return () => {
+      cancelled = true;
+    };
+  }, [open, job, assemblyPatch, refreshAssembly]);
+
+  const hydratedJob = useMemo(() => {
+    if (!job) return null;
+    return assemblyPatch?.jobId === job.id ? ({ ...job, ...assemblyPatch } as Job) : job;
+  }, [job, assemblyPatch]);
+
+  if (!hydratedJob) return null;
+  job = hydratedJob;
   const check = computeJobStockCheck(job, stockItems);
   const totalMissing = check.requirements.reduce((s, r) => s + r.missing, 0);
   const productLabel = `${job.product} ${job.bottleSize}`.trim();
