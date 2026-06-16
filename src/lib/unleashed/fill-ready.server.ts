@@ -200,31 +200,31 @@ export async function importFillReadyImpl(supabase: SupabaseLike): Promise<Impor
           const detail = await fetchAssembly(assemblyId);
           assemblyStatus = detail?.AssemblyStatus ?? assemblyStatus;
           assemblyCreatedAt = normaliseUnleashedDate(detail?.AssemblyDate) ?? assemblyCreatedAt;
-          assemblyComponents = (detail?.AssemblyLines ?? []).map((line) => ({
+          assemblyComponents = (detail?.AssemblyLines ?? []).map((line: UnleashedAssemblyLine) => ({
             productCode: line.ComponentProduct?.ProductCode ?? "",
             productGuid: line.ComponentProduct?.Guid,
             name: line.ComponentProduct?.ProductDescription ?? line.ComponentProduct?.ProductCode ?? "",
             quantity: Number(line.ComponentQuantity ?? 0),
             unit: typeof line.UnitOfMeasure === "string" ? line.UnitOfMeasure : line.UnitOfMeasure?.Name,
-          })).filter((c) => c.productCode);
-        } catch (e) {
+          })).filter((c: { productCode: string }) => c.productCode);
+        } catch {
           // Fall back to BOM lines if assembly fetch fails.
-          assemblyComponents = bomLines.map((line) => ({
+          assemblyComponents = bomLines.map((line: UnleashedBomLine) => ({
             productCode: line.ComponentProduct?.ProductCode ?? "",
             productGuid: line.ComponentProduct?.Guid,
             name: line.ComponentProduct?.ProductCode ?? "",
             quantity: Number(line.ComponentQuantity ?? 0) * qty,
-          })).filter((c) => c.productCode);
+          })).filter((c: { productCode: string }) => c.productCode);
         }
       } else {
-        // No assembly yet — at least record BOM-derived requirements so production has visibility.
-        assemblyComponents = bomLines.map((line) => ({
+        assemblyComponents = bomLines.map((line: UnleashedBomLine) => ({
           productCode: line.ComponentProduct?.ProductCode ?? "",
           productGuid: line.ComponentProduct?.Guid,
           name: line.ComponentProduct?.ProductCode ?? "",
           quantity: Number(line.ComponentQuantity ?? 0) * qty,
-        })).filter((c) => c.productCode);
+        })).filter((c: { productCode: string }) => c.productCode);
       }
+
 
 
       // 5) Create the production job.
