@@ -76,7 +76,11 @@ function JobsPage() {
               .includes(q.toLowerCase())
           : true,
       )
-      .sort((a, b) => new Date(a.scheduledStart).getTime() - new Date(b.scheduledStart).getTime());
+      .sort((a, b) => {
+        const at = a.scheduledStart ? new Date(a.scheduledStart).getTime() : Infinity;
+        const bt = b.scheduledStart ? new Date(b.scheduledStart).getTime() : Infinity;
+        return at - bt;
+      });
   }, [jobs, q, status, customer]);
 
   const grouped = useMemo(() => {
@@ -202,6 +206,7 @@ function JobsPage() {
               const upcoming = g.jobs.filter(
                 (j) =>
                   j.status !== "Complete" &&
+                  j.scheduledStart &&
                   new Date(j.scheduledStart) >= new Date(Date.now() - 86400000),
               ).length;
               return (
