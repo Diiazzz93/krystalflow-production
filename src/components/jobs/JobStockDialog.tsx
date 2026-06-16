@@ -13,6 +13,15 @@ import { useCustomerSpecs } from "@/lib/customer-specs";
 import { CustomerSpecsView } from "@/components/customer-specs/CustomerSpecsView";
 import { toast } from "sonner";
 import { useStockStore } from "@/lib/stock-store";
+import type { StockItem } from "@/lib/stock";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface Props {
   job: Job | null;
