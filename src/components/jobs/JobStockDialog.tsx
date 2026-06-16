@@ -541,9 +541,15 @@ function PalletsBlock({
   // Find a linked stock item that has boxesPerPallet set. Prefer the
   // liquid/finished product (matches the sales-order reference), then fall
   // back to carton/bottle/label/cap.
-  const linkSkus = [job.liquidSku, job.cartonSku, job.bottleSku, job.labelSku, job.capSku].filter(
-    Boolean,
-  ) as string[];
+  const linkSkus = [
+    job.sku,
+    job.liquidSku,
+    job.cartonSku,
+    job.bottleSku,
+    job.labelSku,
+    job.capSku,
+  ].filter(Boolean) as string[];
+
   const bySku = new Map<string, StockItem>();
   for (const s of stockItems) bySku.set(s.sku.toLowerCase(), s);
   let sourceItem: StockItem | undefined;
