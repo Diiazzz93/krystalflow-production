@@ -334,6 +334,20 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
                   </label>
                 </div>
               </div>
+              <div className="space-y-1">
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Calendar label (optional)</div>
+                <Input
+                  disabled={!canEdit}
+                  value={currentJob.calendarLabel ?? ""}
+                  placeholder={currentJob.product}
+                  onChange={(e) =>
+                    void updateJob(currentJob.id, { calendarLabel: e.target.value || undefined })
+                  }
+                />
+                <div className="text-[11px] text-muted-foreground">
+                  Overrides only the text shown on the calendar pill. Leave blank to use the product name.
+                </div>
+              </div>
               <div className="text-xs text-muted-foreground">
                 Current: {fmtDate(currentJob.scheduledStart)}
                 {currentJob.scheduledEnd ? ` → ${fmtDate(currentJob.scheduledEnd)}` : ""}
