@@ -38,6 +38,23 @@ interface UnleashedBom {
   BillOfMaterialsLines?: UnleashedBomLine[];
 }
 
+interface UnleashedAssemblyLine {
+  ComponentProduct?: { Guid?: string; ProductCode?: string; ProductDescription?: string } | null;
+  ComponentQuantity?: number;
+  UnitOfMeasure?: { Name?: string } | string | null;
+}
+
+interface UnleashedAssembly {
+  Guid?: string;
+  AssemblyNumber?: string;
+  AssemblyStatus?: string;
+  AssemblyDate?: string;
+  Quantity?: number;
+  Comments?: string;
+  Product?: { Guid?: string; ProductCode?: string } | null;
+  AssemblyLines?: UnleashedAssemblyLine[];
+}
+
 interface SupabaseLike {
   from(table: string): {
     select: (cols?: string) => any;
