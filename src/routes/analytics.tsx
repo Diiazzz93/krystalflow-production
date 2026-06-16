@@ -37,13 +37,13 @@ function AnalyticsPage() {
   const completedToday = jobs.filter(
     (j) =>
       j.status === "Complete" &&
-      new Date(j.scheduledStart).toDateString() === today.toDateString(),
+      j.scheduledStart ? new Date(j.scheduledStart).toDateString() : "" === today.toDateString(),
   ).length;
   const completedWeek = jobs.filter(
-    (j) => j.status === "Complete" && isAfter(j.scheduledStart, startOfWeek),
+    (j) => j.status === "Complete" && j.scheduledStart && isAfter(j.scheduledStart, startOfWeek),
   ).length;
   const completedMonth = jobs.filter(
-    (j) => j.status === "Complete" && isAfter(j.scheduledStart, startOfMonth),
+    (j) => j.status === "Complete" && j.scheduledStart && isAfter(j.scheduledStart, startOfMonth),
   ).length;
   const delayed = jobs.filter((j) => j.status === "Delayed").length;
   const totalDowntime = jobs.reduce((s, j) => s + j.downtimeMinutes, 0);
@@ -98,7 +98,7 @@ function AnalyticsPage() {
       days[d.toLocaleDateString(undefined, { weekday: "short" })] = 0;
     }
     jobs.forEach((j) => {
-      const d = new Date(j.scheduledStart);
+      const d = j.scheduledStart ? new Date(j.scheduledStart) : new Date(0);
       const diff = Math.floor(
         (today.getTime() - d.getTime()) / 86_400_000,
       );

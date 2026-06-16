@@ -55,11 +55,11 @@ function Dashboard() {
   };
 
   const active = jobs.filter((j) => ACTIVE_STATUSES.includes(j.status));
-  const todays = jobs.filter((j) => isToday(j.scheduledStart));
+  const todays = jobs.filter((j) => j.scheduledStart && isToday(j.scheduledStart));
   const thisWeek = jobs.filter((j) => isThisWeek(j.scheduledStart) && j.status !== "Complete");
   const delayed = jobs.filter((j) => j.status === "Delayed" || j.status === "Requires Review");
   const completedToday = jobs.filter(
-    (j) => j.status === "Complete" && isToday(j.scheduledStart),
+    (j) => j.status === "Complete" && j.scheduledStart && isToday(j.scheduledStart),
   );
   const bottlesToday = todays.reduce((sum, j) => sum + j.bottlesCompleted, 0);
   const palletsToday = qc.filter((q) => isToday(q.timestamp)).length;

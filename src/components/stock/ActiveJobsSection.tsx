@@ -49,7 +49,7 @@ export function ActiveJobsSection() {
     () =>
       jobs
         .filter((j) => ACTIVE_STATUSES.has(j.status))
-        .sort((a, b) => a.scheduledStart.localeCompare(b.scheduledStart)),
+        .sort((a, b) => (a.scheduledStart ?? "").localeCompare(b.scheduledStart ?? "")),
     [jobs],
   );
 
@@ -131,7 +131,7 @@ export function ActiveJobsSection() {
                           <Badge variant="outline">{j.status}</Badge>
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
-                          {fmtDate(j.scheduledStart)}
+                          {fmtDate(j.scheduledStart!)}
                         </TableCell>
                         <TableCell>
                           <span
