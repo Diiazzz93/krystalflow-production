@@ -67,9 +67,6 @@ const READY_STATES: ReadyState[] = ["Pending", "Ready", "Issue"];
 const COLORS = ["#0ea5e9", "#22c55e", "#f97316", "#a855f7", "#ec4899", "#14b8a6", "#eab308"];
 
 function emptyJob(): Job {
-  const start = new Date();
-  start.setMinutes(0, 0, 0);
-  start.setHours(start.getHours() + 1);
   return {
     id: uid(),
     customer: "",
@@ -89,7 +86,6 @@ function emptyJob(): Job {
     labels: "Pending",
     packaging: "Pending",
     status: "Scheduled",
-    scheduledStart: start.toISOString(),
     bottlesCompleted: 0,
     palletsCompleted: 0,
     downtimeMinutes: 0,
@@ -97,6 +93,14 @@ function emptyJob(): Job {
     customerColor: COLORS[0],
     createdAt: new Date().toISOString(),
   };
+}
+
+function toLocalInput(iso: string | undefined) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 }
 
 interface Props {
