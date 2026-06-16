@@ -546,9 +546,9 @@ function LineSchedule({
                         >
                           <div className="flex items-center gap-1.5 font-semibold truncate">
                             <span className={cn("size-1.5 rounded-full", STATUS_DOT[j.status])} />
-                            {continuesBefore && "← "}{j.customer}{continuesAfter && " →"}
+                            {continuesBefore && "← "}{j.calendarLabel?.trim() || j.product}{continuesAfter && " →"}
                           </div>
-                          <div className="truncate opacity-90">{j.product}</div>
+                          <div className="truncate opacity-90">{j.customer}</div>
                           <div className="opacity-75 text-[10px]">
                             {fmtTime(jobStart)} – {fmtTime(jobFinish)}
                           </div>
