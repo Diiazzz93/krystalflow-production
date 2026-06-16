@@ -3,9 +3,20 @@ import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertTriangle, CheckCircle2, FileDown, PackageCheck, Printer } from "lucide-react";
-import type { Job } from "@/lib/types";
+import type { Job, Priority } from "@/lib/types";
+import { PRIORITIES } from "@/lib/utils-domain";
+import { useStore } from "@/lib/store";
+import { useAuth } from "@/lib/auth";
 import { computeJobStockCheck } from "@/lib/job-stock";
 import { JobStockCheck } from "./JobStockCheck";
 import { cn } from "@/lib/utils";
@@ -25,6 +36,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+
+function toLocalInput(iso?: string) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 
 interface Props {
   job: Job | null;
