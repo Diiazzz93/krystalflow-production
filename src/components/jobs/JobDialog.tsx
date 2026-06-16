@@ -383,6 +383,13 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
               ))}
             </div>
           </Field>
+          <Field label="Calendar label (optional)">
+            <Input
+              value={form.calendarLabel ?? ""}
+              placeholder={form.product}
+              onChange={(e) => set("calendarLabel", e.target.value || undefined)}
+            />
+          </Field>
         </div>
 
         <JobStockCheck job={form} />
