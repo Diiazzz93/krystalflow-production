@@ -622,6 +622,15 @@ function PalletsBlock({
       ? Math.ceil(cartons / boxesPerPallet)
       : undefined;
 
+  const fullPallets =
+    boxesPerPallet && boxesPerPallet > 0 && cartons && cartons > 0
+      ? Math.floor(cartons / boxesPerPallet)
+      : undefined;
+  const remainder =
+    boxesPerPallet && boxesPerPallet > 0 && cartons && cartons > 0
+      ? cartons % boxesPerPallet
+      : undefined;
+
   const [value, setValue] = useState<string>(String(job.pallets ?? ""));
   useEffect(() => {
     setValue(String(job.pallets ?? ""));
