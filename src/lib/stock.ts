@@ -56,6 +56,9 @@ export interface StockItem {
   source?: string;
   notes?: string;
   dateReceived?: string;
+  /** When set on a finished-product / liquid item, jobs for this product
+   *  auto-calculate pallets needed = ceil(cartonsOrdered / boxesPerPallet). */
+  boxesPerPallet?: number;
 }
 
 export function getStockStatus(item: StockItem): StockStatus {
