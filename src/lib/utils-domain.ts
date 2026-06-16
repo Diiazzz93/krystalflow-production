@@ -135,8 +135,10 @@ export const PRIORITY_COLOR: Record<Priority, string> = {
   Urgent: "bg-red-200 text-red-900 dark:bg-red-900 dark:text-red-100",
 };
 
-export function fmtDate(d: string | Date) {
+export function fmtDate(d: string | Date | undefined) {
+  if (!d) return "—";
   const date = typeof d === "string" ? new Date(d) : d;
+  if (isNaN(date.getTime())) return "—";
   return date.toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
@@ -144,15 +146,18 @@ export function fmtDate(d: string | Date) {
   });
 }
 
-export function fmtTime(d: string | Date) {
+export function fmtTime(d: string | Date | undefined) {
+  if (!d) return "—";
   const date = typeof d === "string" ? new Date(d) : d;
+  if (isNaN(date.getTime())) return "—";
   return date.toLocaleTimeString(undefined, {
     hour: "2-digit",
     minute: "2-digit",
   });
 }
 
-export function fmtDateTime(d: string | Date) {
+export function fmtDateTime(d: string | Date | undefined) {
+  if (!d) return "—";
   return `${fmtDate(d)} ${fmtTime(d)}`;
 }
 
