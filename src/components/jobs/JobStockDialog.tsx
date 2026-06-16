@@ -527,3 +527,109 @@ function AssemblyComponentsTable({ job, stockItems }: { job: Job; stockItems: St
   );
 }
 
+function PalletsBlock({
+  job,
+  stockItems,
+  canEdit,
+  updateJob,
+}: {
+  job: Job;
+  stockItems: StockItem[];
+  canEdit: boolean;
+  updateJob: (id: string, patch: Partial<Job>) => Promise<void>;
+}) {
+  // Find a linked stock item that has boxesPerPallet set. Prefer the
+  // liquid/finished product (matches the sales-order reference), then fall
+  // back to carton/bottle/label/cap.
+  const linkSkus = [job.liquidSku, job.cartonSku, job.bottleSku, job.labelSku, job.capSku].filter(
+    Boolean,
+  ) as string[];
+  const bySku = new Map<string, StockItem>();
+  for (const s of stockItems) bySku.set(s.sku.toLowerCase(), s);
+  let sourceItem: StockItem | undefined;
+  for (const sku of linkSkus) {
+    const it = bySku.get(sku.toLowerCase());
+    if (it?.boxesPerPallet && it.boxesPerPallet > 0) {
+      sourceItem = it;
+      break;
+    }
+  }
+
+  const boxesPerPallet = sourceItem?.boxesPerPallet;
+  const cartons =
+    job.cartonsOrdered ??
+    (job.bottlesPerCarton && job.bottlesPerCarton > 0
+      ? Math.ceil(job.quantity / job.bottlesPerCarton)
+      : undefined);
+  const suggested =
+    boxesPerPallet && boxesPerPallet > 0 && cartons && cartons > 0
+      ? Math.ceil(cartons / boxesPerPallet)
+      : undefined;
+
+  const [value, setValue] = useState<string>(String(job.pallets ?? ""));
+  useEffect(() => {
+    setValue(String(job.pallets ?? ""));
+  }, [job.pallets, job.id]);
+
+  const commit = () => {
+    const n = Number(value);
+    if (!Number.isFinite(n) || n < 0) return;
+    if (n === job.pallets) return;
+    void updateJob(job.id, { pallets: n });
+  };
+
+  const applySuggested = () => {
+    if (!suggested) return;
+    setValue(String(suggested));
+    void updateJob(job.id, { pallets: suggested });
+  };
+
+  return (
+    <div className="rounded-lg border p-3 space-y-2">
+      <div className="font-medium text-sm flex items-center justify-between">
+        <span>Pallets</span>
+        {!canEdit && <span className="text-xs text-muted-foreground">Read only</span>}
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+        <div className="space-y-1">
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">
+            Pallets for this order
+          </div>
+          <Input
+            type="number"
+            min={0}
+            disabled={!canEdit}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onBlur={commit}
+          />
+        </div>
+        <div className="space-y-1">
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">
+            Auto-calculated
+          </div>
+          <div className="h-10 flex items-center font-medium">
+            {suggested !== undefined ? `${suggested} pallets` : "—"}
+          </div>
+        </div>
+        <div className="space-y-1">
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">Source</div>
+          <div className="h-10 flex items-center text-xs text-muted-foreground">
+            {sourceItem && boxesPerPallet
+              ? `${cartons?.toLocaleString() ?? "?"} cartons ÷ ${boxesPerPallet}/pallet (${sourceItem.sku})`
+              : "Set 'Boxes per pallet' on the linked product in Stock to auto-calculate."}
+          </div>
+        </div>
+      </div>
+      {suggested !== undefined && suggested !== job.pallets && canEdit && (
+        <div>
+          <Button variant="outline" size="sm" onClick={applySuggested}>
+            Apply suggested ({suggested})
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
