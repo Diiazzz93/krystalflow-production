@@ -583,7 +583,8 @@ export async function refreshJobAssemblyComponentsImpl(supabase: SupabaseLike, j
   // search for an Assembly that belongs to this Sales Order and re-link.
   if (!detail && row.unleashed_sales_order_number) {
     const soNumber = String(row.unleashed_sales_order_number).toLowerCase();
-    const productCode = row.unleashed_product_code ? String(row.unleashed_product_code) : null;
+    const existingData = (row.data ?? {}) as Record<string, unknown>;
+    const productCode = typeof existingData.productCode === "string" ? existingData.productCode : null;
     try {
       const scanned = productCode
         ? await ulFetchAllQueryPages<UnleashedAssembly>("/Assemblies", [["productCode", productCode], ["pageSize", "200"]], 3)
