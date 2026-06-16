@@ -561,37 +561,79 @@ async function fetchAssembly(
 export async function refreshJobAssemblyComponentsImpl(supabase: SupabaseLike, jobId: string) {
   const { data: row, error } = await supabase
     .from("production_jobs")
-    .select("id, unleashed_assembly_id, unleashed_assembly_number, unleashed_sales_order_number, data")
+    .select("id, unleashed_assembly_id, unleashed_assembly_number, unleashed_sales_order_number, unleashed_product_code, data")
     .eq("id", jobId)
     .single();
   if (error || !row) return { ok: false as const, error: error?.message ?? "Job not found" };
-  if (!row.unleashed_assembly_id) return { ok: false as const, error: "Job has no linked Assembly" };
 
-  const { assembly: detail, errors: lookupErrors } = await fetchAssembly(
-    String(row.unleashed_assembly_id),
-    row.unleashed_assembly_number,
-  );
-  if (!detail) {
-    const detailMsg = lookupErrors.length ? ` (${lookupErrors.join("; ")})` : "";
-    return { ok: false as const, error: `Could not read linked Assembly${detailMsg}` };
+  const lookupErrors: string[] = [];
+  let detail: UnleashedAssembly | null = null;
+  let relinked = false;
+
+  if (row.unleashed_assembly_id) {
+    const res = await fetchAssembly(
+      String(row.unleashed_assembly_id),
+      row.unleashed_assembly_number,
+    );
+    detail = res.assembly;
+    lookupErrors.push(...res.errors);
   }
 
+  // Self-heal: if the linked Assembly is gone (e.g. deleted in Unleashed),
+  // search for an Assembly that belongs to this Sales Order and re-link.
+  if (!detail && row.unleashed_sales_order_number) {
+    const soNumber = String(row.unleashed_sales_order_number).toLowerCase();
+    const productCode = row.unleashed_product_code ? String(row.unleashed_product_code) : null;
+    try {
+      const scanned = productCode
+        ? await ulFetchAllQueryPages<UnleashedAssembly>("/Assemblies", [["productCode", productCode], ["pageSize", "200"]], 3)
+        : await ulFetchAllQueryPages<UnleashedAssembly>("/Assemblies", [["pageSize", "200"]], 5);
+      const candidates = scanned.filter((a) => (a.Comments ?? "").toLowerCase().includes(soNumber));
+      // Prefer the most recent (highest AssemblyNumber lexicographically works for ASM-#### sequence)
+      candidates.sort((a, b) => (b.AssemblyNumber ?? "").localeCompare(a.AssemblyNumber ?? ""));
+      const candidate = candidates[0];
+      if (candidate?.Guid) {
+        const full = await fetchAssembly(candidate.Guid, candidate.AssemblyNumber ?? null);
+        detail = full.assembly ?? candidate;
+        lookupErrors.push(...full.errors);
+        relinked = true;
+      } else if (candidates.length === 0) {
+        lookupErrors.push(`No Assembly in Unleashed references Sales Order ${row.unleashed_sales_order_number}`);
+      }
+    } catch (e) {
+      lookupErrors.push(`SO re-link scan: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+
+  if (!detail) {
+    const base = row.unleashed_assembly_id ? "Could not read linked Assembly" : "Job has no linked Assembly";
+    const detailMsg = lookupErrors.length ? ` (${lookupErrors.join("; ")})` : "";
+    return { ok: false as const, error: `${base}${detailMsg}` };
+  }
 
   const components = mapAssemblyComponents(detail.AssemblyLines);
   const existing = (row.data ?? {}) as Record<string, unknown>;
+  const newAssemblyNumber = detail.AssemblyNumber ?? row.unleashed_assembly_number ?? (existing.unleashedAssemblyNumber as string | undefined);
   const merged = {
     ...existing,
     assemblyComponents: components,
     assemblyStatus: detail.AssemblyStatus ?? (existing.assemblyStatus as string | undefined) ?? null,
     assemblyCreatedAt: normaliseUnleashedDate(detail.AssemblyDate) ?? (existing.assemblyCreatedAt as string | undefined) ?? null,
-    unleashedAssemblyNumber: detail.AssemblyNumber ?? row.unleashed_assembly_number ?? (existing.unleashedAssemblyNumber as string | undefined),
+    unleashedAssemblyNumber: newAssemblyNumber,
     unleashedSalesOrderNumber: row.unleashed_sales_order_number ?? (existing.unleashedSalesOrderNumber as string | undefined),
   };
 
-  const { error: updateError } = await supabase.from("production_jobs").update({ data: merged }).eq("id", jobId);
+  const updatePayload: Record<string, unknown> = { data: merged };
+  if (relinked && detail.Guid) {
+    updatePayload.unleashed_assembly_id = detail.Guid;
+    updatePayload.unleashed_assembly_number = detail.AssemblyNumber ?? row.unleashed_assembly_number ?? null;
+  }
+
+  const { error: updateError } = await supabase.from("production_jobs").update(updatePayload).eq("id", jobId);
   if (updateError) return { ok: false as const, error: updateError.message };
   return {
     ok: true as const,
+    relinked,
     assemblyComponents: components,
     assemblyStatus: merged.assemblyStatus,
     assemblyCreatedAt: merged.assemblyCreatedAt,
