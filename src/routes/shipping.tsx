@@ -170,11 +170,12 @@ function ShippingPage() {
                         </div>
                       </div>
                       <Badge variant="outline" className="shrink-0">
-                        {r.shippedCount} of {r.total} shipped · {r.remaining} left
+                        {r.shippedCount} of {r.readyCount} ready shipped · {r.remaining} left
+                        {r.plannedTotal ? ` · ${r.readyCount}/${r.plannedTotal} QC'd` : ""}
                       </Badge>
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2">
-                      {Array.from({ length: r.total }, (_, i) => i + 1).map((n) => {
+                      {r.ready.map((n) => {
                         const isShipped = r.shippedSet.has(n);
                         return (
                           <label
