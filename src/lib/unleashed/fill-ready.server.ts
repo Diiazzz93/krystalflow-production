@@ -399,7 +399,7 @@ function customerColor(customer: string): string {
   return colors[idx];
 }
 
-}
+function mapAssemblyComponents(lines?: UnleashedAssemblyLine[]) {
 
 /**
  * Detect carton/pack format from an Unleashed product description.
