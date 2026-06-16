@@ -90,6 +90,7 @@ export interface Job {
   downtimeMinutes: number;
   actualRuntimeMinutes: number;
   customerColor: string; // hex
+  calendarLabel?: string; // optional display label for calendar pills (does not change customer/product)
   bottlesPerCarton?: number; // pack size override; defaults to 12
   cartonsOrdered?: number; // when the SO line is for boxes (e.g. 672 cartons of 6 × 1L)
   bottleSku?: string; // selected bottle stock SKU
