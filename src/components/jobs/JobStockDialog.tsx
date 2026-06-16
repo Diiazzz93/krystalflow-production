@@ -618,11 +618,8 @@ function PalletsBlock({
   }
 
   const boxesPerPallet = sourceItem?.boxesPerPallet;
-  const cartons =
-    job.cartonsOrdered ??
-    (job.bottlesPerCarton && job.bottlesPerCarton > 0
-      ? Math.ceil(job.quantity / job.bottlesPerCarton)
-      : undefined);
+  const cartons = deriveCartons(job).cartons;
+
   const suggested =
     boxesPerPallet && boxesPerPallet > 0 && cartons && cartons > 0
       ? Math.ceil(cartons / boxesPerPallet)
