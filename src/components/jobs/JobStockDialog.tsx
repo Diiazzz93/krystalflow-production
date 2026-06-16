@@ -222,14 +222,13 @@ function Detail({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 function AssemblyInfoBlock({ job }: { job: Job }) {
-  const hasAny =
-    job.unleashed_assembly_number ||
-    (job as unknown as { unleashedAssemblyNumber?: string }).unleashedAssemblyNumber ||
-    job.assemblyStatus ||
-    job.assemblyCreatedAt;
-  const assemblyNumber =
-    (job as unknown as { unleashedAssemblyNumber?: string }).unleashedAssemblyNumber ??
-    (job as unknown as { unleashed_assembly_number?: string }).unleashed_assembly_number;
+  const extra = job as unknown as {
+    unleashedAssemblyNumber?: string;
+    unleashed_assembly_number?: string;
+    unleashedSalesOrderNumber?: string;
+  };
+  const hasAny = extra.unleashedAssemblyNumber || extra.unleashed_assembly_number || job.assemblyStatus || job.assemblyCreatedAt;
+  const assemblyNumber = extra.unleashedAssemblyNumber ?? extra.unleashed_assembly_number;
   if (!hasAny) {
     return (
       <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
