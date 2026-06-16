@@ -347,6 +347,44 @@ function customerColor(customer: string): string {
   return colors[idx];
 }
 
+async function findExistingAssembly(
+  productCode: string,
+  qty: number,
+  orderNumber: string,
+): Promise<UnleashedAssembly | null> {
+  if (!productCode) return null;
+  try {
+    const items = await ulFetchAllQueryPages<UnleashedAssembly>("/Assemblies", [
+      ["productCode", productCode],
+      ["pageSize", "200"],
+    ], 3);
+    const match = items.find((a) => {
+      const comments = (a.Comments ?? "").toLowerCase();
+      const sameOrder = comments.includes(orderNumber.toLowerCase());
+      const sameQty = Math.abs(Number(a.Quantity ?? 0) - qty) < 0.0001;
+      return sameOrder && sameQty;
+    });
+    return match ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchAssembly(assemblyGuid: string): Promise<UnleashedAssembly | null> {
+  try {
+    const res = await ulFetchRaw<UnleashedAssembly>(`/Assemblies/${assemblyGuid}`, "");
+    // Single-object endpoints return the object itself, not { Items: [...] }.
+    if ((res as unknown as UnleashedAssembly).Guid || (res as unknown as UnleashedAssembly).AssemblyLines) {
+      return res as unknown as UnleashedAssembly;
+    }
+    if (res.Items && res.Items.length > 0) return res.Items[0];
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+
 export async function completeAssemblyImpl(
   supabase: SupabaseLike,
   jobId: string,
