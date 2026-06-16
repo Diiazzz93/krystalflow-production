@@ -97,6 +97,19 @@ export interface Job {
   cartonSku?: string; // selected carton stock SKU
   liquidSku?: string; // selected bulk liquid / product-to-fill SKU
   createdAt: string;
+  // Unleashed-linked assembly metadata (present when imported from a Fill Ready SO)
+  assemblyComponents?: AssemblyComponent[];
+  assemblyStatus?: string;
+  assemblyCreatedAt?: string;
+  assemblyCompletedAt?: string;
+}
+
+export interface AssemblyComponent {
+  productCode: string;
+  productGuid?: string;
+  name: string;
+  quantity: number;
+  unit?: string;
 }
 
 export interface Line {
