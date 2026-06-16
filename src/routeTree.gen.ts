@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UnleashedSyncRouteImport } from './routes/unleashed-sync'
 import { Route as StockRouteImport } from './routes/stock'
+import { Route as ShippingRouteImport } from './routes/shipping'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as QcRouteImport } from './routes/qc'
 import { Route as ManufacturingRouteImport } from './routes/manufacturing'
@@ -22,7 +23,6 @@ import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as AssemblyApprovalsRouteImport } from './routes/assembly-approvals'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AuthenticatedShippingRouteImport } from './routes/_authenticated/shipping'
 import { Route as ApiPublicHooksSyncFillReadyRouteImport } from './routes/api/public/hooks/sync-fill-ready'
 
 const UnleashedSyncRoute = UnleashedSyncRouteImport.update({
@@ -33,6 +33,11 @@ const UnleashedSyncRoute = UnleashedSyncRouteImport.update({
 const StockRoute = StockRouteImport.update({
   id: '/stock',
   path: '/stock',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ShippingRoute = ShippingRouteImport.update({
+  id: '/shipping',
+  path: '/shipping',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsRoute = SettingsRouteImport.update({
@@ -90,11 +95,6 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedShippingRoute = AuthenticatedShippingRouteImport.update({
-  id: '/_authenticated/shipping',
-  path: '/shipping',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiPublicHooksSyncFillReadyRoute =
   ApiPublicHooksSyncFillReadyRouteImport.update({
     id: '/api/public/hooks/sync-fill-ready',
@@ -114,9 +114,9 @@ export interface FileRoutesByFullPath {
   '/manufacturing': typeof ManufacturingRoute
   '/qc': typeof QcRoute
   '/settings': typeof SettingsRoute
+  '/shipping': typeof ShippingRoute
   '/stock': typeof StockRoute
   '/unleashed-sync': typeof UnleashedSyncRoute
-  '/shipping': typeof AuthenticatedShippingRoute
   '/api/public/hooks/sync-fill-ready': typeof ApiPublicHooksSyncFillReadyRoute
 }
 export interface FileRoutesByTo {
@@ -131,9 +131,9 @@ export interface FileRoutesByTo {
   '/manufacturing': typeof ManufacturingRoute
   '/qc': typeof QcRoute
   '/settings': typeof SettingsRoute
+  '/shipping': typeof ShippingRoute
   '/stock': typeof StockRoute
   '/unleashed-sync': typeof UnleashedSyncRoute
-  '/shipping': typeof AuthenticatedShippingRoute
   '/api/public/hooks/sync-fill-ready': typeof ApiPublicHooksSyncFillReadyRoute
 }
 export interface FileRoutesById {
@@ -149,9 +149,9 @@ export interface FileRoutesById {
   '/manufacturing': typeof ManufacturingRoute
   '/qc': typeof QcRoute
   '/settings': typeof SettingsRoute
+  '/shipping': typeof ShippingRoute
   '/stock': typeof StockRoute
   '/unleashed-sync': typeof UnleashedSyncRoute
-  '/_authenticated/shipping': typeof AuthenticatedShippingRoute
   '/api/public/hooks/sync-fill-ready': typeof ApiPublicHooksSyncFillReadyRoute
 }
 export interface FileRouteTypes {
@@ -168,9 +168,9 @@ export interface FileRouteTypes {
     | '/manufacturing'
     | '/qc'
     | '/settings'
+    | '/shipping'
     | '/stock'
     | '/unleashed-sync'
-    | '/shipping'
     | '/api/public/hooks/sync-fill-ready'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -185,9 +185,9 @@ export interface FileRouteTypes {
     | '/manufacturing'
     | '/qc'
     | '/settings'
+    | '/shipping'
     | '/stock'
     | '/unleashed-sync'
-    | '/shipping'
     | '/api/public/hooks/sync-fill-ready'
   id:
     | '__root__'
@@ -202,9 +202,9 @@ export interface FileRouteTypes {
     | '/manufacturing'
     | '/qc'
     | '/settings'
+    | '/shipping'
     | '/stock'
     | '/unleashed-sync'
-    | '/_authenticated/shipping'
     | '/api/public/hooks/sync-fill-ready'
   fileRoutesById: FileRoutesById
 }
@@ -220,9 +220,9 @@ export interface RootRouteChildren {
   ManufacturingRoute: typeof ManufacturingRoute
   QcRoute: typeof QcRoute
   SettingsRoute: typeof SettingsRoute
+  ShippingRoute: typeof ShippingRoute
   StockRoute: typeof StockRoute
   UnleashedSyncRoute: typeof UnleashedSyncRoute
-  AuthenticatedShippingRoute: typeof AuthenticatedShippingRoute
   ApiPublicHooksSyncFillReadyRoute: typeof ApiPublicHooksSyncFillReadyRoute
 }
 
@@ -240,6 +240,13 @@ declare module '@tanstack/react-router' {
       path: '/stock'
       fullPath: '/stock'
       preLoaderRoute: typeof StockRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/shipping': {
+      id: '/shipping'
+      path: '/shipping'
+      fullPath: '/shipping'
+      preLoaderRoute: typeof ShippingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings': {
@@ -319,13 +326,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/shipping': {
-      id: '/_authenticated/shipping'
-      path: '/shipping'
-      fullPath: '/shipping'
-      preLoaderRoute: typeof AuthenticatedShippingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/public/hooks/sync-fill-ready': {
       id: '/api/public/hooks/sync-fill-ready'
       path: '/api/public/hooks/sync-fill-ready'
@@ -348,9 +348,9 @@ const rootRouteChildren: RootRouteChildren = {
   ManufacturingRoute: ManufacturingRoute,
   QcRoute: QcRoute,
   SettingsRoute: SettingsRoute,
+  ShippingRoute: ShippingRoute,
   StockRoute: StockRoute,
   UnleashedSyncRoute: UnleashedSyncRoute,
-  AuthenticatedShippingRoute: AuthenticatedShippingRoute,
   ApiPublicHooksSyncFillReadyRoute: ApiPublicHooksSyncFillReadyRoute,
 }
 export const routeTree = rootRouteImport
