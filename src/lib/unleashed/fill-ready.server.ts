@@ -725,7 +725,7 @@ export async function refreshJobAssemblyComponentsImpl(supabase: SupabaseLike, j
   const components = mapAssemblyComponents(detail.AssemblyLines);
   const existing = (row.data ?? {}) as Record<string, unknown>;
   const newAssemblyNumber = detail.AssemblyNumber ?? row.unleashed_assembly_number ?? (existing.unleashedAssemblyNumber as string | undefined);
-  const merged = {
+  const merged: Record<string, unknown> = {
     ...existing,
     ...rebuiltJobData,
     assemblyComponents: components,
@@ -736,6 +736,8 @@ export async function refreshJobAssemblyComponentsImpl(supabase: SupabaseLike, j
   };
 
   const updatePayload: Record<string, unknown> = { data: merged };
+  if (typeof rebuiltJobData.product === "string") updatePayload.product = rebuiltJobData.product;
+  if (typeof rebuiltJobData.sku === "string") updatePayload.sku = rebuiltJobData.sku;
   if (relinked && detail.Guid) {
     updatePayload.unleashed_assembly_id = detail.Guid;
     updatePayload.unleashed_assembly_number = detail.AssemblyNumber ?? row.unleashed_assembly_number ?? null;

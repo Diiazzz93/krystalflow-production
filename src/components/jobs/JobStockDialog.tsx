@@ -92,6 +92,10 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
           assemblyCreatedAt: result.assemblyCreatedAt ?? undefined,
           unleashedAssemblyNumber: result.unleashedAssemblyNumber ?? undefined,
           unleashedSalesOrderNumber: result.unleashedSalesOrderNumber ?? undefined,
+          quantity: typeof result.quantity === "number" ? result.quantity : undefined,
+          cartonsOrdered: typeof result.cartonsOrdered === "number" ? result.cartonsOrdered : undefined,
+          bottlesPerCarton: typeof result.bottlesPerCarton === "number" ? result.bottlesPerCarton : undefined,
+          bottleSize: typeof result.bottleSize === "string" ? result.bottleSize : undefined,
         });
       })
       .catch((error) => console.error("[jobs] assembly component refresh failed", error));
