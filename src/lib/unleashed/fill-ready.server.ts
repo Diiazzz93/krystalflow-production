@@ -561,7 +561,7 @@ async function fetchAssembly(
 export async function refreshJobAssemblyComponentsImpl(supabase: SupabaseLike, jobId: string) {
   const { data: row, error } = await supabase
     .from("production_jobs")
-    .select("id, unleashed_assembly_id, unleashed_assembly_number, unleashed_sales_order_number, data")
+    .select("id, sku, product, unleashed_sales_order_id, unleashed_assembly_id, unleashed_assembly_number, unleashed_sales_order_number, data")
     .eq("id", jobId)
     .single();
   if (error || !row) return { ok: false as const, error: error?.message ?? "Job not found" };
@@ -584,7 +584,14 @@ export async function refreshJobAssemblyComponentsImpl(supabase: SupabaseLike, j
   if (!detail && row.unleashed_sales_order_number) {
     const soNumber = String(row.unleashed_sales_order_number).toLowerCase();
     const existingData = (row.data ?? {}) as Record<string, unknown>;
-    const productCode = typeof existingData.productCode === "string" ? existingData.productCode : null;
+    const productCode =
+      typeof existingData.productCode === "string"
+        ? existingData.productCode
+        : typeof existingData.sku === "string"
+          ? existingData.sku
+          : typeof row.sku === "string"
+            ? row.sku
+            : null;
     try {
       const scanned = productCode
         ? await ulFetchAllQueryPages<UnleashedAssembly>("/Assemblies", [["productCode", productCode], ["pageSize", "200"]], 3)
@@ -606,6 +613,18 @@ export async function refreshJobAssemblyComponentsImpl(supabase: SupabaseLike, j
     }
   }
 
+  // Last resort: rebuild the missing link from the Sales Order itself. This
+  // covers the real-world case where the wrong Assembly was linked, imported,
+  // then deleted before KrystalFlow could pull the component lines.
+  let rebuiltJobData: Record<string, unknown> = {};
+  if (!detail) {
+    const rebuilt = await rebuildAssemblyFromSalesOrder(row as Record<string, unknown>);
+    lookupErrors.push(...rebuilt.errors);
+    detail = rebuilt.assembly;
+    rebuiltJobData = rebuilt.jobData;
+    if (detail) relinked = true;
+  }
+
   if (!detail) {
     const base = row.unleashed_assembly_id ? "Could not read linked Assembly" : "Job has no linked Assembly";
     const detailMsg = lookupErrors.length ? ` (${lookupErrors.join("; ")})` : "";
@@ -617,6 +636,7 @@ export async function refreshJobAssemblyComponentsImpl(supabase: SupabaseLike, j
   const newAssemblyNumber = detail.AssemblyNumber ?? row.unleashed_assembly_number ?? (existing.unleashedAssemblyNumber as string | undefined);
   const merged = {
     ...existing,
+    ...rebuiltJobData,
     assemblyComponents: components,
     assemblyStatus: detail.AssemblyStatus ?? (existing.assemblyStatus as string | undefined) ?? null,
     assemblyCreatedAt: normaliseUnleashedDate(detail.AssemblyDate) ?? (existing.assemblyCreatedAt as string | undefined) ?? null,
@@ -640,6 +660,10 @@ export async function refreshJobAssemblyComponentsImpl(supabase: SupabaseLike, j
     assemblyCreatedAt: merged.assemblyCreatedAt,
     unleashedAssemblyNumber: merged.unleashedAssemblyNumber,
     unleashedSalesOrderNumber: merged.unleashedSalesOrderNumber,
+    quantity: merged.quantity,
+    cartonsOrdered: merged.cartonsOrdered,
+    bottlesPerCarton: merged.bottlesPerCarton,
+    bottleSize: merged.bottleSize,
   };
 }
 
