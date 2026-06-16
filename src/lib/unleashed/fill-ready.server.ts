@@ -382,6 +382,21 @@ function customerColor(customer: string): string {
   return colors[idx];
 }
 
+function mapAssemblyComponents(lines?: UnleashedAssemblyLine[]) {
+  return (lines ?? [])
+    .map((line) => {
+      const product = line.Product ?? line.ComponentProduct;
+      return {
+        productCode: product?.ProductCode ?? "",
+        productGuid: product?.Guid,
+        name: product?.ProductDescription ?? product?.ProductCode ?? "",
+        quantity: Number(line.Quantity ?? line.ComponentQuantity ?? 0),
+        unit: typeof line.UnitOfMeasure === "string" ? line.UnitOfMeasure : line.UnitOfMeasure?.Name,
+      };
+    })
+    .filter((c) => c.productCode);
+}
+
 async function findExistingAssembly(
   productCode: string,
   qty: number,
