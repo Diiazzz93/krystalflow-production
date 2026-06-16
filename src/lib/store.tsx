@@ -88,6 +88,8 @@ function rowToJob(r: Record<string, unknown>): Job {
     bottleSize: data.bottleSize ?? "",
     quantity: Number(data.quantity ?? 0),
     pallets: Number(data.pallets ?? 1),
+    bottlesPerCarton: data.bottlesPerCarton,
+    cartonsOrdered: data.cartonsOrdered,
     dueDate: String(data.dueDate ?? fallbackDueDate.toISOString().slice(0, 10)),
     priority: data.priority ?? "Normal",
     status: (r.status as Job["status"]) ?? data.status ?? "Scheduled",
