@@ -120,14 +120,14 @@ function ShippingPage() {
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <StatCard label="Pallets shipped today" value={shippedToday.length} icon={CheckCircle2} />
-          <StatCard label="Pallets remaining (all open jobs)" value={totals.remaining} icon={PackageCheck} />
-          <StatCard label="Total pallets across jobs" value={totals.total} icon={Truck} />
+          <StatCard label="Ready pallets remaining" value={totals.remaining} icon={PackageCheck} />
+          <StatCard label="Total ready (QC'd) pallets" value={totals.total} icon={Truck} />
         </div>
 
         <Card>
           <CardHeader className="pb-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <CardTitle className="text-base">Jobs with pallets</CardTitle>
+              <CardTitle className="text-base">Jobs with QC'd pallets</CardTitle>
               <div className="relative w-full max-w-xs">
                 <Search className="absolute left-2 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
                 <Input
