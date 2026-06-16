@@ -38,6 +38,7 @@ export function EditStockDialog({ item, open, onOpenChange }: Props) {
   const [unit, setUnit] = useState("units");
   const [location, setLocation] = useState("");
   const [notes, setNotes] = useState("");
+  const [boxesPerPallet, setBoxesPerPallet] = useState<string>("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -48,6 +49,11 @@ export function EditStockDialog({ item, open, onOpenChange }: Props) {
       setUnit(item.unit);
       setLocation(item.location);
       setNotes(item.notes ?? "");
+      setBoxesPerPallet(
+        item.boxesPerPallet !== undefined && item.boxesPerPallet !== null
+          ? String(item.boxesPerPallet)
+          : "",
+      );
     }
   }, [item]);
 
@@ -59,6 +65,7 @@ export function EditStockDialog({ item, open, onOpenChange }: Props) {
       return;
     }
     setSaving(true);
+    const bpp = boxesPerPallet.trim();
     await updateItem(item.id, {
       name: name.trim(),
       sku: sku.trim(),
@@ -66,6 +73,7 @@ export function EditStockDialog({ item, open, onOpenChange }: Props) {
       unit,
       location: location.trim(),
       notes: notes.trim() || undefined,
+      boxesPerPallet: bpp === "" ? (null as unknown as number) : Number(bpp),
     });
     setSaving(false);
     toast.success("Stock item updated");
@@ -142,6 +150,24 @@ export function EditStockDialog({ item, open, onOpenChange }: Props) {
               onChange={(e) => setLocation(e.target.value)}
               className="h-11"
             />
+          </div>
+          <div className="sm:col-span-2">
+            <Label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+              Boxes per pallet
+            </Label>
+            <Input
+              type="number"
+              min={0}
+              value={boxesPerPallet}
+              onChange={(e) => setBoxesPerPallet(e.target.value)}
+              placeholder="e.g. 50"
+              className="h-11"
+            />
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              When a job is linked to this product, pallets needed will be
+              auto-calculated as ceil(cartons ordered ÷ boxes per pallet).
+              Leave blank to disable.
+            </p>
           </div>
           <div className="sm:col-span-2">
             <Label className="mb-1.5 block text-xs font-medium text-muted-foreground">

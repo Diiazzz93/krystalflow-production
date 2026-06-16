@@ -40,6 +40,7 @@ export type Database = {
           alert_notes: string | null
           allocated_stock: number
           available_stock: number
+          boxes_per_pallet: number | null
           category: string
           created_at: string
           created_by: string | null
@@ -62,6 +63,7 @@ export type Database = {
           alert_notes?: string | null
           allocated_stock?: number
           available_stock?: number
+          boxes_per_pallet?: number | null
           category?: string
           created_at?: string
           created_by?: string | null
@@ -84,6 +86,7 @@ export type Database = {
           alert_notes?: string | null
           allocated_stock?: number
           available_stock?: number
+          boxes_per_pallet?: number | null
           category?: string
           created_at?: string
           created_by?: string | null
