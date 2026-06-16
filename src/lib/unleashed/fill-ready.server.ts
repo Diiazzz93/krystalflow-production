@@ -558,10 +558,101 @@ async function fetchAssembly(
   return { assembly: null, errors };
 }
 
+async function fetchSalesOrderForJob(row: Record<string, unknown>) {
+  const errors: string[] = [];
+  const id = typeof row.unleashed_sales_order_id === "string" ? row.unleashed_sales_order_id : null;
+  const number = typeof row.unleashed_sales_order_number === "string" ? row.unleashed_sales_order_number : null;
+  if (id) {
+    try {
+      const res = await ulFetchRaw<UnleashedSalesOrder>(`/SalesOrders/${id}`, "");
+      if ((res as unknown as UnleashedSalesOrder).Guid) return { salesOrder: res as unknown as UnleashedSalesOrder, errors };
+    } catch (e) {
+      errors.push(`Sales Order GUID lookup: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+  if (number) {
+    try {
+      const items = await ulFetchAllQueryPages<UnleashedSalesOrder>("/SalesOrders", [["orderNumber", number], ["pageSize", "50"]], 2);
+      const match = items.find((so) => (so.OrderNumber ?? "").toLowerCase() === number.toLowerCase());
+      if (match?.Guid) {
+        const detail = await ulFetchRaw<UnleashedSalesOrder>(`/SalesOrders/${match.Guid}`, "");
+        return { salesOrder: (detail as unknown as UnleashedSalesOrder).Guid ? detail as unknown as UnleashedSalesOrder : match, errors };
+      }
+    } catch (e) {
+      errors.push(`Sales Order number lookup: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+  return { salesOrder: null, errors };
+}
+
+async function rebuildAssemblyFromSalesOrder(row: Record<string, unknown>): Promise<{
+  assembly: UnleashedAssembly | null;
+  jobData: Record<string, unknown>;
+  errors: string[];
+}> {
+  const errors: string[] = [];
+  const { salesOrder, errors: soErrors } = await fetchSalesOrderForJob(row);
+  errors.push(...soErrors);
+  if (!salesOrder) return { assembly: null, jobData: {}, errors: [...errors, "Could not reload Sales Order to rebuild Assembly"] };
+
+  const sku = typeof row.sku === "string" ? row.sku : undefined;
+  const lines = (salesOrder.SalesOrderLines ?? []).filter((l) => l.Product?.Guid);
+  const primary = lines.find((l) => l.Product?.ProductCode === sku) ?? lines.sort((a, b) => (b.OrderQuantity ?? 0) - (a.OrderQuantity ?? 0))[0];
+  if (!primary?.Product?.Guid) return { assembly: null, jobData: {}, errors: [...errors, "Sales Order has no product line to rebuild Assembly"] };
+
+  const productGuid = primary.Product.Guid;
+  const productCode = primary.Product.ProductCode ?? sku ?? "";
+  const productDesc = primary.Product.ProductDescription ?? String(row.product ?? productCode);
+  const qty = Number(primary.OrderQuantity ?? 0);
+  const pack = parseProductPackaging(productDesc);
+  const bottlesPerCarton = pack.bottlesPerCarton;
+  const isBoxedProduct = bottlesPerCarton > 1;
+  const bottleCount = isBoxedProduct ? qty * bottlesPerCarton : qty;
+  const bottleSize = pack.bottleSize ?? "";
+
+  const existing = await findExistingAssembly(productCode, qty, salesOrder.OrderNumber);
+  let assembly = existing;
+  if (!assembly?.Guid) {
+    try {
+      assembly = await ulPost<UnleashedAssembly>("/Assemblies", {
+        Quantity: qty,
+        Product: { Guid: productGuid },
+        SourceWarehouse: salesOrder.Warehouse?.WarehouseCode ? { WarehouseCode: salesOrder.Warehouse.WarehouseCode } : undefined,
+        DestinationWarehouse: salesOrder.Warehouse?.WarehouseCode ? { WarehouseCode: salesOrder.Warehouse.WarehouseCode } : undefined,
+        Comments: `Auto-created by KrystalFlow from Sales Order ${salesOrder.OrderNumber}`,
+      });
+    } catch (e) {
+      errors.push(`Assembly rebuild create: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+
+  if (assembly?.Guid) {
+    const full = await fetchAssembly(assembly.Guid, assembly.AssemblyNumber ?? null);
+    errors.push(...full.errors);
+    assembly = full.assembly ?? assembly;
+  }
+
+  return {
+    assembly: assembly ?? null,
+    jobData: {
+      customer: salesOrder.Customer?.CustomerName ?? row.customer,
+      product: productDesc,
+      sku: productCode,
+      bottleSize,
+      quantity: bottleCount,
+      bottlesPerCarton: isBoxedProduct ? bottlesPerCarton : undefined,
+      cartonsOrdered: isBoxedProduct ? qty : undefined,
+      dueDate: (normaliseUnleashedDate(salesOrder.RequiredDate ?? salesOrder.DueDate) ?? new Date().toISOString()).slice(0, 10),
+      unleashedSalesOrderNumber: salesOrder.OrderNumber,
+    },
+    errors,
+  };
+}
+
 export async function refreshJobAssemblyComponentsImpl(supabase: SupabaseLike, jobId: string) {
   const { data: row, error } = await supabase
     .from("production_jobs")
-    .select("id, unleashed_assembly_id, unleashed_assembly_number, unleashed_sales_order_number, data")
+    .select("id, sku, product, unleashed_sales_order_id, unleashed_assembly_id, unleashed_assembly_number, unleashed_sales_order_number, data")
     .eq("id", jobId)
     .single();
   if (error || !row) return { ok: false as const, error: error?.message ?? "Job not found" };
@@ -584,7 +675,14 @@ export async function refreshJobAssemblyComponentsImpl(supabase: SupabaseLike, j
   if (!detail && row.unleashed_sales_order_number) {
     const soNumber = String(row.unleashed_sales_order_number).toLowerCase();
     const existingData = (row.data ?? {}) as Record<string, unknown>;
-    const productCode = typeof existingData.productCode === "string" ? existingData.productCode : null;
+    const productCode =
+      typeof existingData.productCode === "string"
+        ? existingData.productCode
+        : typeof existingData.sku === "string"
+          ? existingData.sku
+          : typeof row.sku === "string"
+            ? row.sku
+            : null;
     try {
       const scanned = productCode
         ? await ulFetchAllQueryPages<UnleashedAssembly>("/Assemblies", [["productCode", productCode], ["pageSize", "200"]], 3)
@@ -606,6 +704,18 @@ export async function refreshJobAssemblyComponentsImpl(supabase: SupabaseLike, j
     }
   }
 
+  // Last resort: rebuild the missing link from the Sales Order itself. This
+  // covers the real-world case where the wrong Assembly was linked, imported,
+  // then deleted before KrystalFlow could pull the component lines.
+  let rebuiltJobData: Record<string, unknown> = {};
+  if (!detail) {
+    const rebuilt = await rebuildAssemblyFromSalesOrder(row as Record<string, unknown>);
+    lookupErrors.push(...rebuilt.errors);
+    detail = rebuilt.assembly;
+    rebuiltJobData = rebuilt.jobData;
+    if (detail) relinked = true;
+  }
+
   if (!detail) {
     const base = row.unleashed_assembly_id ? "Could not read linked Assembly" : "Job has no linked Assembly";
     const detailMsg = lookupErrors.length ? ` (${lookupErrors.join("; ")})` : "";
@@ -615,8 +725,9 @@ export async function refreshJobAssemblyComponentsImpl(supabase: SupabaseLike, j
   const components = mapAssemblyComponents(detail.AssemblyLines);
   const existing = (row.data ?? {}) as Record<string, unknown>;
   const newAssemblyNumber = detail.AssemblyNumber ?? row.unleashed_assembly_number ?? (existing.unleashedAssemblyNumber as string | undefined);
-  const merged = {
+  const merged: Record<string, unknown> = {
     ...existing,
+    ...rebuiltJobData,
     assemblyComponents: components,
     assemblyStatus: detail.AssemblyStatus ?? (existing.assemblyStatus as string | undefined) ?? null,
     assemblyCreatedAt: normaliseUnleashedDate(detail.AssemblyDate) ?? (existing.assemblyCreatedAt as string | undefined) ?? null,
@@ -625,6 +736,8 @@ export async function refreshJobAssemblyComponentsImpl(supabase: SupabaseLike, j
   };
 
   const updatePayload: Record<string, unknown> = { data: merged };
+  if (typeof rebuiltJobData.product === "string") updatePayload.product = rebuiltJobData.product;
+  if (typeof rebuiltJobData.sku === "string") updatePayload.sku = rebuiltJobData.sku;
   if (relinked && detail.Guid) {
     updatePayload.unleashed_assembly_id = detail.Guid;
     updatePayload.unleashed_assembly_number = detail.AssemblyNumber ?? row.unleashed_assembly_number ?? null;
@@ -632,14 +745,20 @@ export async function refreshJobAssemblyComponentsImpl(supabase: SupabaseLike, j
 
   const { error: updateError } = await supabase.from("production_jobs").update(updatePayload).eq("id", jobId);
   if (updateError) return { ok: false as const, error: updateError.message };
+  const numberValue = (value: unknown) => (typeof value === "number" && Number.isFinite(value) ? value : undefined);
+  const stringValue = (value: unknown) => (typeof value === "string" ? value : undefined);
   return {
     ok: true as const,
     relinked,
     assemblyComponents: components,
-    assemblyStatus: merged.assemblyStatus,
-    assemblyCreatedAt: merged.assemblyCreatedAt,
-    unleashedAssemblyNumber: merged.unleashedAssemblyNumber,
-    unleashedSalesOrderNumber: merged.unleashedSalesOrderNumber,
+    assemblyStatus: stringValue(merged.assemblyStatus) ?? null,
+    assemblyCreatedAt: stringValue(merged.assemblyCreatedAt) ?? null,
+    unleashedAssemblyNumber: stringValue(merged.unleashedAssemblyNumber) ?? null,
+    unleashedSalesOrderNumber: stringValue(merged.unleashedSalesOrderNumber) ?? null,
+    quantity: numberValue(merged.quantity),
+    cartonsOrdered: numberValue(merged.cartonsOrdered),
+    bottlesPerCarton: numberValue(merged.bottlesPerCarton),
+    bottleSize: stringValue(merged.bottleSize),
   };
 }
 
