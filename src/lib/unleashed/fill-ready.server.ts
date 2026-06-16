@@ -142,17 +142,20 @@ export async function importFillReadyImpl(supabase: SupabaseLike): Promise<Impor
       const productGuid = primary.Product!.Guid!;
       const productCode = primary.Product!.ProductCode ?? "";
       const productDesc = primary.Product!.ProductDescription ?? productCode;
-      const orderedQty = Number(primary.OrderQuantity ?? 0);
-      // Detect pack format from the product name (e.g. "6 x 1L", "4x4 litre").
-      // If matched, the SO quantity represents CARTONS, not individual bottles.
+      // The SO OrderQuantity is in the product's stock unit (cartons for boxed
+      // SKUs like "Linseed Oil Raw 6 x 1L"). The Unleashed Assembly is also
+      // sized in that same unit, so `qty` (used for BOM/Assembly) stays as-is.
+      const qty = Number(primary.OrderQuantity ?? 0);
+      // Detect pack format from the product name so the production job can
+      // show the true number of bottles to fill (e.g. 672 boxes × 6 = 4032).
       const pack = parseProductPackaging(productDesc);
       const bottlesPerCarton = pack.bottlesPerCarton;
       const isBoxedProduct = bottlesPerCarton > 1;
-      const qty = isBoxedProduct ? orderedQty * bottlesPerCarton : orderedQty;
+      const bottleCount = isBoxedProduct ? qty * bottlesPerCarton : qty;
       const bottleSize = pack.bottleSize ?? "";
       const unitLabel = isBoxedProduct
-        ? `${orderedQty} box${orderedQty === 1 ? "" : "es"} of ${bottlesPerCarton}${bottleSize ? ` x ${bottleSize}` : ""} = ${qty} bottles`
-        : `${qty} bottles`;
+        ? `${qty} box${qty === 1 ? "" : "es"} of ${bottlesPerCarton}${bottleSize ? ` × ${bottleSize}` : ""} = ${bottleCount} bottles`
+        : `${bottleCount} bottles`;
 
       // 3) Fetch BOM for the product. Fail import if none.
       const bom = await fetchBom(productGuid);
