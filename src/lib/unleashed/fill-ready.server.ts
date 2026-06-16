@@ -372,6 +372,8 @@ async function fetchBom(productGuid: string): Promise<UnleashedBom | null> {
 
 function normaliseUnleashedDate(value?: string | null): string | null {
   if (!value) return null;
+  const match = value.match(/^\/Date\((\d+)\)\/$/);
+  if (match) return new Date(Number(match[1])).toISOString();
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
@@ -432,6 +434,41 @@ async function fetchAssembly(assemblyGuid: string): Promise<UnleashedAssembly | 
   } catch {
     return null;
   }
+}
+
+export async function refreshJobAssemblyComponentsImpl(supabase: SupabaseLike, jobId: string) {
+  const { data: row, error } = await supabase
+    .from("production_jobs")
+    .select("id, unleashed_assembly_id, unleashed_assembly_number, unleashed_sales_order_number, data")
+    .eq("id", jobId)
+    .single();
+  if (error || !row) return { ok: false as const, error: error?.message ?? "Job not found" };
+  if (!row.unleashed_assembly_id) return { ok: false as const, error: "Job has no linked Assembly" };
+
+  const detail = await fetchAssembly(String(row.unleashed_assembly_id));
+  if (!detail) return { ok: false as const, error: "Could not read linked Assembly" };
+
+  const components = mapAssemblyComponents(detail.AssemblyLines);
+  const existing = (row.data ?? {}) as Record<string, unknown>;
+  const merged = {
+    ...existing,
+    assemblyComponents: components,
+    assemblyStatus: detail.AssemblyStatus ?? (existing.assemblyStatus as string | undefined) ?? null,
+    assemblyCreatedAt: normaliseUnleashedDate(detail.AssemblyDate) ?? (existing.assemblyCreatedAt as string | undefined) ?? null,
+    unleashedAssemblyNumber: detail.AssemblyNumber ?? row.unleashed_assembly_number ?? (existing.unleashedAssemblyNumber as string | undefined),
+    unleashedSalesOrderNumber: row.unleashed_sales_order_number ?? (existing.unleashedSalesOrderNumber as string | undefined),
+  };
+
+  const { error: updateError } = await supabase.from("production_jobs").update({ data: merged }).eq("id", jobId);
+  if (updateError) return { ok: false as const, error: updateError.message };
+  return {
+    ok: true as const,
+    assemblyComponents: components,
+    assemblyStatus: merged.assemblyStatus,
+    assemblyCreatedAt: merged.assemblyCreatedAt,
+    unleashedAssemblyNumber: merged.unleashedAssemblyNumber,
+    unleashedSalesOrderNumber: merged.unleashedSalesOrderNumber,
+  };
 }
 
 
