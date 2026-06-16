@@ -92,6 +92,10 @@ function rowToItem(r: Record<string, unknown>): StockItem {
     source: (r.source as string) ?? undefined,
     notes: (r.notes as string) ?? undefined,
     dateReceived: (r.date_received as string) ?? undefined,
+    boxesPerPallet:
+      r.boxes_per_pallet === null || r.boxes_per_pallet === undefined
+        ? undefined
+        : Number(r.boxes_per_pallet),
     lastUpdated: String(r.last_updated ?? new Date().toISOString()),
   };
 }
