@@ -74,6 +74,58 @@ function fmtDate(iso?: string) {
   });
 }
 
+/** Parse "6x1L", "12 × 500ml", "4x4 litre" etc. from a product description. */
+function parsePackFromName(desc: string): { perCarton?: number; size?: string } {
+  if (!desc) return {};
+  const m = desc.toLowerCase().match(
+    /(\d+)\s*[x×]\s*(\d+(?:\.\d+)?)\s*(ml|millilitres?|l|lt|ltr|litres?|liters?|kg|g|grams?)\b/,
+  );
+  if (!m) return {};
+  const count = Number(m[1]);
+  const size = Number(m[2]);
+  let unit = m[3];
+  if (/^(ml|millilitres?)$/.test(unit)) unit = "ml";
+  else if (/^(l|lt|ltr|litres?|liters?)$/.test(unit)) unit = "L";
+  else if (/^(g|grams?)$/.test(unit)) unit = "g";
+  else if (unit === "kg") unit = "kg";
+  if (count > 1 && size > 0) return { perCarton: count, size: `${size}${unit}` };
+  return {};
+}
+
+/** Derive (cartons, bottlesPerCarton) from job, falling back to product-name parsing
+ *  when older imports didn't persist these fields. */
+function deriveCartons(job: Job): { cartons?: number; perCarton?: number; bottleSize?: string; derived: boolean } {
+  if (job.cartonsOrdered && job.bottlesPerCarton && job.bottlesPerCarton > 1) {
+    return {
+      cartons: job.cartonsOrdered,
+      perCarton: job.bottlesPerCarton,
+      bottleSize: job.bottleSize,
+      derived: false,
+    };
+  }
+  const parsed = parsePackFromName(`${job.product ?? ""} ${job.bottleSize ?? ""}`);
+  if (parsed.perCarton && parsed.perCarton > 1) {
+    // For boxed products that weren't recognised at import, the stored quantity is
+    // the sales-order line quantity (i.e. cartons), not bottles.
+    return {
+      cartons: job.quantity,
+      perCarton: parsed.perCarton,
+      bottleSize: parsed.size ?? job.bottleSize,
+      derived: true,
+    };
+  }
+  if (job.bottlesPerCarton && job.bottlesPerCarton > 1 && job.quantity > 0) {
+    return {
+      cartons: Math.ceil(job.quantity / job.bottlesPerCarton),
+      perCarton: job.bottlesPerCarton,
+      bottleSize: job.bottleSize,
+      derived: false,
+    };
+  }
+  return { derived: false };
+}
+
+
 export function JobStockDialog({ job, open, onOpenChange }: Props) {
   const { presets } = useLineSetups();
   const { getSpecForJob } = useCustomerSpecs();
