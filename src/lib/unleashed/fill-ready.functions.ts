@@ -37,3 +37,16 @@ export const completeAssembly = createServerFn({ method: "POST" })
     if (!result.ok) throw new Error(result.error);
     return { ok: true };
   });
+
+export const refreshJobAssemblyComponents = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { jobId: string }) => {
+    if (!input?.jobId) throw new Error("jobId is required");
+    return input;
+  })
+  .handler(async ({ data, context }) => {
+    const { refreshJobAssemblyComponentsImpl } = await import("./fill-ready.server");
+    const result = await refreshJobAssemblyComponentsImpl(context.supabase as any, data.jobId);
+    if (!result.ok) throw new Error(result.error);
+    return result;
+  });

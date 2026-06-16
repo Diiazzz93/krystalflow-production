@@ -77,6 +77,7 @@ function rowToJob(r: Record<string, unknown>): Job {
   const fallbackDueDate = new Date(scheduledStart);
   fallbackDueDate.setDate(fallbackDueDate.getDate() + 7);
   const colorIndex = Math.abs(String(r.customer ?? data.customer ?? "").split("").reduce((sum, ch) => sum + ch.charCodeAt(0), 0)) % JOB_COLORS.length;
+  const assemblyComponents = Array.isArray(data.assemblyComponents) ? data.assemblyComponents : [];
   // Prefer the column values as source of truth; merge richer fields from data.
   return {
     ...(data as Job),
@@ -106,6 +107,12 @@ function rowToJob(r: Record<string, unknown>): Job {
     actualRuntimeMinutes: Number(data.actualRuntimeMinutes ?? 0),
     customerColor: data.customerColor ?? JOB_COLORS[colorIndex],
     createdAt: data.createdAt ?? String(r.created_at ?? new Date().toISOString()),
+    unleashedSalesOrderNumber: data.unleashedSalesOrderNumber ?? (String(r.unleashed_sales_order_number ?? "") || undefined),
+    unleashedAssemblyNumber: data.unleashedAssemblyNumber ?? (String(r.unleashed_assembly_number ?? "") || undefined),
+    assemblyComponents,
+    assemblyStatus: data.assemblyStatus,
+    assemblyCreatedAt: data.assemblyCreatedAt,
+    assemblyCompletedAt: data.assemblyCompletedAt,
   };
 }
 

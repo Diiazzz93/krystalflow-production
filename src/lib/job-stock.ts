@@ -1,7 +1,7 @@
 import type { Job } from "@/lib/types";
 import type { StockItem } from "@/lib/stock";
 
-export type RequirementCategory = "bottle" | "cap" | "label" | "carton" | "liquid";
+export type RequirementCategory = "bottle" | "cap" | "label" | "carton" | "liquid" | `assembly-${string}`;
 
 export interface JobRequirement {
   category: RequirementCategory;
@@ -60,6 +60,40 @@ export function computeJobStockCheck(
   job: Job,
   stock: StockItem[] = [],
 ): JobStockCheck {
+  const assemblyComponents = job.assemblyComponents ?? [];
+  if (assemblyComponents.length > 0) {
+    const stockBySku = new Map(stock.map((item) => [item.sku.toLowerCase(), item]));
+    const requirements: JobRequirement[] = assemblyComponents.map((component, index) => {
+      const item = stockBySku.get((component.productCode ?? "").toLowerCase()) ?? null;
+      const required = Math.max(0, Number(component.quantity ?? 0));
+      const available = item?.availableStock ?? 0;
+      const missing = Math.max(0, required - available);
+      const status: JobRequirement["status"] =
+        missing > 0 ? "short" : available < required * 1.2 ? "low" : "ok";
+      return {
+        category: `assembly-${component.productCode || index}`,
+        description: component.name || component.productCode || "Assembly component",
+        required,
+        unit: component.unit ?? item?.unit ?? "units",
+        stock: item,
+        available,
+        missing,
+        status,
+      };
+    });
+    const hasShort = requirements.some((r) => r.status === "short");
+    const hasLow = requirements.some((r) => r.status === "low");
+    return {
+      jobId: job.id,
+      requirements,
+      hasSelections: true,
+      ready: !hasShort,
+      hasLow,
+      hasShort,
+      shortCount: requirements.filter((r) => r.status === "short").length,
+    };
+  }
+
   const qty = Math.max(0, job.quantity ?? 0);
   const perCarton = Math.max(1, job.bottlesPerCarton ?? DEFAULT_BOTTLES_PER_CARTON);
   const cartons = Math.ceil(qty / perCarton);

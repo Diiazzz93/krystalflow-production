@@ -98,6 +98,8 @@ export interface Job {
   liquidSku?: string; // selected bulk liquid / product-to-fill SKU
   createdAt: string;
   // Unleashed-linked assembly metadata (present when imported from a Fill Ready SO)
+  unleashedSalesOrderNumber?: string;
+  unleashedAssemblyNumber?: string;
   assemblyComponents?: AssemblyComponent[];
   assemblyStatus?: string;
   assemblyCreatedAt?: string;

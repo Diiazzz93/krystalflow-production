@@ -39,7 +39,9 @@ interface UnleashedBom {
 }
 
 interface UnleashedAssemblyLine {
+  Product?: { Guid?: string; ProductCode?: string; ProductDescription?: string } | null;
   ComponentProduct?: { Guid?: string; ProductCode?: string; ProductDescription?: string } | null;
+  Quantity?: number;
   ComponentQuantity?: number;
   UnitOfMeasure?: { Name?: string } | string | null;
 }
@@ -200,13 +202,7 @@ export async function importFillReadyImpl(supabase: SupabaseLike): Promise<Impor
           const detail = await fetchAssembly(assemblyId);
           assemblyStatus = detail?.AssemblyStatus ?? assemblyStatus;
           assemblyCreatedAt = normaliseUnleashedDate(detail?.AssemblyDate) ?? assemblyCreatedAt;
-          assemblyComponents = (detail?.AssemblyLines ?? []).map((line: UnleashedAssemblyLine) => ({
-            productCode: line.ComponentProduct?.ProductCode ?? "",
-            productGuid: line.ComponentProduct?.Guid,
-            name: line.ComponentProduct?.ProductDescription ?? line.ComponentProduct?.ProductCode ?? "",
-            quantity: Number(line.ComponentQuantity ?? 0),
-            unit: typeof line.UnitOfMeasure === "string" ? line.UnitOfMeasure : line.UnitOfMeasure?.Name,
-          })).filter((c: { productCode: string }) => c.productCode);
+          assemblyComponents = mapAssemblyComponents(detail?.AssemblyLines);
         } catch {
           // Fall back to BOM lines if assembly fetch fails.
           assemblyComponents = bomLines.map((line: UnleashedBomLine) => ({
@@ -338,17 +334,7 @@ export async function importFillReadyImpl(supabase: SupabaseLike): Promise<Impor
       try {
         const detail = await fetchAssembly(row.unleashed_assembly_id);
         if (!detail) continue;
-        const components = (detail.AssemblyLines ?? [])
-          .map((line: UnleashedAssemblyLine) => ({
-            productCode: line.ComponentProduct?.ProductCode ?? "",
-            productGuid: line.ComponentProduct?.Guid,
-            name: line.ComponentProduct?.ProductDescription ?? line.ComponentProduct?.ProductCode ?? "",
-            quantity: Number(line.ComponentQuantity ?? 0),
-            unit: typeof line.UnitOfMeasure === "string"
-              ? (line.UnitOfMeasure as string)
-              : (line.UnitOfMeasure as { Name?: string } | null)?.Name,
-          }))
-          .filter((c) => c.productCode);
+        const components = mapAssemblyComponents(detail.AssemblyLines);
         const merged = {
           ...data,
           assemblyComponents: components,
@@ -386,6 +372,8 @@ async function fetchBom(productGuid: string): Promise<UnleashedBom | null> {
 
 function normaliseUnleashedDate(value?: string | null): string | null {
   if (!value) return null;
+  const match = value.match(/^\/Date\((\d+)\)\/$/);
+  if (match) return new Date(Number(match[1])).toISOString();
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
@@ -394,6 +382,21 @@ function customerColor(customer: string): string {
   const colors = ["#0ea5e9", "#22c55e", "#f97316", "#a855f7", "#ec4899", "#14b8a6", "#eab308"];
   const idx = Math.abs(customer.split("").reduce((sum, ch) => sum + ch.charCodeAt(0), 0)) % colors.length;
   return colors[idx];
+}
+
+function mapAssemblyComponents(lines?: UnleashedAssemblyLine[]) {
+  return (lines ?? [])
+    .map((line) => {
+      const product = line.Product ?? line.ComponentProduct;
+      return {
+        productCode: product?.ProductCode ?? "",
+        productGuid: product?.Guid,
+        name: product?.ProductDescription ?? product?.ProductCode ?? "",
+        quantity: Number(line.Quantity ?? line.ComponentQuantity ?? 0),
+        unit: typeof line.UnitOfMeasure === "string" ? line.UnitOfMeasure : line.UnitOfMeasure?.Name,
+      };
+    })
+    .filter((c) => c.productCode);
 }
 
 async function findExistingAssembly(
@@ -431,6 +434,41 @@ async function fetchAssembly(assemblyGuid: string): Promise<UnleashedAssembly | 
   } catch {
     return null;
   }
+}
+
+export async function refreshJobAssemblyComponentsImpl(supabase: SupabaseLike, jobId: string) {
+  const { data: row, error } = await supabase
+    .from("production_jobs")
+    .select("id, unleashed_assembly_id, unleashed_assembly_number, unleashed_sales_order_number, data")
+    .eq("id", jobId)
+    .single();
+  if (error || !row) return { ok: false as const, error: error?.message ?? "Job not found" };
+  if (!row.unleashed_assembly_id) return { ok: false as const, error: "Job has no linked Assembly" };
+
+  const detail = await fetchAssembly(String(row.unleashed_assembly_id));
+  if (!detail) return { ok: false as const, error: "Could not read linked Assembly" };
+
+  const components = mapAssemblyComponents(detail.AssemblyLines);
+  const existing = (row.data ?? {}) as Record<string, unknown>;
+  const merged = {
+    ...existing,
+    assemblyComponents: components,
+    assemblyStatus: detail.AssemblyStatus ?? (existing.assemblyStatus as string | undefined) ?? null,
+    assemblyCreatedAt: normaliseUnleashedDate(detail.AssemblyDate) ?? (existing.assemblyCreatedAt as string | undefined) ?? null,
+    unleashedAssemblyNumber: detail.AssemblyNumber ?? row.unleashed_assembly_number ?? (existing.unleashedAssemblyNumber as string | undefined),
+    unleashedSalesOrderNumber: row.unleashed_sales_order_number ?? (existing.unleashedSalesOrderNumber as string | undefined),
+  };
+
+  const { error: updateError } = await supabase.from("production_jobs").update({ data: merged }).eq("id", jobId);
+  if (updateError) return { ok: false as const, error: updateError.message };
+  return {
+    ok: true as const,
+    assemblyComponents: components,
+    assemblyStatus: merged.assemblyStatus,
+    assemblyCreatedAt: merged.assemblyCreatedAt,
+    unleashedAssemblyNumber: merged.unleashedAssemblyNumber,
+    unleashedSalesOrderNumber: merged.unleashedSalesOrderNumber,
+  };
 }
 
 

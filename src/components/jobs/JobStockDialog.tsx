@@ -1,4 +1,6 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useEffect, useMemo, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -14,6 +16,7 @@ import { CustomerSpecsView } from "@/components/customer-specs/CustomerSpecsView
 import { toast } from "sonner";
 import { useStockStore } from "@/lib/stock-store";
 import type { StockItem } from "@/lib/stock";
+import { refreshJobAssemblyComponents } from "@/lib/unleashed/fill-ready.functions";
 import {
   Table,
   TableBody,
@@ -44,16 +47,53 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
   const { presets } = useLineSetups();
   const { getSpecForJob } = useCustomerSpecs();
   const { items: stockItems } = useStockStore();
-  if (!job) return null;
-  const check = computeJobStockCheck(job, stockItems);
+  const refreshAssembly = useServerFn(refreshJobAssemblyComponents);
+  const [assemblyPatch, setAssemblyPatch] = useState<(Partial<Job> & { jobId: string }) | null>(null);
+
+  useEffect(() => {
+    setAssemblyPatch(null);
+  }, [job?.id]);
+
+  useEffect(() => {
+    const hasComponents = (job?.assemblyComponents?.length ?? 0) > 0 || (assemblyPatch?.assemblyComponents?.length ?? 0) > 0;
+    const hasLinkedAssembly = Boolean(job?.unleashedAssemblyNumber || job?.assemblyStatus || (job as unknown as { unleashed_assembly_number?: string } | null)?.unleashed_assembly_number);
+    if (!open || !job || hasComponents || !hasLinkedAssembly || assemblyPatch?.jobId === job.id) return;
+    const jobId = job.id;
+    let cancelled = false;
+    refreshAssembly({ data: { jobId } })
+      .then((result) => {
+        if (cancelled) return;
+        setAssemblyPatch({
+          jobId,
+          assemblyComponents: result.assemblyComponents,
+          assemblyStatus: result.assemblyStatus ?? undefined,
+          assemblyCreatedAt: result.assemblyCreatedAt ?? undefined,
+          unleashedAssemblyNumber: result.unleashedAssemblyNumber ?? undefined,
+          unleashedSalesOrderNumber: result.unleashedSalesOrderNumber ?? undefined,
+        });
+      })
+      .catch((error) => console.error("[jobs] assembly component refresh failed", error));
+    return () => {
+      cancelled = true;
+    };
+  }, [open, job, assemblyPatch, refreshAssembly]);
+
+  const hydratedJob = useMemo(() => {
+    if (!job) return null;
+    return assemblyPatch?.jobId === job.id ? ({ ...job, ...assemblyPatch } as Job) : job;
+  }, [job, assemblyPatch]);
+
+  if (!hydratedJob) return null;
+  const currentJob = hydratedJob;
+  const check = computeJobStockCheck(currentJob, stockItems);
   const totalMissing = check.requirements.reduce((s, r) => s + r.missing, 0);
-  const productLabel = `${job.product} ${job.bottleSize}`.trim();
-  const resolvedSpec = getSpecForJob(job.customer, productLabel);
+  const productLabel = `${currentJob.product} ${currentJob.bottleSize}`.trim();
+  const resolvedSpec = getSpecForJob(currentJob.customer, productLabel);
 
   const handleDownload = () => {
     try {
-      downloadJobPdf(job, presets);
-      toast.success(`Run sheet PDF generated for ${job.id}`);
+      downloadJobPdf(currentJob, presets);
+      toast.success(`Run sheet PDF generated for ${currentJob.id}`);
     } catch (e) {
       console.error(e);
       toast.error("Could not generate PDF");
@@ -61,7 +101,7 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
   };
   const handlePrint = () => {
     try {
-      printJobPdf(job, presets);
+      printJobPdf(currentJob, presets);
     } catch (e) {
       console.error(e);
       toast.error("Could not open print preview");
@@ -79,7 +119,7 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-start justify-between gap-3">
-            <DialogTitle>Stock requirements — {job.id}</DialogTitle>
+            <DialogTitle>Stock requirements — {currentJob.id}</DialogTitle>
             <div className="flex gap-2">
               <Button size="sm" variant="outline" onClick={handlePrint}>
                 <Printer className="size-4 mr-1" /> Print
@@ -122,9 +162,9 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
             <TabsTrigger value="stock">Stock</TabsTrigger>
             <TabsTrigger value="assembly">
               Assembly
-              {job.assemblyComponents && job.assemblyComponents.length > 0 && (
+              {currentJob.assemblyComponents && currentJob.assemblyComponents.length > 0 && (
                 <Badge variant="secondary" className="ml-2">
-                  {job.assemblyComponents.length}
+                  {currentJob.assemblyComponents.length}
                 </Badge>
               )}
             </TabsTrigger>
@@ -142,25 +182,25 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
             <div className="rounded-lg border p-3 space-y-2">
               <div className="font-medium text-sm">Job details</div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2 text-sm">
-                <Detail label="Job number" value={job.id} />
-                <Detail label="Customer" value={job.customer} />
-                <Detail label="Product" value={`${job.product} ${job.bottleSize}`} />
-                <Detail label="Planned quantity" value={`${job.quantity.toLocaleString()} bottles`} />
-                <Detail label="Scheduled run" value={fmtDate(job.scheduledStart)} />
-                <Detail label="Filling line" value={job.line} />
-                <Detail label="Status" value={<Badge variant="outline">{job.status}</Badge>} />
+                <Detail label="Job number" value={currentJob.id} />
+                <Detail label="Customer" value={currentJob.customer} />
+                <Detail label="Product" value={`${currentJob.product} ${currentJob.bottleSize}`} />
+                <Detail label="Planned quantity" value={`${currentJob.quantity.toLocaleString()} bottles`} />
+                <Detail label="Scheduled run" value={fmtDate(currentJob.scheduledStart)} />
+                <Detail label="Filling line" value={currentJob.line} />
+                <Detail label="Status" value={<Badge variant="outline">{currentJob.status}</Badge>} />
               </div>
             </div>
-            <AssemblyInfoBlock job={job} />
+            <AssemblyInfoBlock job={currentJob} />
           </TabsContent>
 
           <TabsContent value="stock">
-            <JobStockCheck job={job} />
+            <JobStockCheck job={currentJob} />
           </TabsContent>
 
           <TabsContent value="assembly" className="space-y-3">
-            <AssemblyInfoBlock job={job} />
-            <AssemblyComponentsTable job={job} stockItems={stockItems} />
+            <AssemblyInfoBlock job={currentJob} />
+            <AssemblyComponentsTable job={currentJob} stockItems={stockItems} />
           </TabsContent>
 
 
@@ -200,7 +240,7 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
               </>
             ) : (
               <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-                No production specs saved for <strong>{job.customer}</strong>.
+                No production specs saved for <strong>{currentJob.customer}</strong>.
                 <br />
                 Add them in the <strong>Customer Specs</strong> section.
               </div>
