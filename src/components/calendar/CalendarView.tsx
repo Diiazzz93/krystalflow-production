@@ -21,7 +21,8 @@ export function CalendarView({ onSelectJob, onCreate }: Props) {
   const [view, setView] = useState<View>("month");
   const [cursor, setCursor] = useState(() => startOfDay(new Date()));
 
-  const scheduledJobs = useMemo(() => jobs.filter((j) => j.scheduledStart), [jobs]);
+  type ScheduledJob = Job & { scheduledStart: string };
+  const scheduledJobs = useMemo(() => jobs.filter((j): j is ScheduledJob => !!j.scheduledStart), [jobs]);
   const range = useMemo(() => buildRange(cursor, view), [cursor, view]);
 
   function shift(dir: 1 | -1) {
@@ -66,11 +67,11 @@ export function CalendarView({ onSelectJob, onCreate }: Props) {
       </div>
 
       {view === "month" ? (
-        <MonthGrid days={range} jobs={jobs} onCreate={onCreate} onSelectJob={onSelectJob} />
+        <MonthGrid days={range} jobs={scheduledJobs} onCreate={onCreate} onSelectJob={onSelectJob} />
       ) : (
         <LineSchedule
           days={range}
-          jobs={jobs}
+          jobs={scheduledJobs}
           lines={lines}
           onCreate={onCreate}
           onSelectJob={onSelectJob}
