@@ -56,7 +56,7 @@ function Dashboard() {
 
   const active = jobs.filter((j) => ACTIVE_STATUSES.includes(j.status));
   const todays = jobs.filter((j) => j.scheduledStart && isToday(j.scheduledStart));
-  const thisWeek = jobs.filter((j) => isThisWeek(j.scheduledStart) && j.status !== "Complete");
+  const thisWeek = jobs.filter((j) => j.scheduledStart && isThisWeek(j.scheduledStart) && j.status !== "Complete");
   const delayed = jobs.filter((j) => j.status === "Delayed" || j.status === "Requires Review");
   const completedToday = jobs.filter(
     (j) => j.status === "Complete" && j.scheduledStart && isToday(j.scheduledStart),
