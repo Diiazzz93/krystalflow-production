@@ -317,6 +317,55 @@ export async function importFillReadyImpl(supabase: SupabaseLike): Promise<Impor
     }
   }
 
+  // Backfill pass: existing jobs that have a linked assembly but no components
+  // captured in their data jsonb (created by earlier versions of the importer).
+  try {
+    const { data: backfillRows } = await supabase
+      .from("production_jobs")
+      .select("id, unleashed_assembly_id, unleashed_assembly_number, unleashed_sales_order_number, data");
+    const rows = (backfillRows ?? []) as Array<{
+      id: string;
+      unleashed_assembly_id?: string | null;
+      unleashed_assembly_number?: string | null;
+      unleashed_sales_order_number?: string | null;
+      data?: Record<string, unknown> | null;
+    }>;
+    for (const row of rows) {
+      if (!row.unleashed_assembly_id) continue;
+      const data = (row.data ?? {}) as Record<string, unknown>;
+      const existingComponents = data.assemblyComponents as unknown[] | undefined;
+      if (existingComponents && existingComponents.length > 0) continue;
+      try {
+        const detail = await fetchAssembly(row.unleashed_assembly_id);
+        if (!detail) continue;
+        const components = (detail.AssemblyLines ?? [])
+          .map((line: UnleashedAssemblyLine) => ({
+            productCode: line.ComponentProduct?.ProductCode ?? "",
+            productGuid: line.ComponentProduct?.Guid,
+            name: line.ComponentProduct?.ProductDescription ?? line.ComponentProduct?.ProductCode ?? "",
+            quantity: Number(line.ComponentQuantity ?? 0),
+            unit: typeof line.UnitOfMeasure === "string"
+              ? (line.UnitOfMeasure as string)
+              : (line.UnitOfMeasure as { Name?: string } | null)?.Name,
+          }))
+          .filter((c) => c.productCode);
+        const merged = {
+          ...data,
+          assemblyComponents: components,
+          assemblyStatus: detail.AssemblyStatus ?? (data.assemblyStatus as string | undefined) ?? null,
+          assemblyCreatedAt: normaliseUnleashedDate(detail.AssemblyDate) ?? (data.assemblyCreatedAt as string | undefined) ?? null,
+          unleashedAssemblyNumber: row.unleashed_assembly_number ?? (data.unleashedAssemblyNumber as string | undefined),
+          unleashedSalesOrderNumber: row.unleashed_sales_order_number ?? (data.unleashedSalesOrderNumber as string | undefined),
+        };
+        await supabase.from("production_jobs").update({ data: merged }).eq("id", row.id);
+      } catch {
+        /* continue */
+      }
+    }
+  } catch {
+    /* ignore backfill errors */
+  }
+
   return summary;
 }
 
