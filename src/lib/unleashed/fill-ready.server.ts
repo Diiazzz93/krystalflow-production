@@ -142,7 +142,20 @@ export async function importFillReadyImpl(supabase: SupabaseLike): Promise<Impor
       const productGuid = primary.Product!.Guid!;
       const productCode = primary.Product!.ProductCode ?? "";
       const productDesc = primary.Product!.ProductDescription ?? productCode;
+      // The SO OrderQuantity is in the product's stock unit (cartons for boxed
+      // SKUs like "Linseed Oil Raw 6 x 1L"). The Unleashed Assembly is also
+      // sized in that same unit, so `qty` (used for BOM/Assembly) stays as-is.
       const qty = Number(primary.OrderQuantity ?? 0);
+      // Detect pack format from the product name so the production job can
+      // show the true number of bottles to fill (e.g. 672 boxes × 6 = 4032).
+      const pack = parseProductPackaging(productDesc);
+      const bottlesPerCarton = pack.bottlesPerCarton;
+      const isBoxedProduct = bottlesPerCarton > 1;
+      const bottleCount = isBoxedProduct ? qty * bottlesPerCarton : qty;
+      const bottleSize = pack.bottleSize ?? "";
+      const unitLabel = isBoxedProduct
+        ? `${qty} box${qty === 1 ? "" : "es"} of ${bottlesPerCarton}${bottleSize ? ` × ${bottleSize}` : ""} = ${bottleCount} bottles`
+        : `${bottleCount} bottles`;
 
       // 3) Fetch BOM for the product. Fail import if none.
       const bom = await fetchBom(productGuid);
@@ -246,8 +259,10 @@ export async function importFillReadyImpl(supabase: SupabaseLike): Promise<Impor
             customer: so.Customer?.CustomerName ?? "Unknown",
             product: productDesc,
             sku: productCode,
-            bottleSize: "",
-            quantity: qty,
+            bottleSize,
+            quantity: bottleCount,
+            bottlesPerCarton: isBoxedProduct ? bottlesPerCarton : undefined,
+            cartonsOrdered: isBoxedProduct ? qty : undefined,
             pallets: 1,
             dueDate: dueDate.slice(0, 10),
             priority: "Normal",
@@ -255,7 +270,7 @@ export async function importFillReadyImpl(supabase: SupabaseLike): Promise<Impor
             operator: "",
             bottlesPerHour: 3000,
             setupMinutes: 30,
-            notes: `Imported from Unleashed Sales Order ${so.OrderNumber}`,
+            notes: `Imported from Unleashed Sales Order ${so.OrderNumber} — ${unitLabel}`,
             rawMaterial: "Pending",
             labels: "Pending",
             packaging: "Pending",
@@ -397,6 +412,54 @@ function mapAssemblyComponents(lines?: UnleashedAssemblyLine[]) {
       };
     })
     .filter((c) => c.productCode);
+}
+
+/**
+ * Detect carton/pack format from an Unleashed product description.
+ * Examples:
+ *   "Linseed Oil Raw 6 x 1L"   → { bottlesPerCarton: 6,  bottleSize: "1L"    }
+ *   "Citrus Cleaner 4x4 litre" → { bottlesPerCarton: 4,  bottleSize: "4L"    }
+ *   "Spray 12 x 500ml"         → { bottlesPerCarton: 12, bottleSize: "500ml" }
+ *   "Single 5L Bottle"         → { bottlesPerCarton: 1,  bottleSize: "5L"    }
+ */
+export function parseProductPackaging(desc: string): {
+  bottlesPerCarton: number;
+  bottleSize?: string;
+} {
+  if (!desc) return { bottlesPerCarton: 1 };
+  const text = desc.toLowerCase();
+
+  const pack = text.match(
+    /(\d+)\s*[x×]\s*(\d+(?:\.\d+)?)\s*(ml|millilitre|millilitres|l|lt|ltr|litre|litres|liter|liters|kg|g|gram|grams)\b/,
+  );
+  if (pack) {
+    const count = Number(pack[1]);
+    const size = Number(pack[2]);
+    const unit = normaliseUnit(pack[3]);
+    if (count > 0 && size > 0) {
+      return { bottlesPerCarton: count, bottleSize: `${size}${unit}` };
+    }
+  }
+
+  const single = text.match(
+    /(\d+(?:\.\d+)?)\s*(ml|millilitre|millilitres|l|lt|ltr|litre|litres|liter|liters|kg|g|gram|grams)\b/,
+  );
+  if (single) {
+    const size = Number(single[1]);
+    const unit = normaliseUnit(single[2]);
+    if (size > 0) return { bottlesPerCarton: 1, bottleSize: `${size}${unit}` };
+  }
+
+  return { bottlesPerCarton: 1 };
+}
+
+function normaliseUnit(u: string): string {
+  const s = u.toLowerCase();
+  if (s.startsWith("ml") || s.startsWith("milli")) return "ml";
+  if (s === "l" || s === "lt" || s === "ltr" || s.startsWith("litre") || s.startsWith("liter")) return "L";
+  if (s === "kg") return "kg";
+  if (s === "g" || s.startsWith("gram")) return "g";
+  return s;
 }
 
 async function findExistingAssembly(
