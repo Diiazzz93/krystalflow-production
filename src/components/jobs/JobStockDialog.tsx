@@ -246,6 +246,9 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
               </div>
             </div>
 
+            <PalletsBlock job={currentJob} stockItems={stockItems} canEdit={canEdit} updateJob={updateJob} />
+
+
             <div className="rounded-lg border p-3 space-y-3">
               <div className="font-medium text-sm flex items-center justify-between">
                 <span>Schedule &amp; priority</span>
