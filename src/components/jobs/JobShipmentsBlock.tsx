@@ -3,6 +3,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Truck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useJobShipments } from "@/lib/shipments";
+import { useStore } from "@/lib/store";
 
 interface Props {
   jobId: string;
@@ -19,19 +20,32 @@ function fmt(iso: string) {
 }
 
 export function JobShipmentsBlock({ jobId, totalPallets, canEdit }: Props) {
+  const { qc } = useStore();
   const { items, markShipped, unmarkShipped } = useJobShipments(jobId);
+
+  // Ready pallets = unique pallet numbers logged through QC for this job
+  const readyPallets = useMemo(() => {
+    const set = new Set<number>();
+    for (const q of qc) {
+      if (q.jobId === jobId && q.palletNumber > 0) set.add(q.palletNumber);
+    }
+    return Array.from(set).sort((a, b) => a - b);
+  }, [qc, jobId]);
+
   const shippedSet = useMemo(() => new Map(items.map((s) => [s.palletNumber, s])), [items]);
   const shippedCount = items.length;
-  const remaining = Math.max(0, totalPallets - shippedCount);
+  const readyCount = readyPallets.length;
+  const remaining = Math.max(0, readyCount - shippedCount);
 
-  if (!totalPallets || totalPallets <= 0) {
+  if (readyCount === 0) {
     return (
       <div className="rounded-lg border p-3 space-y-2">
         <div className="font-medium text-sm flex items-center gap-2">
           <Truck className="size-4" /> Shipments
         </div>
         <p className="text-xs text-muted-foreground">
-          Set the number of pallets for this job above to track courier pickups.
+          No pallets are ready yet. Pallets appear here as they pass QC
+          {totalPallets ? ` (0 of ${totalPallets} ready)` : ""}.
         </p>
       </div>
     );
@@ -45,13 +59,13 @@ export function JobShipmentsBlock({ jobId, totalPallets, canEdit }: Props) {
         </span>
         <span className="text-xs font-normal text-muted-foreground">
           <span className="font-semibold text-foreground">{shippedCount}</span> of{" "}
-          {totalPallets} shipped · <span className="font-semibold text-foreground">{remaining}</span>{" "}
-          remaining
+          {readyCount} ready shipped · <span className="font-semibold text-foreground">{remaining}</span>{" "}
+          remaining{totalPallets ? ` · ${readyCount}/${totalPallets} pallets QC'd` : ""}
         </span>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-        {Array.from({ length: totalPallets }, (_, i) => i + 1).map((n) => {
+        {readyPallets.map((n) => {
           const s = shippedSet.get(n);
           const isShipped = !!s;
           return (
@@ -75,7 +89,8 @@ export function JobShipmentsBlock({ jobId, totalPallets, canEdit }: Props) {
               />
               <div className="flex-1 min-w-0">
                 <div className="font-medium">
-                  Pallet {n} <span className="text-muted-foreground">/ {totalPallets}</span>
+                  Pallet {n}
+                  {totalPallets ? <span className="text-muted-foreground"> / {totalPallets}</span> : null}
                 </div>
                 {s && (
                   <div className="text-[11px] text-muted-foreground truncate">
