@@ -38,6 +38,7 @@ export function EditStockDialog({ item, open, onOpenChange }: Props) {
   const [unit, setUnit] = useState("units");
   const [location, setLocation] = useState("");
   const [notes, setNotes] = useState("");
+  const [boxesPerPallet, setBoxesPerPallet] = useState<string>("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -48,6 +49,11 @@ export function EditStockDialog({ item, open, onOpenChange }: Props) {
       setUnit(item.unit);
       setLocation(item.location);
       setNotes(item.notes ?? "");
+      setBoxesPerPallet(
+        item.boxesPerPallet !== undefined && item.boxesPerPallet !== null
+          ? String(item.boxesPerPallet)
+          : "",
+      );
     }
   }, [item]);
 
@@ -59,6 +65,7 @@ export function EditStockDialog({ item, open, onOpenChange }: Props) {
       return;
     }
     setSaving(true);
+    const bpp = boxesPerPallet.trim();
     await updateItem(item.id, {
       name: name.trim(),
       sku: sku.trim(),
@@ -66,6 +73,7 @@ export function EditStockDialog({ item, open, onOpenChange }: Props) {
       unit,
       location: location.trim(),
       notes: notes.trim() || undefined,
+      boxesPerPallet: bpp === "" ? (null as unknown as number) : Number(bpp),
     });
     setSaving(false);
     toast.success("Stock item updated");
