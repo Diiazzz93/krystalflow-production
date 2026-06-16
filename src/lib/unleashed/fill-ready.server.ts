@@ -212,7 +212,7 @@ export async function importFillReadyImpl(supabase: SupabaseLike): Promise<Impor
       // 4b) Fetch the Assembly detail to read its component lines.
       if (assemblyId) {
         try {
-          const detail = await fetchAssembly(assemblyId);
+          const { assembly: detail } = await fetchAssembly(assemblyId);
           assemblyStatus = detail?.AssemblyStatus ?? assemblyStatus;
           assemblyCreatedAt = normaliseUnleashedDate(detail?.AssemblyDate) ?? assemblyCreatedAt;
           assemblyComponents = mapAssemblyComponents(detail?.AssemblyLines);
