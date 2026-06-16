@@ -142,7 +142,17 @@ export async function importFillReadyImpl(supabase: SupabaseLike): Promise<Impor
       const productGuid = primary.Product!.Guid!;
       const productCode = primary.Product!.ProductCode ?? "";
       const productDesc = primary.Product!.ProductDescription ?? productCode;
-      const qty = Number(primary.OrderQuantity ?? 0);
+      const orderedQty = Number(primary.OrderQuantity ?? 0);
+      // Detect pack format from the product name (e.g. "6 x 1L", "4x4 litre").
+      // If matched, the SO quantity represents CARTONS, not individual bottles.
+      const pack = parseProductPackaging(productDesc);
+      const bottlesPerCarton = pack.bottlesPerCarton;
+      const isBoxedProduct = bottlesPerCarton > 1;
+      const qty = isBoxedProduct ? orderedQty * bottlesPerCarton : orderedQty;
+      const bottleSize = pack.bottleSize ?? "";
+      const unitLabel = isBoxedProduct
+        ? `${orderedQty} box${orderedQty === 1 ? "" : "es"} of ${bottlesPerCarton}${bottleSize ? ` x ${bottleSize}` : ""} = ${qty} bottles`
+        : `${qty} bottles`;
 
       // 3) Fetch BOM for the product. Fail import if none.
       const bom = await fetchBom(productGuid);
