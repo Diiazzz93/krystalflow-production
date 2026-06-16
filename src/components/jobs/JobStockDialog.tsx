@@ -674,7 +674,19 @@ function PalletsBlock({
             Auto-calculated
           </div>
           <div className="h-10 flex items-center font-medium">
-            {suggested !== undefined ? `${suggested} pallets` : "—"}
+            {suggested !== undefined ? (
+              <span>
+                {fullPallets ?? 0} full {fullPallets === 1 ? "pallet" : "pallets"}
+                {remainder && remainder > 0 && (
+                  <span>
+                    {" "}+ {remainder} {remainder === 1 ? "box" : "boxes"} on next pallet
+                  </span>
+                )}
+                <span className="text-muted-foreground font-normal"> · {suggested} total</span>
+              </span>
+            ) : (
+              "—"
+            )}
           </div>
         </div>
         <div className="space-y-1">
