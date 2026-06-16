@@ -91,6 +91,7 @@ export interface Job {
   actualRuntimeMinutes: number;
   customerColor: string; // hex
   bottlesPerCarton?: number; // pack size override; defaults to 12
+  cartonsOrdered?: number; // when the SO line is for boxes (e.g. 672 cartons of 6 × 1L)
   bottleSku?: string; // selected bottle stock SKU
   capSku?: string; // selected cap stock SKU
   labelSku?: string; // selected label stock SKU
