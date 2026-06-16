@@ -246,7 +246,7 @@ function AssemblyInfoBlock({ job }: { job: Job }) {
         <Detail label="Assembly number" value={assemblyNumber ?? "—"} />
         <Detail label="Status" value={job.assemblyStatus ?? "—"} />
         <Detail label="Created" value={job.assemblyCreatedAt ? fmtDate(job.assemblyCreatedAt) : "—"} />
-        <Detail label="Sales order" value={(job as unknown as { unleashedSalesOrderNumber?: string }).unleashedSalesOrderNumber ?? "—"} />
+        <Detail label="Sales order" value={extra.unleashedSalesOrderNumber ?? "—"} />
       </div>
     </div>
   );
