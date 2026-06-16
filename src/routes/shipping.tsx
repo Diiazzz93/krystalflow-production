@@ -13,7 +13,7 @@ import { useAllShipments } from "@/lib/shipments";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/_authenticated/shipping")({
+export const Route = createFileRoute("/shipping")({
   component: ShippingPage,
 });
 
