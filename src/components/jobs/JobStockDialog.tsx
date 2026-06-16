@@ -279,20 +279,24 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
                 <Detail
                   label="Planned quantity"
                   value={(() => {
-                    const cartons = currentJob.cartonsOrdered;
-                    const perCarton = currentJob.bottlesPerCarton;
-                    if (cartons && perCarton && perCarton > 1) {
-                      const pack = currentJob.bottleSize ? `${perCarton} × ${currentJob.bottleSize}` : `${perCarton} bottles`;
+                    const d = deriveCartons(currentJob);
+                    if (d.cartons && d.perCarton && d.perCarton > 1) {
+                      const pack = d.bottleSize ? `${d.perCarton} × ${d.bottleSize}` : `${d.perCarton} bottles`;
+                      const totalBottles = d.derived ? d.cartons * d.perCarton : currentJob.quantity;
                       return (
                         <span>
-                          {cartons.toLocaleString()} cartons ({pack})
-                          <span className="text-muted-foreground"> · {currentJob.quantity.toLocaleString()} bottles</span>
+                          {d.cartons.toLocaleString()} cartons ({pack})
+                          <span className="text-muted-foreground"> · {totalBottles.toLocaleString()} bottles</span>
+                          {d.derived && (
+                            <span className="text-muted-foreground"> · derived from product name</span>
+                          )}
                         </span>
                       );
                     }
                     return `${currentJob.quantity.toLocaleString()} bottles`;
                   })()}
                 />
+
                 <Detail label="Filling line" value={currentJob.line} />
                 <Detail label="Status" value={<Badge variant="outline">{currentJob.status}</Badge>} />
               </div>
