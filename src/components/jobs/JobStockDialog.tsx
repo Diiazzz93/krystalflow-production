@@ -206,15 +206,84 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2 text-sm">
                 <Detail label="Job number" value={currentJob.id} />
                 <Detail label="Customer" value={currentJob.customer} />
-                <Detail label="Product" value={`${currentJob.product} ${currentJob.bottleSize}`} />
-                <Detail label="Planned quantity" value={`${currentJob.quantity.toLocaleString()} bottles`} />
-                <Detail label="Scheduled run" value={fmtDate(currentJob.scheduledStart)} />
+                <Detail label="Product" value={`${currentJob.product} ${currentJob.bottleSize}`.trim()} />
+                <Detail
+                  label="Planned quantity"
+                  value={(() => {
+                    const cartons = currentJob.cartonsOrdered;
+                    const perCarton = currentJob.bottlesPerCarton;
+                    if (cartons && perCarton && perCarton > 1) {
+                      const pack = currentJob.bottleSize ? `${perCarton} × ${currentJob.bottleSize}` : `${perCarton} bottles`;
+                      return (
+                        <span>
+                          {cartons.toLocaleString()} cartons ({pack})
+                          <span className="text-muted-foreground"> · {currentJob.quantity.toLocaleString()} bottles</span>
+                        </span>
+                      );
+                    }
+                    return `${currentJob.quantity.toLocaleString()} bottles`;
+                  })()}
+                />
                 <Detail label="Filling line" value={currentJob.line} />
                 <Detail label="Status" value={<Badge variant="outline">{currentJob.status}</Badge>} />
               </div>
             </div>
+
+            <div className="rounded-lg border p-3 space-y-3">
+              <div className="font-medium text-sm flex items-center justify-between">
+                <span>Schedule &amp; priority</span>
+                {!canEdit && <span className="text-xs text-muted-foreground">Read only</span>}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+                <div className="space-y-1">
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground">Scheduled start</div>
+                  <Input
+                    type="datetime-local"
+                    disabled={!canEdit}
+                    value={toLocalInput(currentJob.scheduledStart)}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (!v) return;
+                      void updateJob(currentJob.id, { scheduledStart: new Date(v).toISOString() });
+                    }}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground">Scheduled end</div>
+                  <Input
+                    type="datetime-local"
+                    disabled={!canEdit}
+                    value={toLocalInput(currentJob.scheduledEnd)}
+                    onChange={(e) =>
+                      void updateJob(currentJob.id, {
+                        scheduledEnd: e.target.value ? new Date(e.target.value).toISOString() : undefined,
+                      })
+                    }
+                  />
+                </div>
+                <div className="space-y-1">
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground">Priority</div>
+                  <Select
+                    value={currentJob.priority}
+                    disabled={!canEdit}
+                    onValueChange={(v) => void updateJob(currentJob.id, { priority: v as Priority })}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {PRIORITIES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Current: {fmtDate(currentJob.scheduledStart)}
+                {currentJob.scheduledEnd ? ` → ${fmtDate(currentJob.scheduledEnd)}` : ""}
+              </div>
+            </div>
+
             <AssemblyInfoBlock job={currentJob} />
           </TabsContent>
+
 
           <TabsContent value="stock">
             <JobStockCheck job={currentJob} />
