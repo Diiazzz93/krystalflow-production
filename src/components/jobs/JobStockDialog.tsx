@@ -234,7 +234,7 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
                 <span>Schedule &amp; priority</span>
                 {!canEdit && <span className="text-xs text-muted-foreground">Read only</span>}
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
                 <div className="space-y-1">
                   <div className="text-xs uppercase tracking-wide text-muted-foreground">Scheduled start</div>
                   <Input
@@ -271,6 +271,22 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {PRIORITIES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground">Filling line</div>
+                  <Select
+                    value={currentJob.line || "__none__"}
+                    disabled={!canEdit}
+                    onValueChange={(v) => void updateJob(currentJob.id, { line: v === "__none__" ? "" : v })}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Select line…" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">—</SelectItem>
+                      {lines.map((l) => (
+                        <SelectItem key={l.id} value={l.name}>{l.name}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
