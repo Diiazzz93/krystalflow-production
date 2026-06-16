@@ -38,6 +38,23 @@ interface UnleashedBom {
   BillOfMaterialsLines?: UnleashedBomLine[];
 }
 
+interface UnleashedAssemblyLine {
+  ComponentProduct?: { Guid?: string; ProductCode?: string; ProductDescription?: string } | null;
+  ComponentQuantity?: number;
+  UnitOfMeasure?: { Name?: string } | string | null;
+}
+
+interface UnleashedAssembly {
+  Guid?: string;
+  AssemblyNumber?: string;
+  AssemblyStatus?: string;
+  AssemblyDate?: string;
+  Quantity?: number;
+  Comments?: string;
+  Product?: { Guid?: string; ProductCode?: string } | null;
+  AssemblyLines?: UnleashedAssemblyLine[];
+}
+
 interface SupabaseLike {
   from(table: string): {
     select: (cols?: string) => any;
@@ -132,34 +149,83 @@ export async function importFillReadyImpl(supabase: SupabaseLike): Promise<Impor
         throw new Error(`No Bill of Materials found for product ${productCode}`);
       }
 
-      // 4) Create the linked Assembly in Unleashed.
-      const assemblyPayload = {
-        Quantity: qty,
-        Product: { Guid: productGuid },
-        SourceWarehouse: so.Warehouse?.WarehouseCode ? { WarehouseCode: so.Warehouse.WarehouseCode } : undefined,
-        DestinationWarehouse: so.Warehouse?.WarehouseCode ? { WarehouseCode: so.Warehouse.WarehouseCode } : undefined,
-        Comments: `Auto-created by KrystalFlow from Sales Order ${so.OrderNumber}`,
-      };
+      // 4) Find-or-create the linked Assembly in Unleashed.
+      //    Match criteria: same product + quantity + comment referencing the SO number.
       let assemblyId: string | null = null;
       let assemblyNumber: string | null = null;
-      try {
-        const created = await ulPost<{ Guid?: string; AssemblyNumber?: string }>(
-          "/Assemblies",
-          assemblyPayload,
-        );
-        assemblyId = created?.Guid ?? null;
-        assemblyNumber = created?.AssemblyNumber ?? null;
-      } catch (e) {
-        // Surface but continue — we still want the Job created so production can run.
-        // Approvers will see the missing assembly id and can retry.
-        const msg = e instanceof Error ? e.message : String(e);
-        await supabase.from("unleashed_sync_log").insert({
-          sales_order_id: so.Guid,
-          sales_order_number: so.OrderNumber,
-          outcome: "error",
-          message: `Assembly create failed: ${msg}`,
-        });
+      let assemblyStatus: string | null = null;
+      let assemblyCreatedAt: string | null = null;
+      let assemblyComponents: Array<{
+        productCode: string;
+        productGuid?: string;
+        name: string;
+        quantity: number;
+        unit?: string;
+      }> = [];
+
+      const existing = await findExistingAssembly(productCode, qty, so.OrderNumber);
+      if (existing?.Guid) {
+        assemblyId = existing.Guid;
+        assemblyNumber = existing.AssemblyNumber ?? null;
+        assemblyStatus = existing.AssemblyStatus ?? null;
+        assemblyCreatedAt = normaliseUnleashedDate(existing.AssemblyDate);
+      } else {
+        const assemblyPayload = {
+          Quantity: qty,
+          Product: { Guid: productGuid },
+          SourceWarehouse: so.Warehouse?.WarehouseCode ? { WarehouseCode: so.Warehouse.WarehouseCode } : undefined,
+          DestinationWarehouse: so.Warehouse?.WarehouseCode ? { WarehouseCode: so.Warehouse.WarehouseCode } : undefined,
+          Comments: `Auto-created by KrystalFlow from Sales Order ${so.OrderNumber}`,
+        };
+        try {
+          const created = await ulPost<UnleashedAssembly>("/Assemblies", assemblyPayload);
+          assemblyId = created?.Guid ?? null;
+          assemblyNumber = created?.AssemblyNumber ?? null;
+          assemblyStatus = created?.AssemblyStatus ?? null;
+          assemblyCreatedAt = normaliseUnleashedDate(created?.AssemblyDate) ?? new Date().toISOString();
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          await supabase.from("unleashed_sync_log").insert({
+            sales_order_id: so.Guid,
+            sales_order_number: so.OrderNumber,
+            outcome: "error",
+            message: `Assembly create failed: ${msg}`,
+          });
+        }
       }
+
+      // 4b) Fetch the Assembly detail to read its component lines.
+      if (assemblyId) {
+        try {
+          const detail = await fetchAssembly(assemblyId);
+          assemblyStatus = detail?.AssemblyStatus ?? assemblyStatus;
+          assemblyCreatedAt = normaliseUnleashedDate(detail?.AssemblyDate) ?? assemblyCreatedAt;
+          assemblyComponents = (detail?.AssemblyLines ?? []).map((line: UnleashedAssemblyLine) => ({
+            productCode: line.ComponentProduct?.ProductCode ?? "",
+            productGuid: line.ComponentProduct?.Guid,
+            name: line.ComponentProduct?.ProductDescription ?? line.ComponentProduct?.ProductCode ?? "",
+            quantity: Number(line.ComponentQuantity ?? 0),
+            unit: typeof line.UnitOfMeasure === "string" ? line.UnitOfMeasure : line.UnitOfMeasure?.Name,
+          })).filter((c: { productCode: string }) => c.productCode);
+        } catch {
+          // Fall back to BOM lines if assembly fetch fails.
+          assemblyComponents = bomLines.map((line: UnleashedBomLine) => ({
+            productCode: line.ComponentProduct?.ProductCode ?? "",
+            productGuid: line.ComponentProduct?.Guid,
+            name: line.ComponentProduct?.ProductCode ?? "",
+            quantity: Number(line.ComponentQuantity ?? 0) * qty,
+          })).filter((c: { productCode: string }) => c.productCode);
+        }
+      } else {
+        assemblyComponents = bomLines.map((line: UnleashedBomLine) => ({
+          productCode: line.ComponentProduct?.ProductCode ?? "",
+          productGuid: line.ComponentProduct?.Guid,
+          name: line.ComponentProduct?.ProductCode ?? "",
+          quantity: Number(line.ComponentQuantity ?? 0) * qty,
+        })).filter((c: { productCode: string }) => c.productCode);
+      }
+
+
 
       // 5) Create the production job.
       const scheduledStart = normaliseUnleashedDate(so.OrderDate) ?? new Date().toISOString();
@@ -208,6 +274,9 @@ export async function importFillReadyImpl(supabase: SupabaseLike): Promise<Impor
             importedFromUnleashed: true,
             unleashedSalesOrderNumber: so.OrderNumber,
             unleashedAssemblyNumber: assemblyNumber,
+            assemblyComponents,
+            assemblyStatus,
+            assemblyCreatedAt,
           },
         })
         .select("id")
@@ -277,6 +346,44 @@ function customerColor(customer: string): string {
   const idx = Math.abs(customer.split("").reduce((sum, ch) => sum + ch.charCodeAt(0), 0)) % colors.length;
   return colors[idx];
 }
+
+async function findExistingAssembly(
+  productCode: string,
+  qty: number,
+  orderNumber: string,
+): Promise<UnleashedAssembly | null> {
+  if (!productCode) return null;
+  try {
+    const items = await ulFetchAllQueryPages<UnleashedAssembly>("/Assemblies", [
+      ["productCode", productCode],
+      ["pageSize", "200"],
+    ], 3);
+    const match = items.find((a) => {
+      const comments = (a.Comments ?? "").toLowerCase();
+      const sameOrder = comments.includes(orderNumber.toLowerCase());
+      const sameQty = Math.abs(Number(a.Quantity ?? 0) - qty) < 0.0001;
+      return sameOrder && sameQty;
+    });
+    return match ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchAssembly(assemblyGuid: string): Promise<UnleashedAssembly | null> {
+  try {
+    const res = await ulFetchRaw<UnleashedAssembly>(`/Assemblies/${assemblyGuid}`, "");
+    // Single-object endpoints return the object itself, not { Items: [...] }.
+    if ((res as unknown as UnleashedAssembly).Guid || (res as unknown as UnleashedAssembly).AssemblyLines) {
+      return res as unknown as UnleashedAssembly;
+    }
+    if (res.Items && res.Items.length > 0) return res.Items[0];
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 
 export async function completeAssemblyImpl(
   supabase: SupabaseLike,

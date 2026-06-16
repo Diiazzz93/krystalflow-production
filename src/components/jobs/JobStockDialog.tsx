@@ -13,6 +13,15 @@ import { useCustomerSpecs } from "@/lib/customer-specs";
 import { CustomerSpecsView } from "@/components/customer-specs/CustomerSpecsView";
 import { toast } from "sonner";
 import { useStockStore } from "@/lib/stock-store";
+import type { StockItem } from "@/lib/stock";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface Props {
   job: Job | null;
@@ -111,6 +120,14 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
           <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="stock">Stock</TabsTrigger>
+            <TabsTrigger value="assembly">
+              Assembly
+              {job.assemblyComponents && job.assemblyComponents.length > 0 && (
+                <Badge variant="secondary" className="ml-2">
+                  {job.assemblyComponents.length}
+                </Badge>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="specs">
               Production Specs
               {resolvedSpec && (
@@ -134,11 +151,18 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
                 <Detail label="Status" value={<Badge variant="outline">{job.status}</Badge>} />
               </div>
             </div>
+            <AssemblyInfoBlock job={job} />
           </TabsContent>
 
           <TabsContent value="stock">
             <JobStockCheck job={job} />
           </TabsContent>
+
+          <TabsContent value="assembly" className="space-y-3">
+            <AssemblyInfoBlock job={job} />
+            <AssemblyComponentsTable job={job} stockItems={stockItems} />
+          </TabsContent>
+
 
           <TabsContent value="specs" className="space-y-3">
             {resolvedSpec ? (
@@ -196,3 +220,102 @@ function Detail({ label, value }: { label: string; value: React.ReactNode }) {
     </div>
   );
 }
+
+function AssemblyInfoBlock({ job }: { job: Job }) {
+  const extra = job as unknown as {
+    unleashedAssemblyNumber?: string;
+    unleashed_assembly_number?: string;
+    unleashedSalesOrderNumber?: string;
+  };
+  const hasAny = extra.unleashedAssemblyNumber || extra.unleashed_assembly_number || job.assemblyStatus || job.assemblyCreatedAt;
+  const assemblyNumber = extra.unleashedAssemblyNumber ?? extra.unleashed_assembly_number;
+  if (!hasAny) {
+    return (
+      <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+        No linked Unleashed Assembly for this job.
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-lg border p-3 space-y-2">
+      <div className="font-medium text-sm flex items-center gap-2">
+        Assembly information
+        <Badge variant="secondary">Assembly Linked</Badge>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2 text-sm">
+        <Detail label="Assembly number" value={assemblyNumber ?? "—"} />
+        <Detail label="Status" value={job.assemblyStatus ?? "—"} />
+        <Detail label="Created" value={job.assemblyCreatedAt ? fmtDate(job.assemblyCreatedAt) : "—"} />
+        <Detail label="Sales order" value={extra.unleashedSalesOrderNumber ?? "—"} />
+      </div>
+    </div>
+  );
+}
+
+function AssemblyComponentsTable({ job, stockItems }: { job: Job; stockItems: StockItem[] }) {
+  const components = job.assemblyComponents ?? [];
+  if (components.length === 0) {
+    return (
+      <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground text-center">
+        No assembly components imported. They will appear here once the linked Unleashed Assembly is created.
+      </div>
+    );
+  }
+  const stockBySku = new Map<string, StockItem>();
+  for (const item of stockItems) stockBySku.set(item.sku.toLowerCase(), item);
+
+  return (
+    <div className="rounded-lg border overflow-hidden">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Component</TableHead>
+            <TableHead className="text-right">Required</TableHead>
+            <TableHead className="text-right">On hand</TableHead>
+            <TableHead className="text-right">Available</TableHead>
+            <TableHead>Status</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {components.map((c, idx) => {
+            const stock = stockBySku.get((c.productCode ?? "").toLowerCase());
+            const available = stock?.availableStock ?? 0;
+            const onHand = stock?.quantityOnHand ?? 0;
+            const unit = c.unit ?? stock?.unit ?? "units";
+            const shortfall = Math.max(0, c.quantity - available);
+            const status: { label: string; tone: string } = !stock
+              ? { label: "Not tracked", tone: "border-amber-500/40 text-amber-600 dark:text-amber-400" }
+              : shortfall > 0
+              ? { label: `Short ${shortfall.toLocaleString()}`, tone: "border-red-500/40 text-red-600 dark:text-red-400" }
+              : available < c.quantity * 1.1
+              ? { label: "Low", tone: "border-amber-500/40 text-amber-600 dark:text-amber-400" }
+              : { label: "OK", tone: "border-emerald-500/40 text-emerald-600 dark:text-emerald-400" };
+            return (
+              <TableRow key={`${c.productCode}-${idx}`}>
+                <TableCell>
+                  <div className="font-medium text-sm">{c.name || c.productCode}</div>
+                  <div className="text-xs text-muted-foreground">{c.productCode}</div>
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {c.quantity.toLocaleString()} {unit}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {onHand.toLocaleString()}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {available.toLocaleString()}
+                </TableCell>
+                <TableCell>
+                  <Badge variant="outline" className={status.tone}>
+                    {status.label}
+                  </Badge>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
