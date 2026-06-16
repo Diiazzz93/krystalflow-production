@@ -153,6 +153,24 @@ export function EditStockDialog({ item, open, onOpenChange }: Props) {
           </div>
           <div className="sm:col-span-2">
             <Label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+              Boxes per pallet
+            </Label>
+            <Input
+              type="number"
+              min={0}
+              value={boxesPerPallet}
+              onChange={(e) => setBoxesPerPallet(e.target.value)}
+              placeholder="e.g. 50"
+              className="h-11"
+            />
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              When a job is linked to this product, pallets needed will be
+              auto-calculated as ceil(cartons ordered ÷ boxes per pallet).
+              Leave blank to disable.
+            </p>
+          </div>
+          <div className="sm:col-span-2">
+            <Label className="mb-1.5 block text-xs font-medium text-muted-foreground">
               Notes
             </Label>
             <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} />
