@@ -399,7 +399,58 @@ function customerColor(customer: string): string {
   return colors[idx];
 }
 
-function mapAssemblyComponents(lines?: UnleashedAssemblyLine[]) {
+}
+
+/**
+ * Detect carton/pack format from an Unleashed product description.
+ * Examples that should be recognised:
+ *   "Linseed Oil Raw 6 x 1L"      → { bottlesPerCarton: 6,  bottleSize: "1L"    }
+ *   "Citrus Cleaner 4x4 litre"    → { bottlesPerCarton: 4,  bottleSize: "4L"    }
+ *   "Spray 12 x 500ml"            → { bottlesPerCarton: 12, bottleSize: "500ml" }
+ *   "Single 5L Bottle"            → { bottlesPerCarton: 1,  bottleSize: "5L"    }
+ *   "Bulk drum"                   → { bottlesPerCarton: 1                       }
+ */
+export function parseProductPackaging(desc: string): {
+  bottlesPerCarton: number;
+  bottleSize?: string;
+} {
+  if (!desc) return { bottlesPerCarton: 1 };
+  const text = desc.toLowerCase();
+
+  // Match "<count> x <size><unit>" — covers "6x1L", "6 x 1 L", "12×500ml".
+  const pack = text.match(
+    /(\d+)\s*[x×]\s*(\d+(?:\.\d+)?)\s*(ml|millilitre|millilitres|l|lt|ltr|litre|litres|liter|liters|kg|g|gram|grams)\b/,
+  );
+  if (pack) {
+    const count = Number(pack[1]);
+    const size = Number(pack[2]);
+    const unit = normaliseUnit(pack[3]);
+    if (count > 0 && size > 0) {
+      return { bottlesPerCarton: count, bottleSize: `${size}${unit}` };
+    }
+  }
+
+  // No "x" pattern — try to read a single bottle size from the description.
+  const single = text.match(
+    /(\d+(?:\.\d+)?)\s*(ml|millilitre|millilitres|l|lt|ltr|litre|litres|liter|liters|kg|g|gram|grams)\b/,
+  );
+  if (single) {
+    const size = Number(single[1]);
+    const unit = normaliseUnit(single[2]);
+    if (size > 0) return { bottlesPerCarton: 1, bottleSize: `${size}${unit}` };
+  }
+
+  return { bottlesPerCarton: 1 };
+}
+
+function normaliseUnit(u: string): string {
+  const s = u.toLowerCase();
+  if (s.startsWith("ml") || s.startsWith("milli")) return "ml";
+  if (s === "l" || s === "lt" || s === "ltr" || s.startsWith("litre") || s.startsWith("liter")) return "L";
+  if (s === "kg") return "kg";
+  if (s === "g" || s.startsWith("gram")) return "g";
+  return s;
+}
   return (lines ?? [])
     .map((line) => {
       const product = line.Product ?? line.ComponentProduct;
