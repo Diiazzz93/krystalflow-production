@@ -119,7 +119,7 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-start justify-between gap-3">
-            <DialogTitle>Stock requirements — {job.id}</DialogTitle>
+            <DialogTitle>Stock requirements — {currentJob.id}</DialogTitle>
             <div className="flex gap-2">
               <Button size="sm" variant="outline" onClick={handlePrint}>
                 <Printer className="size-4 mr-1" /> Print
@@ -162,9 +162,9 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
             <TabsTrigger value="stock">Stock</TabsTrigger>
             <TabsTrigger value="assembly">
               Assembly
-              {job.assemblyComponents && job.assemblyComponents.length > 0 && (
+              {currentJob.assemblyComponents && currentJob.assemblyComponents.length > 0 && (
                 <Badge variant="secondary" className="ml-2">
-                  {job.assemblyComponents.length}
+                  {currentJob.assemblyComponents.length}
                 </Badge>
               )}
             </TabsTrigger>
@@ -182,25 +182,25 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
             <div className="rounded-lg border p-3 space-y-2">
               <div className="font-medium text-sm">Job details</div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2 text-sm">
-                <Detail label="Job number" value={job.id} />
-                <Detail label="Customer" value={job.customer} />
-                <Detail label="Product" value={`${job.product} ${job.bottleSize}`} />
-                <Detail label="Planned quantity" value={`${job.quantity.toLocaleString()} bottles`} />
-                <Detail label="Scheduled run" value={fmtDate(job.scheduledStart)} />
-                <Detail label="Filling line" value={job.line} />
-                <Detail label="Status" value={<Badge variant="outline">{job.status}</Badge>} />
+                <Detail label="Job number" value={currentJob.id} />
+                <Detail label="Customer" value={currentJob.customer} />
+                <Detail label="Product" value={`${currentJob.product} ${currentJob.bottleSize}`} />
+                <Detail label="Planned quantity" value={`${currentJob.quantity.toLocaleString()} bottles`} />
+                <Detail label="Scheduled run" value={fmtDate(currentJob.scheduledStart)} />
+                <Detail label="Filling line" value={currentJob.line} />
+                <Detail label="Status" value={<Badge variant="outline">{currentJob.status}</Badge>} />
               </div>
             </div>
-            <AssemblyInfoBlock job={job} />
+            <AssemblyInfoBlock job={currentJob} />
           </TabsContent>
 
           <TabsContent value="stock">
-            <JobStockCheck job={job} />
+            <JobStockCheck job={currentJob} />
           </TabsContent>
 
           <TabsContent value="assembly" className="space-y-3">
-            <AssemblyInfoBlock job={job} />
-            <AssemblyComponentsTable job={job} stockItems={stockItems} />
+            <AssemblyInfoBlock job={currentJob} />
+            <AssemblyComponentsTable job={currentJob} stockItems={stockItems} />
           </TabsContent>
 
 
@@ -240,7 +240,7 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
               </>
             ) : (
               <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-                No production specs saved for <strong>{job.customer}</strong>.
+                No production specs saved for <strong>{currentJob.customer}</strong>.
                 <br />
                 Add them in the <strong>Customer Specs</strong> section.
               </div>
