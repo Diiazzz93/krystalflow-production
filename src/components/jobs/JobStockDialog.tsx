@@ -287,9 +287,6 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
                         <span>
                           {d.cartons.toLocaleString()} cartons ({pack})
                           <span className="text-muted-foreground"> · {totalBottles.toLocaleString()} bottles</span>
-                          {d.derived && (
-                            <span className="text-muted-foreground"> · derived from product name</span>
-                          )}
                         </span>
                       );
                     }
