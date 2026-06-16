@@ -558,6 +558,97 @@ async function fetchAssembly(
   return { assembly: null, errors };
 }
 
+async function fetchSalesOrderForJob(row: Record<string, unknown>) {
+  const errors: string[] = [];
+  const id = typeof row.unleashed_sales_order_id === "string" ? row.unleashed_sales_order_id : null;
+  const number = typeof row.unleashed_sales_order_number === "string" ? row.unleashed_sales_order_number : null;
+  if (id) {
+    try {
+      const res = await ulFetchRaw<UnleashedSalesOrder>(`/SalesOrders/${id}`, "");
+      if ((res as unknown as UnleashedSalesOrder).Guid) return { salesOrder: res as unknown as UnleashedSalesOrder, errors };
+    } catch (e) {
+      errors.push(`Sales Order GUID lookup: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+  if (number) {
+    try {
+      const items = await ulFetchAllQueryPages<UnleashedSalesOrder>("/SalesOrders", [["orderNumber", number], ["pageSize", "50"]], 2);
+      const match = items.find((so) => (so.OrderNumber ?? "").toLowerCase() === number.toLowerCase());
+      if (match?.Guid) {
+        const detail = await ulFetchRaw<UnleashedSalesOrder>(`/SalesOrders/${match.Guid}`, "");
+        return { salesOrder: (detail as unknown as UnleashedSalesOrder).Guid ? detail as unknown as UnleashedSalesOrder : match, errors };
+      }
+    } catch (e) {
+      errors.push(`Sales Order number lookup: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+  return { salesOrder: null, errors };
+}
+
+async function rebuildAssemblyFromSalesOrder(row: Record<string, unknown>): Promise<{
+  assembly: UnleashedAssembly | null;
+  jobData: Record<string, unknown>;
+  errors: string[];
+}> {
+  const errors: string[] = [];
+  const { salesOrder, errors: soErrors } = await fetchSalesOrderForJob(row);
+  errors.push(...soErrors);
+  if (!salesOrder) return { assembly: null, jobData: {}, errors: [...errors, "Could not reload Sales Order to rebuild Assembly"] };
+
+  const sku = typeof row.sku === "string" ? row.sku : undefined;
+  const lines = (salesOrder.SalesOrderLines ?? []).filter((l) => l.Product?.Guid);
+  const primary = lines.find((l) => l.Product?.ProductCode === sku) ?? lines.sort((a, b) => (b.OrderQuantity ?? 0) - (a.OrderQuantity ?? 0))[0];
+  if (!primary?.Product?.Guid) return { assembly: null, jobData: {}, errors: [...errors, "Sales Order has no product line to rebuild Assembly"] };
+
+  const productGuid = primary.Product.Guid;
+  const productCode = primary.Product.ProductCode ?? sku ?? "";
+  const productDesc = primary.Product.ProductDescription ?? String(row.product ?? productCode);
+  const qty = Number(primary.OrderQuantity ?? 0);
+  const pack = parseProductPackaging(productDesc);
+  const bottlesPerCarton = pack.bottlesPerCarton;
+  const isBoxedProduct = bottlesPerCarton > 1;
+  const bottleCount = isBoxedProduct ? qty * bottlesPerCarton : qty;
+  const bottleSize = pack.bottleSize ?? "";
+
+  const existing = await findExistingAssembly(productCode, qty, salesOrder.OrderNumber);
+  let assembly = existing;
+  if (!assembly?.Guid) {
+    try {
+      assembly = await ulPost<UnleashedAssembly>("/Assemblies", {
+        Quantity: qty,
+        Product: { Guid: productGuid },
+        SourceWarehouse: salesOrder.Warehouse?.WarehouseCode ? { WarehouseCode: salesOrder.Warehouse.WarehouseCode } : undefined,
+        DestinationWarehouse: salesOrder.Warehouse?.WarehouseCode ? { WarehouseCode: salesOrder.Warehouse.WarehouseCode } : undefined,
+        Comments: `Auto-created by KrystalFlow from Sales Order ${salesOrder.OrderNumber}`,
+      });
+    } catch (e) {
+      errors.push(`Assembly rebuild create: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+
+  if (assembly?.Guid) {
+    const full = await fetchAssembly(assembly.Guid, assembly.AssemblyNumber ?? null);
+    errors.push(...full.errors);
+    assembly = full.assembly ?? assembly;
+  }
+
+  return {
+    assembly: assembly ?? null,
+    jobData: {
+      customer: salesOrder.Customer?.CustomerName ?? row.customer,
+      product: productDesc,
+      sku: productCode,
+      bottleSize,
+      quantity: bottleCount,
+      bottlesPerCarton: isBoxedProduct ? bottlesPerCarton : undefined,
+      cartonsOrdered: isBoxedProduct ? qty : undefined,
+      dueDate: (normaliseUnleashedDate(salesOrder.RequiredDate ?? salesOrder.DueDate) ?? new Date().toISOString()).slice(0, 10),
+      unleashedSalesOrderNumber: salesOrder.OrderNumber,
+    },
+    errors,
+  };
+}
+
 export async function refreshJobAssemblyComponentsImpl(supabase: SupabaseLike, jobId: string) {
   const { data: row, error } = await supabase
     .from("production_jobs")
