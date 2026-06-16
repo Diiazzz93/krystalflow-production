@@ -58,12 +58,13 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
     const hasComponents = (job?.assemblyComponents?.length ?? 0) > 0 || (assemblyPatch?.assemblyComponents?.length ?? 0) > 0;
     const hasLinkedAssembly = Boolean(job?.unleashedAssemblyNumber || job?.assemblyStatus || (job as unknown as { unleashed_assembly_number?: string } | null)?.unleashed_assembly_number);
     if (!open || !job || hasComponents || !hasLinkedAssembly || assemblyPatch?.jobId === job.id) return;
+    const jobId = job.id;
     let cancelled = false;
-    refreshAssembly({ data: { jobId: job.id } })
+    refreshAssembly({ data: { jobId } })
       .then((result) => {
         if (cancelled) return;
         setAssemblyPatch({
-          jobId: job.id,
+          jobId,
           assemblyComponents: result.assemblyComponents,
           assemblyStatus: result.assemblyStatus ?? undefined,
           assemblyCreatedAt: result.assemblyCreatedAt ?? undefined,
@@ -83,16 +84,16 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
   }, [job, assemblyPatch]);
 
   if (!hydratedJob) return null;
-  job = hydratedJob;
-  const check = computeJobStockCheck(job, stockItems);
+  const currentJob = hydratedJob;
+  const check = computeJobStockCheck(currentJob, stockItems);
   const totalMissing = check.requirements.reduce((s, r) => s + r.missing, 0);
-  const productLabel = `${job.product} ${job.bottleSize}`.trim();
-  const resolvedSpec = getSpecForJob(job.customer, productLabel);
+  const productLabel = `${currentJob.product} ${currentJob.bottleSize}`.trim();
+  const resolvedSpec = getSpecForJob(currentJob.customer, productLabel);
 
   const handleDownload = () => {
     try {
-      downloadJobPdf(job, presets);
-      toast.success(`Run sheet PDF generated for ${job.id}`);
+      downloadJobPdf(currentJob, presets);
+      toast.success(`Run sheet PDF generated for ${currentJob.id}`);
     } catch (e) {
       console.error(e);
       toast.error("Could not generate PDF");
@@ -100,7 +101,7 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
   };
   const handlePrint = () => {
     try {
-      printJobPdf(job, presets);
+      printJobPdf(currentJob, presets);
     } catch (e) {
       console.error(e);
       toast.error("Could not open print preview");
