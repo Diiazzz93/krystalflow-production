@@ -301,6 +301,12 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
 
             <PalletsBlock job={currentJob} stockItems={stockItems} canEdit={canEdit} updateJob={updateJob} />
 
+            <JobShipmentsBlock
+              jobId={currentJob.id}
+              totalPallets={currentJob.pallets ?? 0}
+              canEdit={canEdit}
+            />
+
 
             <div className="rounded-lg border p-3 space-y-3">
               <div className="font-medium text-sm flex items-center justify-between">
