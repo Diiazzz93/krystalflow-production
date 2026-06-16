@@ -21,6 +21,7 @@ export function CalendarView({ onSelectJob, onCreate }: Props) {
   const [view, setView] = useState<View>("month");
   const [cursor, setCursor] = useState(() => startOfDay(new Date()));
 
+  const scheduledJobs = useMemo(() => jobs.filter((j) => j.scheduledStart), [jobs]);
   const range = useMemo(() => buildRange(cursor, view), [cursor, view]);
 
   function shift(dir: 1 | -1) {
