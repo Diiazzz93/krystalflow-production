@@ -21,6 +21,7 @@ import {
   SlidersHorizontal,
   Sun,
   TrendingUp,
+  Truck,
   Warehouse,
   Wrench,
 } from "lucide-react";
@@ -68,6 +69,7 @@ const NAV: NavNode[] = [
   { kind: "link", to: "/live", label: "Live Board", icon: Factory, permission: "page:live" },
   { kind: "link", to: "/qc", label: "Quality Control", icon: ShieldCheck, permission: "page:qc" },
   { kind: "link", to: "/stock", label: "Stock", icon: Boxes, permission: "page:stock" },
+  { kind: "link", to: "/shipping", label: "Shipping", icon: Truck, permission: "page:shipping" },
   { kind: "link", to: "/line-setup", label: "Line Setup", icon: SlidersHorizontal, permission: "page:line-setup" },
   { kind: "link", to: "/customer-specs", label: "Customer Specs", icon: ClipboardCheck, permission: "page:customer-specs" },
   {

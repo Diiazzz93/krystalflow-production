@@ -34,6 +34,7 @@ export type Permission =
   | "page:live"
   | "page:qc"
   | "page:stock"
+  | "page:shipping"
   | "page:analytics"
   | "page:line-setup"
   | "page:customer-specs"
@@ -56,7 +57,7 @@ export type Permission =
 const PERMISSIONS: Record<Role, Permission[]> = {
   admin: [
     "page:dashboard", "page:calendar", "page:jobs", "page:live",
-    "page:qc", "page:stock", "page:analytics", "page:line-setup",
+    "page:qc", "page:stock", "page:shipping", "page:analytics", "page:line-setup",
     "page:customer-specs", "page:manufacturing", "page:settings",
     "jobs:create", "jobs:edit", "jobs:delete", "jobs:reschedule",
     "jobs:update-progress", "qc:complete",
@@ -65,7 +66,7 @@ const PERMISSIONS: Record<Role, Permission[]> = {
   ],
   manager: [
     "page:dashboard", "page:calendar", "page:jobs", "page:live",
-    "page:qc", "page:stock", "page:analytics", "page:line-setup",
+    "page:qc", "page:stock", "page:shipping", "page:analytics", "page:line-setup",
     "page:customer-specs", "page:manufacturing",
     "jobs:create", "jobs:edit", "jobs:reschedule",
     "jobs:update-progress", "qc:complete",
@@ -73,14 +74,14 @@ const PERMISSIONS: Record<Role, Permission[]> = {
   ],
   operator: [
     "page:dashboard", "page:calendar", "page:jobs", "page:live",
-    "page:qc", "page:stock", "page:line-setup", "page:customer-specs",
+    "page:qc", "page:stock", "page:shipping", "page:line-setup", "page:customer-specs",
     "page:manufacturing",
     "jobs:update-progress", "qc:complete",
     "line-setup:manage",
   ],
   viewer: [
     "page:dashboard", "page:calendar", "page:jobs", "page:live",
-    "page:qc", "page:stock", "page:line-setup", "page:customer-specs",
+    "page:qc", "page:stock", "page:shipping", "page:line-setup", "page:customer-specs",
     "page:manufacturing",
   ],
 };

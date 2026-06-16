@@ -19,6 +19,7 @@ import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { computeJobStockCheck } from "@/lib/job-stock";
 import { JobStockCheck } from "./JobStockCheck";
+import { JobShipmentsBlock } from "./JobShipmentsBlock";
 import { cn } from "@/lib/utils";
 import { downloadJobPdf, printJobPdf } from "@/lib/job-pdf";
 import { useLineSetups } from "@/lib/line-setups";
@@ -300,6 +301,12 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
             </div>
 
             <PalletsBlock job={currentJob} stockItems={stockItems} canEdit={canEdit} updateJob={updateJob} />
+
+            <JobShipmentsBlock
+              jobId={currentJob.id}
+              totalPallets={currentJob.pallets ?? 0}
+              canEdit={canEdit}
+            />
 
 
             <div className="rounded-lg border p-3 space-y-3">
