@@ -347,7 +347,7 @@ export async function importFillReadyImpl(supabase: SupabaseLike): Promise<Impor
       const existingComponents = data.assemblyComponents as unknown[] | undefined;
       if (existingComponents && existingComponents.length > 0) continue;
       try {
-        const detail = await fetchAssembly(row.unleashed_assembly_id);
+        const { assembly: detail } = await fetchAssembly(row.unleashed_assembly_id, row.unleashed_assembly_number);
         if (!detail) continue;
         const components = mapAssemblyComponents(detail.AssemblyLines);
         const merged = {
