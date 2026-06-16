@@ -29,10 +29,10 @@ export function cascadeReschedule(
 
   // Snapshot original timings for ALL jobs on this line BEFORE applying the change.
   const lineJobsOriginal = jobs
-    .filter((j) => j.line === trigger.line)
+    .filter((j) => j.line === trigger.line && j.scheduledStart)
     .map((j) => ({
       job: j,
-      origStart: new Date(j.scheduledStart).getTime(),
+      origStart: new Date(j.scheduledStart!).getTime(),
       origEnd: jobEnd(j).getTime(),
     }))
     .sort((a, b) => a.origStart - b.origStart);

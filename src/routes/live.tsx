@@ -59,7 +59,7 @@ function LivePage() {
               .filter((j) => j.status === "Scheduled")
               .sort(
                 (a, b) =>
-                  new Date(a.scheduledStart).getTime() - new Date(b.scheduledStart).getTime(),
+                  (a.scheduledStart ? new Date(a.scheduledStart).getTime() : Infinity) - (b.scheduledStart ? new Date(b.scheduledStart).getTime() : Infinity),
               )[0];
             return (
               <motion.div

@@ -10,8 +10,8 @@ export function runtimeMinutes(job: Job) {
 }
 
 export function estimatedFinish(job: Job): Date {
-  const start = new Date(job.scheduledStart);
-  return new Date(start.getTime() + runtimeMinutes(job) * 60_000);
+  const startMs = job.scheduledStart ? new Date(job.scheduledStart).getTime() : Date.now();
+  return new Date(startMs + runtimeMinutes(job) * 60_000);
 }
 
 export function jobEnd(job: Job): Date {
@@ -35,7 +35,7 @@ export interface JobPerformance {
 const ON_TIME_TOLERANCE_MS = 30 * 60_000; // ±30 min counts as on-time
 
 export function getJobPerformance(job: Job): JobPerformance {
-  const plannedStart = new Date(job.plannedStart ?? job.scheduledStart);
+  const plannedStart = new Date(job.plannedStart ?? job.scheduledStart ?? Date.now());
   const plannedEnd = new Date(job.plannedEnd ?? job.scheduledEnd ?? estimatedFinish(job));
   const actualStart = job.actualStart ? new Date(job.actualStart) : null;
   const actualEnd = job.actualEnd ? new Date(job.actualEnd) : null;
@@ -135,8 +135,10 @@ export const PRIORITY_COLOR: Record<Priority, string> = {
   Urgent: "bg-red-200 text-red-900 dark:bg-red-900 dark:text-red-100",
 };
 
-export function fmtDate(d: string | Date) {
+export function fmtDate(d: string | Date | undefined) {
+  if (!d) return "—";
   const date = typeof d === "string" ? new Date(d) : d;
+  if (isNaN(date.getTime())) return "—";
   return date.toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
@@ -144,15 +146,18 @@ export function fmtDate(d: string | Date) {
   });
 }
 
-export function fmtTime(d: string | Date) {
+export function fmtTime(d: string | Date | undefined) {
+  if (!d) return "—";
   const date = typeof d === "string" ? new Date(d) : d;
+  if (isNaN(date.getTime())) return "—";
   return date.toLocaleTimeString(undefined, {
     hour: "2-digit",
     minute: "2-digit",
   });
 }
 
-export function fmtDateTime(d: string | Date) {
+export function fmtDateTime(d: string | Date | undefined) {
+  if (!d) return "—";
   return `${fmtDate(d)} ${fmtTime(d)}`;
 }
 

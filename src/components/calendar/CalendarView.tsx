@@ -21,6 +21,8 @@ export function CalendarView({ onSelectJob, onCreate }: Props) {
   const [view, setView] = useState<View>("month");
   const [cursor, setCursor] = useState(() => startOfDay(new Date()));
 
+  type ScheduledJob = Job & { scheduledStart: string };
+  const scheduledJobs = useMemo(() => jobs.filter((j): j is ScheduledJob => !!j.scheduledStart), [jobs]);
   const range = useMemo(() => buildRange(cursor, view), [cursor, view]);
 
   function shift(dir: 1 | -1) {
@@ -65,11 +67,11 @@ export function CalendarView({ onSelectJob, onCreate }: Props) {
       </div>
 
       {view === "month" ? (
-        <MonthGrid days={range} jobs={jobs} onCreate={onCreate} onSelectJob={onSelectJob} />
+        <MonthGrid days={range} jobs={scheduledJobs} onCreate={onCreate} onSelectJob={onSelectJob} />
       ) : (
         <LineSchedule
           days={range}
-          jobs={jobs}
+          jobs={scheduledJobs}
           lines={lines}
           onCreate={onCreate}
           onSelectJob={onSelectJob}
@@ -195,7 +197,7 @@ function MonthGrid({
       mode,
       jobId: job.id,
       origIdx,
-      origStart: new Date(job.scheduledStart),
+      origStart: new Date(job.scheduledStart!),
       origEnd: jobEnd(job),
       moved: false,
       currentIdx: origIdx,
@@ -269,12 +271,13 @@ function MonthGrid({
 
         const weekJobs = jobs
           .filter((j) => {
+            if (!j.scheduledStart) return false;
             const s = new Date(j.scheduledStart);
             const e = jobEnd(j);
             return s <= weekEnd && e >= weekStart;
           })
           .map((j) => {
-            const s = new Date(j.scheduledStart);
+            const s = new Date(j.scheduledStart!);
             const e = jobEnd(j);
             const startCol = s < weekStart ? 0 : s.getDay();
             const endCol = e > weekEnd ? 6 : e.getDay();
@@ -383,7 +386,7 @@ function MonthGrid({
                       title={`${job.customer} — ${job.product} (drag to move, drag right edge to extend)`}
                     >
                       {continuesBefore && "← "}
-                      {fmtTime(job.scheduledStart)} {job.customer}
+                      {fmtTime(job.scheduledStart!)} {job.customer}
                       {continuesAfter && " →"}
                     </div>
                     {!continuesBefore && (
@@ -480,6 +483,7 @@ function LineSchedule({
               const dayEnd = new Date(d); dayEnd.setHours(23,59,59,999);
               const lineJobs = jobs.filter((j) => {
                 if (j.line !== line.id) return false;
+                if (!j.scheduledStart) return false;
                 const s = new Date(j.scheduledStart);
                 const e = jobEnd(j);
                 return s <= dayEnd && e >= dayStart;
@@ -509,7 +513,7 @@ function LineSchedule({
                       />
                     ))}
                     {lineJobs.map((j) => {
-                      const jobStart = new Date(j.scheduledStart);
+                      const jobStart = new Date(j.scheduledStart!);
                       const jobFinish = jobEnd(j);
                       // Clip to this day's visible window
                       const visibleStart = jobStart < dayStart ? dayStart : jobStart;

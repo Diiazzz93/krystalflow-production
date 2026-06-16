@@ -79,7 +79,7 @@ export interface Job {
   labels: ReadyState;
   packaging: ReadyState;
   status: JobStatus;
-  scheduledStart: string; // ISO datetime
+  scheduledStart?: string; // ISO datetime - set when job is allocated to calendar
   scheduledEnd?: string; // ISO datetime - optional explicit end (for multi-day jobs)
   plannedStart?: string; // ISO - planned start (defaults to scheduledStart)
   plannedEnd?: string; // ISO - planned finish (defaults to scheduledEnd/estimatedFinish)

@@ -73,8 +73,8 @@ function jobToRow(j: Job) {
 
 function rowToJob(r: Record<string, unknown>): Job {
   const data = (r.data as Partial<Job> | undefined) ?? {};
-  const scheduledStart = String(r.scheduled_start ?? data.scheduledStart ?? new Date().toISOString());
-  const fallbackDueDate = new Date(scheduledStart);
+  const scheduledStart = r.scheduled_start ? String(r.scheduled_start) : (data.scheduledStart as string | undefined);
+  const fallbackDueDate = new Date();
   fallbackDueDate.setDate(fallbackDueDate.getDate() + 7);
   const colorIndex = Math.abs(String(r.customer ?? data.customer ?? "").split("").reduce((sum, ch) => sum + ch.charCodeAt(0), 0)) % JOB_COLORS.length;
   const assemblyComponents = Array.isArray(data.assemblyComponents) ? data.assemblyComponents : [];
