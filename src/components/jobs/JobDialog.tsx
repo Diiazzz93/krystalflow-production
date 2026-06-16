@@ -101,7 +101,6 @@ function toLocalInput(iso: string | undefined) {
   const pad = (n: number) => n.toString().padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
-}
 
 interface Props {
   jobId?: string | null;
@@ -109,12 +108,6 @@ interface Props {
   onOpenChange: (v: boolean) => void;
   defaultStart?: string;
   defaultLine?: string;
-}
-
-function toLocalInput(iso: string) {
-  const d = new Date(iso);
-  const pad = (n: number) => n.toString().padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine }: Props) {
