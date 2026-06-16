@@ -308,11 +308,38 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
                   </Select>
                 </div>
               </div>
+              <div className="space-y-1">
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Job colour</div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {["#0ea5e9", "#22c55e", "#f97316", "#a855f7", "#ec4899", "#14b8a6", "#eab308", "#ef4444", "#3b82f6", "#64748b"].map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      disabled={!canEdit}
+                      onClick={() => void updateJob(currentJob.id, { customerColor: c })}
+                      className={`size-6 rounded-full border-2 ${currentJob.customerColor === c ? "border-foreground" : "border-transparent"} disabled:opacity-50`}
+                      style={{ backgroundColor: c }}
+                      aria-label={`Set colour ${c}`}
+                    />
+                  ))}
+                  <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+                    <input
+                      type="color"
+                      disabled={!canEdit}
+                      value={currentJob.customerColor || "#0ea5e9"}
+                      onChange={(e) => void updateJob(currentJob.id, { customerColor: e.target.value })}
+                      className="size-6 rounded cursor-pointer bg-transparent border border-border"
+                    />
+                    Custom
+                  </label>
+                </div>
+              </div>
               <div className="text-xs text-muted-foreground">
                 Current: {fmtDate(currentJob.scheduledStart)}
                 {currentJob.scheduledEnd ? ` → ${fmtDate(currentJob.scheduledEnd)}` : ""}
               </div>
             </div>
+
 
             <AssemblyInfoBlock job={currentJob} />
           </TabsContent>
