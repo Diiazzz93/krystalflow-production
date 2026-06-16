@@ -485,18 +485,53 @@ async function findExistingAssembly(
   }
 }
 
-async function fetchAssembly(assemblyGuid: string): Promise<UnleashedAssembly | null> {
-  try {
-    const res = await ulFetchRaw<UnleashedAssembly>(`/Assemblies/${assemblyGuid}`, "");
-    // Single-object endpoints return the object itself, not { Items: [...] }.
-    if ((res as unknown as UnleashedAssembly).Guid || (res as unknown as UnleashedAssembly).AssemblyLines) {
-      return res as unknown as UnleashedAssembly;
+async function fetchAssembly(
+  assemblyIdOrNumber: string,
+  assemblyNumber?: string | null,
+): Promise<UnleashedAssembly | null> {
+  const isGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+    assemblyIdOrNumber,
+  );
+  if (isGuid) {
+    try {
+      const res = await ulFetchRaw<UnleashedAssembly>(`/Assemblies/${assemblyIdOrNumber}`, "");
+      if ((res as unknown as UnleashedAssembly).Guid || (res as unknown as UnleashedAssembly).AssemblyLines) {
+        return res as unknown as UnleashedAssembly;
+      }
+      if (res.Items && res.Items.length > 0) return res.Items[0];
+    } catch (e) {
+      console.warn("[fill-ready] fetchAssembly by GUID failed", e);
     }
-    if (res.Items && res.Items.length > 0) return res.Items[0];
-    return null;
-  } catch {
-    return null;
   }
+  // Fallback: look up by AssemblyNumber via list endpoint
+  const number = assemblyNumber || (!isGuid ? assemblyIdOrNumber : undefined);
+  if (number) {
+    try {
+      const items = await ulFetchAllQueryPages<UnleashedAssembly>(
+        "/Assemblies",
+        [["assemblyNumber", number], ["pageSize", "50"]],
+        2,
+      );
+      const match =
+        items.find((a) => (a.AssemblyNumber ?? "").toLowerCase() === number.toLowerCase()) ??
+        items[0];
+      if (match?.Guid) {
+        try {
+          const full = await ulFetchRaw<UnleashedAssembly>(`/Assemblies/${match.Guid}`, "");
+          if ((full as unknown as UnleashedAssembly).AssemblyLines) {
+            return full as unknown as UnleashedAssembly;
+          }
+        } catch (e) {
+          console.warn("[fill-ready] fetchAssembly detail by GUID after lookup failed", e);
+        }
+        return match;
+      }
+      return match ?? null;
+    } catch (e) {
+      console.warn("[fill-ready] fetchAssembly by number failed", e);
+    }
+  }
+  return null;
 }
 
 export async function refreshJobAssemblyComponentsImpl(supabase: SupabaseLike, jobId: string) {
@@ -508,7 +543,7 @@ export async function refreshJobAssemblyComponentsImpl(supabase: SupabaseLike, j
   if (error || !row) return { ok: false as const, error: error?.message ?? "Job not found" };
   if (!row.unleashed_assembly_id) return { ok: false as const, error: "Job has no linked Assembly" };
 
-  const detail = await fetchAssembly(String(row.unleashed_assembly_id));
+  const detail = await fetchAssembly(String(row.unleashed_assembly_id), row.unleashed_assembly_number);
   if (!detail) return { ok: false as const, error: "Could not read linked Assembly" };
 
   const components = mapAssemblyComponents(detail.AssemblyLines);
