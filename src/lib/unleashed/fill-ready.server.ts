@@ -543,7 +543,7 @@ export async function refreshJobAssemblyComponentsImpl(supabase: SupabaseLike, j
   if (error || !row) return { ok: false as const, error: error?.message ?? "Job not found" };
   if (!row.unleashed_assembly_id) return { ok: false as const, error: "Job has no linked Assembly" };
 
-  const detail = await fetchAssembly(String(row.unleashed_assembly_id));
+  const detail = await fetchAssembly(String(row.unleashed_assembly_id), row.unleashed_assembly_number);
   if (!detail) return { ok: false as const, error: "Could not read linked Assembly" };
 
   const components = mapAssemblyComponents(detail.AssemblyLines);
