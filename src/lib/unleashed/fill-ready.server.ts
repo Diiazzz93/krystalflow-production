@@ -400,15 +400,27 @@ function customerColor(customer: string): string {
 }
 
 function mapAssemblyComponents(lines?: UnleashedAssemblyLine[]) {
+  return (lines ?? [])
+    .map((line) => {
+      const product = line.Product ?? line.ComponentProduct;
+      return {
+        productCode: product?.ProductCode ?? "",
+        productGuid: product?.Guid,
+        name: product?.ProductDescription ?? product?.ProductCode ?? "",
+        quantity: Number(line.Quantity ?? line.ComponentQuantity ?? 0),
+        unit: typeof line.UnitOfMeasure === "string" ? line.UnitOfMeasure : line.UnitOfMeasure?.Name,
+      };
+    })
+    .filter((c) => c.productCode);
+}
 
 /**
  * Detect carton/pack format from an Unleashed product description.
- * Examples that should be recognised:
- *   "Linseed Oil Raw 6 x 1L"      → { bottlesPerCarton: 6,  bottleSize: "1L"    }
- *   "Citrus Cleaner 4x4 litre"    → { bottlesPerCarton: 4,  bottleSize: "4L"    }
- *   "Spray 12 x 500ml"            → { bottlesPerCarton: 12, bottleSize: "500ml" }
- *   "Single 5L Bottle"            → { bottlesPerCarton: 1,  bottleSize: "5L"    }
- *   "Bulk drum"                   → { bottlesPerCarton: 1                       }
+ * Examples:
+ *   "Linseed Oil Raw 6 x 1L"   → { bottlesPerCarton: 6,  bottleSize: "1L"    }
+ *   "Citrus Cleaner 4x4 litre" → { bottlesPerCarton: 4,  bottleSize: "4L"    }
+ *   "Spray 12 x 500ml"         → { bottlesPerCarton: 12, bottleSize: "500ml" }
+ *   "Single 5L Bottle"         → { bottlesPerCarton: 1,  bottleSize: "5L"    }
  */
 export function parseProductPackaging(desc: string): {
   bottlesPerCarton: number;
@@ -417,7 +429,6 @@ export function parseProductPackaging(desc: string): {
   if (!desc) return { bottlesPerCarton: 1 };
   const text = desc.toLowerCase();
 
-  // Match "<count> x <size><unit>" — covers "6x1L", "6 x 1 L", "12×500ml".
   const pack = text.match(
     /(\d+)\s*[x×]\s*(\d+(?:\.\d+)?)\s*(ml|millilitre|millilitres|l|lt|ltr|litre|litres|liter|liters|kg|g|gram|grams)\b/,
   );
@@ -430,7 +441,6 @@ export function parseProductPackaging(desc: string): {
     }
   }
 
-  // No "x" pattern — try to read a single bottle size from the description.
   const single = text.match(
     /(\d+(?:\.\d+)?)\s*(ml|millilitre|millilitres|l|lt|ltr|litre|litres|liter|liters|kg|g|gram|grams)\b/,
   );
@@ -450,19 +460,6 @@ function normaliseUnit(u: string): string {
   if (s === "kg") return "kg";
   if (s === "g" || s.startsWith("gram")) return "g";
   return s;
-}
-  return (lines ?? [])
-    .map((line) => {
-      const product = line.Product ?? line.ComponentProduct;
-      return {
-        productCode: product?.ProductCode ?? "",
-        productGuid: product?.Guid,
-        name: product?.ProductDescription ?? product?.ProductCode ?? "",
-        quantity: Number(line.Quantity ?? line.ComponentQuantity ?? 0),
-        unit: typeof line.UnitOfMeasure === "string" ? line.UnitOfMeasure : line.UnitOfMeasure?.Name,
-      };
-    })
-    .filter((c) => c.productCode);
 }
 
 async function findExistingAssembly(
