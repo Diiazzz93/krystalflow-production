@@ -273,10 +273,15 @@ export async function importFillReadyImpl(supabase: SupabaseLike): Promise<Impor
             createdAt: new Date().toISOString(),
             importedFromUnleashed: true,
             unleashedSalesOrderNumber: so.OrderNumber,
+            unleashedSalesOrderNumber: so.OrderNumber,
             unleashedAssemblyNumber: assemblyNumber,
+            assemblyComponents,
+            assemblyStatus,
+            assemblyCreatedAt,
           },
         })
         .select("id")
+        .single();
         .single();
 
       if (insertError) throw new Error(`DB insert failed: ${insertError.message}`);
