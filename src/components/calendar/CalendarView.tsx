@@ -472,9 +472,6 @@ function MonthGrid({
                   </div>
                 );
               })}
-                  </div>
-                );
-              })}
             </div>
           </div>
         );
