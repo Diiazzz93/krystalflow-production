@@ -228,17 +228,39 @@ function MonthGrid({
       if (!d) return;
       const daysDelta = d.currentIdx - d.origIdx;
       if (d.moved && daysDelta !== 0) {
+        const targetDate = days[d.currentIdx];
         let newStart = new Date(d.origStart);
         let newEnd = new Date(d.origEnd);
+
+        // Helper: set Y/M/D from `date`, keep H/M/S/ms from `time`
+        const setDate = (time: Date, date: Date) => {
+          const out = new Date(time);
+          out.setFullYear(date.getFullYear(), date.getMonth(), date.getDate());
+          return out;
+        };
+
         if (d.mode === "move") {
-          newStart.setDate(newStart.getDate() + daysDelta);
-          newEnd.setDate(newEnd.getDate() + daysDelta);
-        } else if (d.mode === "resize-end") {
-          newEnd.setDate(newEnd.getDate() + daysDelta);
+          const durationWd = workingDaysBetween(d.origStart, d.origEnd);
+          const startDay = nextWorkingDay(targetDate);
+          newStart = setDate(d.origStart, startDay);
+          const endDay = addWorkingDays(startDay, Math.max(0, durationWd));
+          newEnd = setDate(d.origEnd, endDay);
           if (newEnd <= newStart) newEnd = new Date(newStart.getTime() + 60 * 60 * 1000);
+        } else if (d.mode === "resize-end") {
+          const endDay = nextWorkingDay(targetDate);
+          newEnd = setDate(d.origEnd, endDay);
+          if (newEnd <= newStart) {
+            const bump = nextWorkingDay(new Date(newStart.getTime() + 24 * 60 * 60 * 1000));
+            newEnd = setDate(d.origEnd, bump);
+          }
         } else {
-          newStart.setDate(newStart.getDate() + daysDelta);
-          if (newStart >= newEnd) newStart = new Date(newEnd.getTime() - 60 * 60 * 1000);
+          // resize-start: snap; if past end, walk back to prior working day
+          let startDay = nextWorkingDay(targetDate);
+          newStart = setDate(d.origStart, startDay);
+          if (newStart >= newEnd) {
+            startDay = addWorkingDays(newEnd, -1);
+            newStart = setDate(d.origStart, startDay);
+          }
         }
         const changes = cascadeReschedule(jobs, d.jobId, newStart.toISOString(), newEnd.toISOString());
         changes.forEach((c) =>
@@ -253,8 +275,8 @@ function MonthGrid({
             {
               description:
                 cascaded > 0
-                  ? `${cascaded} downstream job${cascaded === 1 ? "" : "s"} shifted — gaps preserved.`
-                  : "No downstream jobs affected.",
+                  ? `${cascaded} downstream job${cascaded === 1 ? "" : "s"} shifted — weekends skipped, gaps preserved.`
+                  : "Weekends skipped.",
             },
           );
         }
