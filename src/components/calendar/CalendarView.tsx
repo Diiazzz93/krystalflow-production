@@ -428,65 +428,91 @@ function MonthGrid({
                       transition: "left 250ms ease, width 250ms ease",
                     }}
                   >
-                    <div
-                      role="button"
-                      tabIndex={0}
-                      onPointerDown={(e) => startDrag(e, job, "move", absStartIdx, absEndIdx)}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (!dragRef.current?.moved) onSelectJob(job.id);
-                      }}
-                      className={cn(
-                        "relative h-full w-full overflow-hidden shadow-sm cursor-grab active:cursor-grabbing select-none touch-none flex",
-                        !continuesBefore && "rounded-l",
-                        !continuesAfter && "rounded-r",
-                        isDragging && "ring-2 ring-ring opacity-70",
-                        isHighlighted && "ring-2 ring-yellow-400 animate-pulse",
-                      )}
-                      title={`${job.customer} — ${job.product} (drag to move, drag right edge to extend)`}
-                    >
-                      {cols.map((c, i) => {
-                        const isWknd = c === 0 || c === 6;
-                        return (
+                    <ContextMenu>
+                      <ContextMenuTrigger asChild>
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          onPointerDown={(e) => startDrag(e, job, "move", absStartIdx, absEndIdx)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (!dragRef.current?.moved) onSelectJob(job.id);
+                          }}
+                          className={cn(
+                            "relative h-full w-full overflow-hidden shadow-sm cursor-grab active:cursor-grabbing select-none touch-none flex",
+                            !continuesBefore && "rounded-l",
+                            !continuesAfter && "rounded-r",
+                            isDragging && "ring-2 ring-ring opacity-70",
+                            isHighlighted && "ring-2 ring-yellow-400 animate-pulse",
+                          )}
+                          title={`${job.customer} — ${job.product} (drag to move, right-click for options)`}
+                        >
+                          {cols.map((c, i) => {
+                            const isWknd = c === 0 || c === 6;
+                            return (
+                              <div
+                                key={i}
+                                className="h-full"
+                                style={{
+                                  flex: 1,
+                                  backgroundColor: job.customerColor,
+                                  opacity: isWknd ? 0.35 : 1,
+                                }}
+                              />
+                            );
+                          })}
                           <div
-                            key={i}
-                            className="h-full"
-                            style={{
-                              flex: 1,
-                              backgroundColor: job.customerColor,
-                              opacity: isWknd ? 0.35 : 1,
-                            }}
-                          />
-                        );
-                      })}
-                      <div
-                        className="absolute inset-0 flex items-center px-1.5 text-[11px] font-medium text-white truncate pointer-events-none"
-                        style={{ textShadow: "0 1px 2px rgba(0,0,0,0.4)" }}
-                      >
-                        <span className="truncate">
-                          {!continuesBefore && `${fmtTime(job.scheduledStart!)} `}
-                          {job.calendarLabel?.trim() || job.product}
-                        </span>
-                      </div>
-                      {!continuesBefore && (
-                        <div
-                          onPointerDown={(e) => startDrag(e, job, "resize-start", absStartIdx, absEndIdx)}
-                          className="absolute top-0 left-0 h-full w-2.5 cursor-ew-resize bg-black/30 hover:bg-black/50 rounded-l touch-none flex items-center justify-center"
-                          title="Drag to change start date"
-                        >
-                          <div className="h-2/3 w-0.5 bg-white/70 rounded" />
+                            className="absolute inset-0 flex items-center px-1.5 text-[11px] font-medium text-white truncate pointer-events-none"
+                            style={{ textShadow: "0 1px 2px rgba(0,0,0,0.4)" }}
+                          >
+                            <span className="truncate">
+                              {!continuesBefore && `${fmtTime(job.scheduledStart!)} `}
+                              {job.calendarLabel?.trim() || job.product}
+                            </span>
+                          </div>
+                          {!continuesBefore && (
+                            <div
+                              onPointerDown={(e) => startDrag(e, job, "resize-start", absStartIdx, absEndIdx)}
+                              className="absolute top-0 left-0 h-full w-2.5 cursor-ew-resize bg-black/30 hover:bg-black/50 rounded-l touch-none flex items-center justify-center"
+                              title="Drag to change start date"
+                            >
+                              <div className="h-2/3 w-0.5 bg-white/70 rounded" />
+                            </div>
+                          )}
+                          {!continuesAfter && (
+                            <div
+                              onPointerDown={(e) => startDrag(e, job, "resize-end", absStartIdx, absEndIdx)}
+                              className="absolute top-0 right-0 h-full w-2.5 cursor-ew-resize bg-black/30 hover:bg-black/50 rounded-r touch-none flex items-center justify-center"
+                              title="Drag to change end date"
+                            >
+                              <div className="h-2/3 w-0.5 bg-white/70 rounded" />
+                            </div>
+                          )}
+                          {!continuesAfter && (
+                            <button
+                              type="button"
+                              onPointerDown={(e) => e.stopPropagation()}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                unschedule(job);
+                              }}
+                              className="absolute top-1/2 -translate-y-1/2 right-3.5 size-4 rounded-full bg-black/40 hover:bg-black/70 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                              title="Remove from calendar (job is kept)"
+                            >
+                              <X className="size-2.5" />
+                            </button>
+                          )}
                         </div>
-                      )}
-                      {!continuesAfter && (
-                        <div
-                          onPointerDown={(e) => startDrag(e, job, "resize-end", absStartIdx, absEndIdx)}
-                          className="absolute top-0 right-0 h-full w-2.5 cursor-ew-resize bg-black/30 hover:bg-black/50 rounded-r touch-none flex items-center justify-center"
-                          title="Drag to change end date"
-                        >
-                          <div className="h-2/3 w-0.5 bg-white/70 rounded" />
-                        </div>
-                      )}
-                    </div>
+                      </ContextMenuTrigger>
+                      <ContextMenuContent>
+                        <ContextMenuItem onSelect={() => onSelectJob(job.id)}>
+                          <Pencil className="size-4 mr-2" /> Open job
+                        </ContextMenuItem>
+                        <ContextMenuItem onSelect={() => unschedule(job)}>
+                          <CalendarOff className="size-4 mr-2" /> Unschedule (keep job)
+                        </ContextMenuItem>
+                      </ContextMenuContent>
+                    </ContextMenu>
                   </div>
                 );
               })}
