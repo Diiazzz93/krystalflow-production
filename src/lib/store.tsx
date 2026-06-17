@@ -71,6 +71,21 @@ function jobToRow(j: Job) {
   };
 }
 
+function inferSkusFromComponents(components: { productCode: string; name: string }[]) {
+  const out: { bottleSku?: string; capSku?: string; labelSku?: string; cartonSku?: string; liquidSku?: string } = {};
+  for (const c of components) {
+    const n = (c.name || "").toUpperCase();
+    const code = c.productCode;
+    if (!code) continue;
+    if (!out.bottleSku && (n.startsWith("BT") || n.includes(" BTL ") || n.startsWith("BTL"))) out.bottleSku = code;
+    else if (!out.capSku && (n.startsWith("CAP") || n.includes(" CAP "))) out.capSku = code;
+    else if (!out.cartonSku && (n.startsWith("CT") || n.includes(" CTN ") || n.startsWith("CTN"))) out.cartonSku = code;
+    else if (!out.labelSku && (n.startsWith("LB") || n.startsWith("LAB") || n.includes("LABEL"))) out.labelSku = code;
+    else if (!out.liquidSku && (n.includes("BULK") || /-8\b/.test(n) || /\bIBC\b/.test(n))) out.liquidSku = code;
+  }
+  return out;
+}
+
 function rowToJob(r: Record<string, unknown>): Job {
   const data = (r.data as Partial<Job> | undefined) ?? {};
   const scheduledStart = r.scheduled_start ? String(r.scheduled_start) : (data.scheduledStart as string | undefined);
@@ -78,6 +93,7 @@ function rowToJob(r: Record<string, unknown>): Job {
   fallbackDueDate.setDate(fallbackDueDate.getDate() + 7);
   const colorIndex = Math.abs(String(r.customer ?? data.customer ?? "").split("").reduce((sum, ch) => sum + ch.charCodeAt(0), 0)) % JOB_COLORS.length;
   const assemblyComponents = Array.isArray(data.assemblyComponents) ? data.assemblyComponents : [];
+  const inferred = inferSkusFromComponents(assemblyComponents);
   // Prefer the column values as source of truth; merge richer fields from data.
   return {
     ...(data as Job),
