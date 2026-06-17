@@ -651,27 +651,50 @@ function LineSchedule({
                       const continuesBefore = jobStart < dayStart;
                       const continuesAfter = jobFinish > dayEnd;
                       return (
-                        <motion.button
-                          key={j.id}
-                          initial={{ opacity: 0, scale: 0.95 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          onClick={(ev) => { ev.stopPropagation(); onSelectJob(j.id); }}
-                          className="absolute left-1 right-1 rounded-md text-left p-1.5 text-white text-[11px] shadow-sm hover:ring-2 hover:ring-ring overflow-hidden"
-                          style={{
-                            top,
-                            height,
-                            backgroundColor: j.customerColor,
-                          }}
-                        >
-                          <div className="flex items-center gap-1.5 font-semibold truncate">
-                            <span className={cn("size-1.5 rounded-full", STATUS_DOT[j.status])} />
-                            {continuesBefore && "← "}{j.calendarLabel?.trim() || j.product}{continuesAfter && " →"}
-                          </div>
-                          <div className="truncate opacity-90">{j.customer}</div>
-                          <div className="opacity-75 text-[10px]">
-                            {fmtTime(jobStart)} – {fmtTime(jobFinish)}
-                          </div>
-                        </motion.button>
+                        <ContextMenu key={j.id}>
+                          <ContextMenuTrigger asChild>
+                            <motion.button
+                              initial={{ opacity: 0, scale: 0.95 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              onClick={(ev) => { ev.stopPropagation(); onSelectJob(j.id); }}
+                              className="group absolute left-1 right-1 rounded-md text-left p-1.5 text-white text-[11px] shadow-sm hover:ring-2 hover:ring-ring overflow-hidden"
+                              style={{
+                                top,
+                                height,
+                                backgroundColor: j.customerColor,
+                              }}
+                            >
+                              <div className="flex items-center gap-1.5 font-semibold truncate">
+                                <span className={cn("size-1.5 rounded-full", STATUS_DOT[j.status])} />
+                                {continuesBefore && "← "}{j.calendarLabel?.trim() || j.product}{continuesAfter && " →"}
+                              </div>
+                              <div className="truncate opacity-90">{j.customer}</div>
+                              <div className="opacity-75 text-[10px]">
+                                {fmtTime(jobStart)} – {fmtTime(jobFinish)}
+                              </div>
+                              <span
+                                role="button"
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  unschedule(j);
+                                }}
+                                className="absolute top-1 right-1 size-4 rounded-full bg-black/40 hover:bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                                title="Remove from calendar (job is kept)"
+                              >
+                                <X className="size-2.5" />
+                              </span>
+                            </motion.button>
+                          </ContextMenuTrigger>
+                          <ContextMenuContent>
+                            <ContextMenuItem onSelect={() => onSelectJob(j.id)}>
+                              <Pencil className="size-4 mr-2" /> Open job
+                            </ContextMenuItem>
+                            <ContextMenuItem onSelect={() => unschedule(j)}>
+                              <CalendarOff className="size-4 mr-2" /> Unschedule (keep job)
+                            </ContextMenuItem>
+                          </ContextMenuContent>
+                        </ContextMenu>
                       );
                     })}
                   </div>
