@@ -1,78 +1,32 @@
-# Unleashed "Fill Ready" Workflow
+# Weekend-aware scheduling
 
-## Overview
-KrystalFlow polls Unleashed for Sales Orders with status `Fill Ready`. Each one becomes a Production Job + a linked Assembly built from the product's BOM. Production runs in KrystalFlow; an admin/manager later approves the Assembly which completes it in Unleashed. The Sales Order itself is never touched.
+Right now the calendar treats every day as a working day. When you drag a job's right edge across Saturday/Sunday, those days count as production time, which throws off duration and analytics. The fix is to treat Sat/Sun as non-working everywhere the schedule does date math, and to visually mark them as off.
 
-## Database changes
+## What changes (user-visible)
 
-New columns on `production_jobs`:
-- `unleashed_sales_order_id` (text, unique nullable) — prevents duplicate imports
-- `unleashed_sales_order_number` (text)
-- `unleashed_assembly_id` (text)
-- `unleashed_assembly_number` (text)
-- `imported_from_unleashed_at` (timestamptz)
-- `assembly_approved_by` (uuid → auth.users)
-- `assembly_approved_at` (timestamptz)
-- Extend existing `status` to allow `pending_assembly_approval` and `assembly_completed`
+- **Drag / resize on the month grid**: dropping or extending a bar across a weekend skips Sat/Sun. A 3-day job dragged so it would land Fri→Sun becomes Fri + Mon + Tue. Extending the end edge by "2 days" past a Friday lands on Tuesday, not Sunday.
+- **Cascade reschedule**: when a job pushes downstream jobs on the same line, the preserved gap is counted in working days, so downstream jobs also skip weekends.
+- **Estimated finish (runtime → end time)**: the calculation that turns runtime hours into an end timestamp rolls over weekends instead of consuming them.
+- **Weekend cells**: Sat/Sun cells in the month and week grids get a subtle striped/greyed background and a "Non-working" tooltip. Double-clicking a weekend cell to create a job snaps the new job to the next Monday and shows a small toast ("Weekends are non-working — moved to Mon …").
+- **Drag indicator**: the "+N days" pill at the bottom of the screen says "+N working days" so it's clear weekends aren't counted.
 
-New table `unleashed_sync_log`:
-- `sales_order_id`, `sales_order_number`, `outcome` (imported/skipped/error), `message`, `created_at`
-- For audit + duplicate-skip visibility on the Sync page
+## What does NOT change
 
-New role: add `'manager'` to `app_role` enum. Approval requires admin OR manager (`has_role`).
+- Day/week line-schedule view still renders weekend columns (so you can see history that already landed there), but new drags/resizes obey the weekend rule.
+- No new setting — Sat/Sun is hard-coded as the weekend. If you later want custom non-working days (public holidays, a 6-day week, etc.), that's a follow-up.
+- Existing jobs already scheduled on a weekend are left alone; only new moves/resizes/creates apply the rule.
+- Analytics, QC, shipping, stock — untouched. They keep reading whatever timestamps the calendar stores; the fix is upstream of them.
 
-New table `app_settings` (key/value JSON, admin-only) to store:
-- `assembly_completion_mode` = `manual` | `auto` (default `manual`)
+## Technical notes
 
-## Server functions (`src/lib/unleashed/sales-orders.functions.ts`)
+- New helpers in `src/lib/schedule.ts`:
+  - `isWeekend(d)`, `nextWorkingDay(d)`, `addWorkingDays(d, n)` (handles negative n for resize-left), `workingDaysBetween(a, b)`.
+- `cascadeReschedule` switched from raw `ms` gap math to working-day gap math, and the trigger's new start/end are snapped to working days before cascading.
+- `CalendarView.tsx` `startDrag` `onUp`: use `addWorkingDays(origStart, daysDelta)` instead of `setDate(+daysDelta)`; same for `origEnd`. Snap any landing date that falls on a weekend to the next working day.
+- `MonthGrid`: add `weekend` styling on the day cell when `d.getDay() === 0 || 6`; intercept double-click to snap.
+- `src/lib/utils-domain.ts` `estimatedFinish`: walk forward in working-day chunks of `dailyHours` (default 8h, configurable later) instead of straight `+ms`. This keeps `jobEnd` consistent with the new rules.
+- No DB changes, no new types.
 
-All `.middleware([requireSupabaseAuth])`:
+## Open question
 
-1. `unleashedFetchFillReadySalesOrders()` — GET `/SalesOrders?orderStatus=Fill Ready`, paginated. Returns full SO including lines.
-2. `unleashedFetchProductBom(productGuid)` — GET `/BillOfMaterials/{guid}` to get assembly components.
-3. `importFillReadySalesOrders()` — orchestrator:
-   - Fetch Fill Ready SOs
-   - For each: skip if `unleashed_sales_order_id` exists in `production_jobs`
-   - Pick primary line (largest qty); fetch its BOM (fail → log + skip)
-   - Create Assembly in Unleashed via POST `/Assemblies` with BOM components
-   - Insert `production_jobs` row: status=`pending`, store SO id/number, assembly id/number, customer, product, qty
-   - Write `unleashed_sync_log` row
-   - Returns `{ imported, skipped, errors }`
-4. `completeUnleashedAssembly({ jobId })` — admin/manager only:
-   - Verify role via `has_role`
-   - Load job, POST `/Assemblies/{guid}/Complete` (or PUT status=Completed)
-   - Update job: `status=assembly_completed`, `assembly_approved_by=userId`, `assembly_approved_at=now()`
-
-## Frontend changes
-
-### `/unleashed-sync` page
-Add new card "Sales Orders (Fill Ready)":
-- "Check now" button → calls `importFillReadySalesOrders`
-- Shows last run results + recent `unleashed_sync_log` entries
-- Setting toggle for `assembly_completion_mode` (admin only)
-
-### New route `/assembly-approvals` (admin + manager only via `_authenticated/_admin`-style guard, or in-component role check)
-Table columns: Job # · SO # · Customer · Product · Qty · Assembly ID · Completion Date · Actions (View Job · Complete Assembly)
-Lists jobs where `status = 'pending_assembly_approval'`. Confirm dialog → calls `completeUnleashedAssembly`.
-
-### Jobs UI
-When production marks a job complete, set `status = 'pending_assembly_approval'` instead of fully done. Show new status badge. Add nav link to "Assembly Approvals" for admin/manager.
-
-## Scheduled polling
-pg_cron job every 5 minutes calls a new public route `src/routes/api/public/hooks/sync-fill-ready.ts` (verifies a `CRON_SECRET` header) which runs the same import logic via `supabaseAdmin`. Manual button on Sync page calls the auth'd server fn for ad-hoc runs.
-
-## Out of scope (this turn)
-- Automatic Completion mode (setting is stored but path not wired)
-- Multi-line SOs creating multiple jobs (we use largest line; log others)
-- Editing/cancelling imported jobs back in Unleashed
-
-## Files touched
-- New: `supabase/migrations/<ts>_fill_ready_workflow.sql`
-- New: `src/lib/unleashed/sales-orders.functions.ts`
-- New: `src/lib/unleashed/sales-orders.server.ts` (admin-mode importer used by cron route)
-- New: `src/routes/assembly-approvals.tsx`
-- New: `src/routes/api/public/hooks/sync-fill-ready.ts`
-- Edit: `src/routes/unleashed-sync.tsx` (new card + setting)
-- Edit: `src/routes/jobs.tsx` + job dialog (new status, route to approvals)
-- Edit: `src/lib/types.ts` / job status enum
-- Edit: `src/components/layout/AppShell.tsx` (nav entry, role-gated)
+Do you want me to also **auto-fix existing jobs** whose current scheduled range crosses a weekend (one-time migration on load), or leave them as-is and only apply the rule going forward? Default in this plan is "leave existing as-is".

@@ -1,5 +1,5 @@
 import type { Job } from "./types";
-import { jobEnd } from "./utils-domain";
+import { jobEnd, workingDaysBetween, addWorkingDays } from "./utils-domain";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -9,14 +9,18 @@ export interface ScheduleChange {
   scheduledEnd: string;
 }
 
+function midnight(d: Date) {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+
 /**
- * Cascade reschedule on a single production line.
+ * Cascade reschedule on a single production line, weekend-aware.
  *
- * Given the moved/resized job's new start/end, push or pull all subsequent
- * jobs on the same line so that the original gap between consecutive jobs
- * is preserved. Jobs never overlap; intentional gaps remain intact.
- *
- * Returns the list of changed jobs (including the trigger job).
+ * Shifts every downstream job on the same line by the same number of working
+ * days that the trigger's end-date moved. Time-of-day is preserved; overlaps
+ * are nudged forward.
  */
 export function cascadeReschedule(
   jobs: Job[],
@@ -27,48 +31,50 @@ export function cascadeReschedule(
   const trigger = jobs.find((j) => j.id === triggerId);
   if (!trigger) return [];
 
-  // Snapshot original timings for ALL jobs on this line BEFORE applying the change.
-  const lineJobsOriginal = jobs
+  const lineJobs = jobs
     .filter((j) => j.line === trigger.line && j.scheduledStart)
-    .map((j) => ({
-      job: j,
-      origStart: new Date(j.scheduledStart!).getTime(),
-      origEnd: jobEnd(j).getTime(),
-    }))
-    .sort((a, b) => a.origStart - b.origStart);
-
-  const triggerIdx = lineJobsOriginal.findIndex((x) => x.job.id === triggerId);
+    .sort(
+      (a, b) =>
+        new Date(a.scheduledStart!).getTime() - new Date(b.scheduledStart!).getTime(),
+    );
+  const triggerIdx = lineJobs.findIndex((j) => j.id === triggerId);
   if (triggerIdx === -1) return [];
 
-  const changes: ScheduleChange[] = [];
+  const origEnd = jobEnd(trigger);
+  const newEnd = new Date(newEndISO);
+  const deltaDays = workingDaysBetween(midnight(origEnd), midnight(newEnd));
 
-  // Apply the trigger change.
-  const newStart = new Date(newStartISO).getTime();
-  let prevEnd = new Date(newEndISO).getTime();
-  changes.push({
-    id: triggerId,
-    scheduledStart: new Date(newStart).toISOString(),
-    scheduledEnd: new Date(prevEnd).toISOString(),
-  });
+  const changes: ScheduleChange[] = [
+    { id: triggerId, scheduledStart: newStartISO, scheduledEnd: newEndISO },
+  ];
 
-  // Walk subsequent jobs; preserve the ORIGINAL gap relative to the previous job.
-  let prevOrigEnd = lineJobsOriginal[triggerIdx].origEnd;
-  for (let i = triggerIdx + 1; i < lineJobsOriginal.length; i++) {
-    const cur = lineJobsOriginal[i];
-    const origGap = cur.origStart - prevOrigEnd; // can be 0 or positive
-    const duration = cur.origEnd - cur.origStart;
-    const nextStart = prevEnd + Math.max(0, origGap);
-    const nextEnd = nextStart + duration;
+  let prevEnd = newEnd;
+  for (let i = triggerIdx + 1; i < lineJobs.length; i++) {
+    const cur = lineJobs[i];
+    const origStart = new Date(cur.scheduledStart!);
+    const origEndCur = jobEnd(cur);
+    const duration = origEndCur.getTime() - origStart.getTime();
+
+    const shifted = addWorkingDays(origStart, deltaDays);
+    const nextStart = new Date(shifted);
+    nextStart.setHours(
+      origStart.getHours(),
+      origStart.getMinutes(),
+      origStart.getSeconds(),
+      origStart.getMilliseconds(),
+    );
+
+    const finalStart = nextStart < prevEnd ? new Date(prevEnd) : nextStart;
+    const finalEnd = new Date(finalStart.getTime() + duration);
+
     changes.push({
-      id: cur.job.id,
-      scheduledStart: new Date(nextStart).toISOString(),
-      scheduledEnd: new Date(nextEnd).toISOString(),
+      id: cur.id,
+      scheduledStart: finalStart.toISOString(),
+      scheduledEnd: finalEnd.toISOString(),
     });
-    prevEnd = nextEnd;
-    prevOrigEnd = cur.origEnd;
+    prevEnd = finalEnd;
   }
 
-  // Drop entries that didn't actually change (avoid noisy updates).
   return changes.filter((c) => {
     const j = jobs.find((x) => x.id === c.id)!;
     return (

@@ -3,7 +3,16 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { useStore } from "@/lib/store";
 import type { Job } from "@/lib/types";
-import { STATUS_DOT, fmtDate, fmtTime, jobEnd } from "@/lib/utils-domain";
+import {
+  STATUS_DOT,
+  fmtDate,
+  fmtTime,
+  jobEnd,
+  isWeekend,
+  nextWorkingDay,
+  addWorkingDays,
+  workingDaysBetween,
+} from "@/lib/utils-domain";
 import { cascadeReschedule } from "@/lib/schedule";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -219,17 +228,39 @@ function MonthGrid({
       if (!d) return;
       const daysDelta = d.currentIdx - d.origIdx;
       if (d.moved && daysDelta !== 0) {
+        const targetDate = days[d.currentIdx];
         let newStart = new Date(d.origStart);
         let newEnd = new Date(d.origEnd);
+
+        // Helper: set Y/M/D from `date`, keep H/M/S/ms from `time`
+        const setDate = (time: Date, date: Date) => {
+          const out = new Date(time);
+          out.setFullYear(date.getFullYear(), date.getMonth(), date.getDate());
+          return out;
+        };
+
         if (d.mode === "move") {
-          newStart.setDate(newStart.getDate() + daysDelta);
-          newEnd.setDate(newEnd.getDate() + daysDelta);
-        } else if (d.mode === "resize-end") {
-          newEnd.setDate(newEnd.getDate() + daysDelta);
+          const durationWd = workingDaysBetween(d.origStart, d.origEnd);
+          const startDay = nextWorkingDay(targetDate);
+          newStart = setDate(d.origStart, startDay);
+          const endDay = addWorkingDays(startDay, Math.max(0, durationWd));
+          newEnd = setDate(d.origEnd, endDay);
           if (newEnd <= newStart) newEnd = new Date(newStart.getTime() + 60 * 60 * 1000);
+        } else if (d.mode === "resize-end") {
+          const endDay = nextWorkingDay(targetDate);
+          newEnd = setDate(d.origEnd, endDay);
+          if (newEnd <= newStart) {
+            const bump = nextWorkingDay(new Date(newStart.getTime() + 24 * 60 * 60 * 1000));
+            newEnd = setDate(d.origEnd, bump);
+          }
         } else {
-          newStart.setDate(newStart.getDate() + daysDelta);
-          if (newStart >= newEnd) newStart = new Date(newEnd.getTime() - 60 * 60 * 1000);
+          // resize-start: snap; if past end, walk back to prior working day
+          let startDay = nextWorkingDay(targetDate);
+          newStart = setDate(d.origStart, startDay);
+          if (newStart >= newEnd) {
+            startDay = addWorkingDays(newEnd, -1);
+            newStart = setDate(d.origStart, startDay);
+          }
         }
         const changes = cascadeReschedule(jobs, d.jobId, newStart.toISOString(), newEnd.toISOString());
         changes.forEach((c) =>
@@ -244,8 +275,8 @@ function MonthGrid({
             {
               description:
                 cascaded > 0
-                  ? `${cascaded} downstream job${cascaded === 1 ? "" : "s"} shifted — gaps preserved.`
-                  : "No downstream jobs affected.",
+                  ? `${cascaded} downstream job${cascaded === 1 ? "" : "s"} shifted — weekends skipped, gaps preserved.`
+                  : "Weekends skipped.",
             },
           );
         }
@@ -323,30 +354,45 @@ function MonthGrid({
             {week.map((d, di) => {
               const out = d.getMonth() !== month;
               const isToday = sameDay(d, today);
+              const weekend = isWeekend(d);
               const absIdx = wi * 7 + di;
               return (
                 <div
                   key={di}
                   data-day-idx={absIdx}
+                  title={weekend ? "Non-working day" : undefined}
                   onDoubleClick={() => {
-                    const s = new Date(d);
-                    s.setHours(8, 0, 0, 0);
-                    onCreate(s.toISOString());
+                    const target = weekend ? nextWorkingDay(d) : new Date(d);
+                    target.setHours(8, 0, 0, 0);
+                    if (weekend) {
+                      toast.info("Weekends are non-working", {
+                        description: `Moved new job to ${fmtDate(target)}.`,
+                      });
+                    }
+                    onCreate(target.toISOString());
                   }}
                   className={cn(
                     "min-h-28 border-r border-border last:border-r-0 p-1.5 flex flex-col gap-1 cursor-pointer hover:bg-accent/30 transition-colors",
                     out && "bg-muted/20 text-muted-foreground",
+                    weekend && !out && "bg-muted/40",
+                    weekend &&
+                      "bg-[repeating-linear-gradient(45deg,transparent_0_6px,hsl(var(--muted)/0.5)_6px_8px)]",
                     dragState && "hover:bg-primary/10",
                   )}
                 >
                   <div
                     className={cn(
-                      "text-xs font-medium",
+                      "text-xs font-medium flex items-center gap-1",
                       isToday &&
                         "inline-flex items-center justify-center size-6 rounded-full bg-primary text-primary-foreground self-start",
                     )}
                   >
                     {d.getDate()}
+                    {weekend && !isToday && (
+                      <span className="text-[9px] uppercase tracking-wide text-muted-foreground/70 font-normal">
+                        off
+                      </span>
+                    )}
                   </div>
                   <div style={{ height: barsHeight }} />
                 </div>
@@ -416,7 +462,7 @@ function MonthGrid({
       })}
       {dragState && (
         <div className="pointer-events-none fixed bottom-4 left-1/2 -translate-x-1/2 bg-foreground text-background text-xs px-3 py-1.5 rounded-full shadow-lg z-50">
-          {dragState.mode === "move" ? "Move" : dragState.mode === "resize-end" ? "End date" : "Start date"} {dragState.delta > 0 ? "+" : ""}{dragState.delta} day{Math.abs(dragState.delta) === 1 ? "" : "s"}
+          {dragState.mode === "move" ? "Move" : dragState.mode === "resize-end" ? "End date" : "Start date"} {dragState.delta > 0 ? "+" : ""}{dragState.delta} day{Math.abs(dragState.delta) === 1 ? "" : "s"} <span className="opacity-70">(weekends skipped)</span>
         </div>
       )}
     </div>
