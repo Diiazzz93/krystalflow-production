@@ -8,6 +8,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -119,6 +129,8 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
   const [form, setForm] = useState<Job>(() => existing ?? emptyJob());
   const { presets } = useLineSetups();
   const [setupOpen, setSetupOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleteText, setDeleteText] = useState("");
   const matchedSetup = useMemo(
     () => findSetupForJob(presets, form.product, form.bottleSize),
     [presets, form.product, form.bottleSize],
@@ -462,10 +474,8 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
             <Button
               variant="destructive"
               onClick={() => {
-                if (confirm("Delete this job?")) {
-                  deleteJob(form.id);
-                  onOpenChange(false);
-                }
+                setDeleteText("");
+                setConfirmDelete(true);
               }}
               className="mr-auto"
             >
@@ -483,6 +493,41 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
           )}
         </DialogFooter>
       </DialogContent>
+      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this job?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently deletes <strong>{form.product || "this job"}</strong>
+              {form.customer ? ` for ${form.customer}` : ""}. This cannot be undone —
+              the job will be removed from the calendar and database.
+              <br />
+              <br />
+              Type <strong>DELETE</strong> below to confirm.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Input
+            value={deleteText}
+            onChange={(e) => setDeleteText(e.target.value)}
+            placeholder="Type DELETE to confirm"
+            autoFocus
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleteText.trim() !== "DELETE"}
+              onClick={() => {
+                deleteJob(form.id);
+                setConfirmDelete(false);
+                onOpenChange(false);
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete job
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
