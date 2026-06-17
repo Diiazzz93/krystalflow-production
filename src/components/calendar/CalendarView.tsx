@@ -547,6 +547,19 @@ function LineSchedule({
   onCreate: (s: string, line?: string) => void;
   onSelectJob: (id: string) => void;
 }) {
+  const { updateJob } = useStore();
+  const unschedule = (job: Job) => {
+    const prevStart = job.scheduledStart;
+    const prevEnd = job.scheduledEnd;
+    updateJob(job.id, { scheduledStart: undefined, scheduledEnd: undefined });
+    toast.success("Job unscheduled", {
+      description: `${job.customer} — ${job.product}`,
+      action: {
+        label: "Undo",
+        onClick: () => updateJob(job.id, { scheduledStart: prevStart, scheduledEnd: prevEnd }),
+      },
+    });
+  };
   const today = new Date();
   return (
     <div className="space-y-6">
