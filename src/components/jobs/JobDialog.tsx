@@ -474,10 +474,8 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
             <Button
               variant="destructive"
               onClick={() => {
-                if (confirm("Delete this job?")) {
-                  deleteJob(form.id);
-                  onOpenChange(false);
-                }
+                setDeleteText("");
+                setConfirmDelete(true);
               }}
               className="mr-auto"
             >
