@@ -129,6 +129,8 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
   const [form, setForm] = useState<Job>(() => existing ?? emptyJob());
   const { presets } = useLineSetups();
   const [setupOpen, setSetupOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleteText, setDeleteText] = useState("");
   const matchedSetup = useMemo(
     () => findSetupForJob(presets, form.product, form.bottleSize),
     [presets, form.product, form.bottleSize],
