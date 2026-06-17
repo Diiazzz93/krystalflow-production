@@ -161,6 +161,18 @@ function MonthGrid({
   onSelectJob: (id: string) => void;
 }) {
   const { updateJob } = useStore();
+  const unschedule = (job: Job) => {
+    const prevStart = job.scheduledStart;
+    const prevEnd = job.scheduledEnd;
+    updateJob(job.id, { scheduledStart: undefined, scheduledEnd: undefined });
+    toast.success("Job unscheduled", {
+      description: `${job.customer} — ${job.product}`,
+      action: {
+        label: "Undo",
+        onClick: () => updateJob(job.id, { scheduledStart: prevStart, scheduledEnd: prevEnd }),
+      },
+    });
+  };
   const month = days[15].getMonth();
   const today = new Date();
   const weeks: Date[][] = [];
