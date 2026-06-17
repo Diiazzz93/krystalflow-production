@@ -374,9 +374,7 @@ function MonthGrid({
                   className={cn(
                     "min-h-28 border-r border-border last:border-r-0 p-1.5 flex flex-col gap-1 cursor-pointer hover:bg-accent/30 transition-colors",
                     out && "bg-muted/20 text-muted-foreground",
-                    weekend && !out && "bg-muted/40",
-                    weekend &&
-                      "bg-[repeating-linear-gradient(45deg,transparent_0_6px,hsl(var(--muted)/0.5)_6px_8px)]",
+                    weekend && !out && "bg-muted/20",
                     dragState && "hover:bg-primary/10",
                   )}
                 >
@@ -388,11 +386,6 @@ function MonthGrid({
                     )}
                   >
                     {d.getDate()}
-                    {weekend && !isToday && (
-                      <span className="text-[9px] uppercase tracking-wide text-muted-foreground/70 font-normal">
-                        off
-                      </span>
-                    )}
                   </div>
                   <div style={{ height: barsHeight }} />
                 </div>
