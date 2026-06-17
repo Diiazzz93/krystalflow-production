@@ -374,9 +374,7 @@ function MonthGrid({
                   className={cn(
                     "min-h-28 border-r border-border last:border-r-0 p-1.5 flex flex-col gap-1 cursor-pointer hover:bg-accent/30 transition-colors",
                     out && "bg-muted/20 text-muted-foreground",
-                    weekend && !out && "bg-muted/40",
-                    weekend &&
-                      "bg-[repeating-linear-gradient(45deg,transparent_0_6px,hsl(var(--muted)/0.5)_6px_8px)]",
+                    weekend && !out && "bg-muted/20",
                     dragState && "hover:bg-primary/10",
                   )}
                 >
@@ -388,11 +386,6 @@ function MonthGrid({
                     )}
                   >
                     {d.getDate()}
-                    {weekend && !isToday && (
-                      <span className="text-[9px] uppercase tracking-wide text-muted-foreground/70 font-normal">
-                        off
-                      </span>
-                    )}
                   </div>
                   <div style={{ height: barsHeight }} />
                 </div>
@@ -403,92 +396,79 @@ function MonthGrid({
                 const isDragging = dragState?.id === job.id;
                 const isHighlighted = highlightIds.has(job.id);
                 const endCol = startCol + span - 1;
-                // Split into contiguous working-day segments, skipping weekend cols (0=Sun, 6=Sat)
-                const segments: { from: number; to: number }[] = [];
-                let segStart: number | null = null;
-                for (let c = startCol; c <= endCol; c++) {
-                  const weekendCol = c === 0 || c === 6;
-                  if (!weekendCol) {
-                    if (segStart === null) segStart = c;
-                    if (c === endCol || c + 1 === 6 || c + 1 > endCol) {
-                      // close at last col or before sat
-                    }
-                  } else {
-                    if (segStart !== null) {
-                      segments.push({ from: segStart, to: c - 1 });
-                      segStart = null;
-                    }
-                  }
-                }
-                if (segStart !== null) segments.push({ from: segStart, to: endCol });
-                if (segments.length === 0) return null;
-
+                const cols: number[] = [];
+                for (let c = startCol; c <= endCol; c++) cols.push(c);
                 return (
-                  <div key={job.id + "-" + wi} className="contents">
-                    {segments.map((seg, segIdx) => {
-                      const isFirst = segIdx === 0;
-                      const isLast = segIdx === segments.length - 1;
-                      const segSpan = seg.to - seg.from + 1;
-                      const showStartHandle = isFirst && !continuesBefore;
-                      const showEndHandle = isLast && !continuesAfter;
-                      const segContinuesBefore = continuesBefore || !isFirst;
-                      const segContinuesAfter = continuesAfter || !isLast;
-                      return (
-                        <div
-                          key={job.id + "-" + wi + "-" + segIdx}
-                          className="pointer-events-auto absolute group"
-                          style={{
-                            top: row * (BAR_H + BAR_GAP),
-                            height: BAR_H,
-                            left: `calc(${(seg.from / 7) * 100}% + 4px)`,
-                            width: `calc(${(segSpan / 7) * 100}% - 8px)`,
-                            transition: "left 250ms ease, width 250ms ease",
-                          }}
-                        >
+                  <div
+                    key={job.id + "-" + wi}
+                    className="pointer-events-auto absolute group"
+                    style={{
+                      top: row * (BAR_H + BAR_GAP),
+                      height: BAR_H,
+                      left: `calc(${(startCol / 7) * 100}% + 4px)`,
+                      width: `calc(${(span / 7) * 100}% - 8px)`,
+                      transition: "left 250ms ease, width 250ms ease",
+                    }}
+                  >
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onPointerDown={(e) => startDrag(e, job, "move", absStartIdx, absEndIdx)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!dragRef.current?.moved) onSelectJob(job.id);
+                      }}
+                      className={cn(
+                        "relative h-full w-full overflow-hidden shadow-sm cursor-grab active:cursor-grabbing select-none touch-none flex",
+                        !continuesBefore && "rounded-l",
+                        !continuesAfter && "rounded-r",
+                        isDragging && "ring-2 ring-ring opacity-70",
+                        isHighlighted && "ring-2 ring-yellow-400 animate-pulse",
+                      )}
+                      title={`${job.customer} — ${job.product} (drag to move, drag right edge to extend)`}
+                    >
+                      {cols.map((c, i) => {
+                        const isWknd = c === 0 || c === 6;
+                        return (
                           <div
-                            role="button"
-                            tabIndex={0}
-                            onPointerDown={(e) => startDrag(e, job, "move", absStartIdx, absEndIdx)}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (!dragRef.current?.moved) onSelectJob(job.id);
+                            key={i}
+                            className="h-full"
+                            style={{
+                              flex: 1,
+                              backgroundColor: job.customerColor,
+                              opacity: isWknd ? 0.35 : 1,
                             }}
-                            className={cn(
-                              "h-full w-full text-left text-[11px] truncate px-1.5 py-0.5 text-white font-medium shadow-sm cursor-grab active:cursor-grabbing select-none touch-none",
-                              showStartHandle ? "rounded-l" : "",
-                              showEndHandle ? "rounded-r" : "",
-                              !showStartHandle && !showEndHandle && "rounded-none",
-                              isDragging && "ring-2 ring-ring opacity-70",
-                              isHighlighted && "ring-2 ring-yellow-400 animate-pulse",
-                            )}
-                            style={{ backgroundColor: job.customerColor }}
-                            title={`${job.customer} — ${job.product} (drag to move, drag right edge to extend)`}
-                          >
-                            {segContinuesBefore && "← "}
-                            {isFirst ? `${fmtTime(job.scheduledStart!)} ${job.calendarLabel?.trim() || job.product}` : (job.calendarLabel?.trim() || job.product)}
-                            {segContinuesAfter && " →"}
-                          </div>
-                          {showStartHandle && (
-                            <div
-                              onPointerDown={(e) => startDrag(e, job, "resize-start", absStartIdx, absEndIdx)}
-                              className="absolute top-0 left-0 h-full w-2.5 cursor-ew-resize bg-black/30 hover:bg-black/50 rounded-l touch-none flex items-center justify-center"
-                              title="Drag to change start date"
-                            >
-                              <div className="h-2/3 w-0.5 bg-white/70 rounded" />
-                            </div>
-                          )}
-                          {showEndHandle && (
-                            <div
-                              onPointerDown={(e) => startDrag(e, job, "resize-end", absStartIdx, absEndIdx)}
-                              className="absolute top-0 right-0 h-full w-2.5 cursor-ew-resize bg-black/30 hover:bg-black/50 rounded-r touch-none flex items-center justify-center"
-                              title="Drag to change end date"
-                            >
-                              <div className="h-2/3 w-0.5 bg-white/70 rounded" />
-                            </div>
-                          )}
+                          />
+                        );
+                      })}
+                      <div
+                        className="absolute inset-0 flex items-center px-1.5 text-[11px] font-medium text-white truncate pointer-events-none"
+                        style={{ textShadow: "0 1px 2px rgba(0,0,0,0.4)" }}
+                      >
+                        <span className="truncate">
+                          {!continuesBefore && `${fmtTime(job.scheduledStart!)} `}
+                          {job.calendarLabel?.trim() || job.product}
+                        </span>
+                      </div>
+                      {!continuesBefore && (
+                        <div
+                          onPointerDown={(e) => startDrag(e, job, "resize-start", absStartIdx, absEndIdx)}
+                          className="absolute top-0 left-0 h-full w-2.5 cursor-ew-resize bg-black/30 hover:bg-black/50 rounded-l touch-none flex items-center justify-center"
+                          title="Drag to change start date"
+                        >
+                          <div className="h-2/3 w-0.5 bg-white/70 rounded" />
                         </div>
-                      );
-                    })}
+                      )}
+                      {!continuesAfter && (
+                        <div
+                          onPointerDown={(e) => startDrag(e, job, "resize-end", absStartIdx, absEndIdx)}
+                          className="absolute top-0 right-0 h-full w-2.5 cursor-ew-resize bg-black/30 hover:bg-black/50 rounded-r touch-none flex items-center justify-center"
+                          title="Drag to change end date"
+                        >
+                          <div className="h-2/3 w-0.5 bg-white/70 rounded" />
+                        </div>
+                      )}
+                    </div>
                   </div>
                 );
               })}
