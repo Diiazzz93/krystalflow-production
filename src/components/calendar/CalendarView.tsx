@@ -462,7 +462,7 @@ function MonthGrid({
       })}
       {dragState && (
         <div className="pointer-events-none fixed bottom-4 left-1/2 -translate-x-1/2 bg-foreground text-background text-xs px-3 py-1.5 rounded-full shadow-lg z-50">
-          {dragState.mode === "move" ? "Move" : dragState.mode === "resize-end" ? "End date" : "Start date"} {dragState.delta > 0 ? "+" : ""}{dragState.delta} day{Math.abs(dragState.delta) === 1 ? "" : "s"}
+          {dragState.mode === "move" ? "Move" : dragState.mode === "resize-end" ? "End date" : "Start date"} {dragState.delta > 0 ? "+" : ""}{dragState.delta} day{Math.abs(dragState.delta) === 1 ? "" : "s"} <span className="opacity-70">(weekends skipped)</span>
         </div>
       )}
     </div>
