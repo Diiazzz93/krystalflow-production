@@ -131,6 +131,11 @@ function rowToJob(r: Record<string, unknown>): Job {
     assemblyStatus: data.assemblyStatus,
     assemblyCreatedAt: data.assemblyCreatedAt,
     assemblyCompletedAt: data.assemblyCompletedAt,
+    bottleSku: data.bottleSku ?? inferred.bottleSku,
+    capSku: data.capSku ?? inferred.capSku,
+    labelSku: data.labelSku ?? inferred.labelSku,
+    cartonSku: data.cartonSku ?? inferred.cartonSku,
+    liquidSku: data.liquidSku ?? inferred.liquidSku,
   };
 }
 
