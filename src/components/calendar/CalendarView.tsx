@@ -3,7 +3,16 @@ import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { useStore } from "@/lib/store";
 import type { Job } from "@/lib/types";
-import { STATUS_DOT, fmtDate, fmtTime, jobEnd } from "@/lib/utils-domain";
+import {
+  STATUS_DOT,
+  fmtDate,
+  fmtTime,
+  jobEnd,
+  isWeekend,
+  nextWorkingDay,
+  addWorkingDays,
+  workingDaysBetween,
+} from "@/lib/utils-domain";
 import { cascadeReschedule } from "@/lib/schedule";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
