@@ -354,30 +354,45 @@ function MonthGrid({
             {week.map((d, di) => {
               const out = d.getMonth() !== month;
               const isToday = sameDay(d, today);
+              const weekend = isWeekend(d);
               const absIdx = wi * 7 + di;
               return (
                 <div
                   key={di}
                   data-day-idx={absIdx}
+                  title={weekend ? "Non-working day" : undefined}
                   onDoubleClick={() => {
-                    const s = new Date(d);
-                    s.setHours(8, 0, 0, 0);
-                    onCreate(s.toISOString());
+                    const target = weekend ? nextWorkingDay(d) : new Date(d);
+                    target.setHours(8, 0, 0, 0);
+                    if (weekend) {
+                      toast.info("Weekends are non-working", {
+                        description: `Moved new job to ${fmtDate(target)}.`,
+                      });
+                    }
+                    onCreate(target.toISOString());
                   }}
                   className={cn(
                     "min-h-28 border-r border-border last:border-r-0 p-1.5 flex flex-col gap-1 cursor-pointer hover:bg-accent/30 transition-colors",
                     out && "bg-muted/20 text-muted-foreground",
+                    weekend && !out && "bg-muted/40",
+                    weekend &&
+                      "bg-[repeating-linear-gradient(45deg,transparent_0_6px,hsl(var(--muted)/0.5)_6px_8px)]",
                     dragState && "hover:bg-primary/10",
                   )}
                 >
                   <div
                     className={cn(
-                      "text-xs font-medium",
+                      "text-xs font-medium flex items-center gap-1",
                       isToday &&
                         "inline-flex items-center justify-center size-6 rounded-full bg-primary text-primary-foreground self-start",
                     )}
                   >
                     {d.getDate()}
+                    {weekend && !isToday && (
+                      <span className="text-[9px] uppercase tracking-wide text-muted-foreground/70 font-normal">
+                        off
+                      </span>
+                    )}
                   </div>
                   <div style={{ height: barsHeight }} />
                 </div>
