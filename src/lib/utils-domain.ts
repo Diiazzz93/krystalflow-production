@@ -9,9 +9,63 @@ export function runtimeMinutes(job: Job) {
   return Math.round(runtimeHours(job) * 60 + job.setupMinutes);
 }
 
+export function isWeekend(d: Date) {
+  const day = d.getDay();
+  return day === 0 || day === 6;
+}
+
+export function nextWorkingDay(d: Date) {
+  const x = new Date(d);
+  while (isWeekend(x)) x.setDate(x.getDate() + 1);
+  return x;
+}
+
+export function addWorkingDays(d: Date, n: number) {
+  const x = new Date(d);
+  if (n === 0) return x;
+  const step = n > 0 ? 1 : -1;
+  let remaining = Math.abs(n);
+  while (remaining > 0) {
+    x.setDate(x.getDate() + step);
+    if (!isWeekend(x)) remaining--;
+  }
+  return x;
+}
+
+export function workingDaysBetween(a: Date, b: Date) {
+  const start = new Date(a); start.setHours(0, 0, 0, 0);
+  const end = new Date(b); end.setHours(0, 0, 0, 0);
+  if (start.getTime() === end.getTime()) return 0;
+  const sign = end > start ? 1 : -1;
+  let count = 0;
+  const cur = new Date(start);
+  while (cur.getTime() !== end.getTime()) {
+    cur.setDate(cur.getDate() + sign);
+    if (!isWeekend(cur)) count += sign;
+  }
+  return count;
+}
+
 export function estimatedFinish(job: Job): Date {
   const startMs = job.scheduledStart ? new Date(job.scheduledStart).getTime() : Date.now();
-  return new Date(startMs + runtimeMinutes(job) * 60_000);
+  let remainingMs = runtimeMinutes(job) * 60_000;
+  let cur = new Date(startMs);
+  // Guard against infinite loops on bad data
+  let safety = 0;
+  while (remainingMs > 0 && safety++ < 3650) {
+    if (isWeekend(cur)) {
+      const midnight = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate());
+      cur = nextWorkingDay(new Date(midnight.getTime() + 24 * 60 * 60 * 1000));
+      cur.setHours(0, 0, 0, 0);
+      continue;
+    }
+    const endOfDay = new Date(cur);
+    endOfDay.setHours(24, 0, 0, 0);
+    const slice = Math.min(remainingMs, endOfDay.getTime() - cur.getTime());
+    cur = new Date(cur.getTime() + slice);
+    remainingMs -= slice;
+  }
+  return cur;
 }
 
 export function jobEnd(job: Job): Date {
