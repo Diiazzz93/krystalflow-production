@@ -485,6 +485,28 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
           {isEdit && (
             <JobSheetActions job={form} variant="outline" />
           )}
+          {isEdit && canEdit && form.scheduledStart && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                const prevStart = form.scheduledStart;
+                const prevEnd = form.scheduledEnd;
+                updateJob(form.id, { scheduledStart: undefined, scheduledEnd: undefined });
+                toast.success("Job unscheduled", {
+                  description: `${form.customer} — ${form.product}`,
+                  action: {
+                    label: "Undo",
+                    onClick: () =>
+                      updateJob(form.id, { scheduledStart: prevStart, scheduledEnd: prevEnd }),
+                  },
+                });
+                onOpenChange(false);
+              }}
+            >
+              <CalendarOff className="size-4 mr-1" />
+              Remove from calendar
+            </Button>
+          )}
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             {canEdit ? "Cancel" : "Close"}
           </Button>
