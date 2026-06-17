@@ -15,8 +15,14 @@ import {
 } from "@/lib/utils-domain";
 import { cascadeReschedule } from "@/lib/schedule";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, X, CalendarOff, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 
 type View = "month" | "week" | "day";
 
