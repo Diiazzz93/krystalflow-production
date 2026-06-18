@@ -424,14 +424,36 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
         </Field>
 
         {isEdit && (
-          <div className="rounded-lg border border-border p-3 bg-muted/30 space-y-2">
+          <div className="rounded-lg border border-border p-3 bg-muted/30 space-y-3">
             <div className="flex items-center justify-between text-sm">
-              <span className="font-medium">Live progress</span>
-              <span className="text-muted-foreground">
-                {form.bottlesCompleted.toLocaleString()} / {form.quantity.toLocaleString()} bottles
+              <span className="font-medium">Production progress</span>
+              <span className="text-muted-foreground tabular-nums">
+                {progressPalletPct(form)}% complete
               </span>
             </div>
-            <Progress value={progressPct(form)} />
+
+            <div className="grid grid-cols-3 gap-3 text-xs">
+              <ProgressStat
+                label="Original order"
+                primary={`${originalQuantity(form).toLocaleString()} units`}
+                secondary={`${originalPallets(form)} pallets`}
+              />
+              <ProgressStat
+                label="Completed"
+                tone="emerald"
+                primary={`${completedQuantity(form).toLocaleString()} units`}
+                secondary={`${completedPallets(form)} pallets`}
+              />
+              <ProgressStat
+                label="Remaining"
+                tone="amber"
+                primary={`${remainingQuantity(form).toLocaleString()} units`}
+                secondary={`${remainingPallets(form)} pallets`}
+              />
+            </div>
+
+            <Progress value={progressPalletPct(form)} />
+
             <div className="grid grid-cols-3 gap-3 pt-1">
               <Field label="Bottles done">
                 <Input
@@ -455,8 +477,12 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
                 />
               </Field>
             </div>
+            <p className="text-[11px] text-muted-foreground">
+              KrystalFlow tracks progress against the original Sales Order without modifying it in Unleashed. Approved QC pallets create their own Assembly.
+            </p>
           </div>
         )}
+
 
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="text-xs text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
