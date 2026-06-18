@@ -80,6 +80,17 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
   );
 
   const nextPallet = (job?.palletsCompleted ?? 0) + 1;
+  const createAssembly = useServerFn(createPalletAssembly);
+
+  // Default pallet quantity: original boxes/bottles ÷ original pallets.
+  const defaultPalletQuantity = useMemo(() => {
+    if (!job) return 0;
+    const original = job.originalQuantity ?? job.quantity ?? 0;
+    const pallets = job.originalPallets ?? job.pallets ?? 0;
+    if (!pallets) return 0;
+    return Math.round(original / pallets);
+  }, [job]);
+
 
   const [presets, setPresets] = useState<QCPreset[]>(() => getAllPresets());
   useEffect(() => {
