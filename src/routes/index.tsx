@@ -41,6 +41,7 @@ export const Route = createFileRoute("/")({
 
 function Dashboard() {
   const { jobs, qc } = useStore();
+  const { items: stockItems } = useStockStore();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
 
@@ -69,6 +70,46 @@ function Dashboard() {
   );
   const bottlesToday = todays.reduce((sum, j) => sum + j.bottlesCompleted, 0);
   const palletsToday = qc.filter((q) => isToday(q.timestamp)).length;
+
+  // Aggregate pallet progress across active jobs (Sales Order tracking).
+  const palletTotals = active.reduce(
+    (acc, j) => {
+      acc.total += originalPallets(j);
+      acc.done += completedPallets(j);
+      acc.remaining += remainingPallets(j);
+      return acc;
+    },
+    { total: 0, done: 0, remaining: 0 },
+  );
+
+  // Aggregate remaining materials required across active jobs, based on
+  // remaining quantity (not original). Group by SKU + description.
+  const remainingMaterials = (() => {
+    const map = new Map<string, { description: string; required: number; available: number; unit: string }>();
+    for (const j of active) {
+      const check = computeJobStockCheck(j, stockItems);
+      for (const r of check.requirements) {
+        if (r.required <= 0) continue;
+        const key = (r.stock?.sku ?? r.description).toLowerCase();
+        const prev = map.get(key);
+        if (prev) {
+          prev.required += r.required;
+        } else {
+          map.set(key, {
+            description: r.description,
+            required: r.required,
+            available: r.available,
+            unit: r.unit,
+          });
+        }
+      }
+    }
+    return Array.from(map.values())
+      .map((m) => ({ ...m, short: Math.max(0, m.required - m.available) }))
+      .sort((a, b) => b.short - a.short || b.required - a.required)
+      .slice(0, 8);
+  })();
+
 
   function openCreate() {
     setEditing(null);
