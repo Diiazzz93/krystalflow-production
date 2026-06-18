@@ -203,8 +203,8 @@ export async function importFillReadyImpl(supabase: SupabaseLike): Promise<Impor
           scheduled_start: scheduledStart,
           unleashed_sales_order_id: so.Guid,
           unleashed_sales_order_number: so.OrderNumber,
-          unleashed_assembly_id: assemblyId,
-          unleashed_assembly_number: assemblyNumber,
+          unleashed_assembly_id: null,
+          unleashed_assembly_number: null,
           imported_from_unleashed_at: new Date().toISOString(),
           data: {
             customer: so.Customer?.CustomerName ?? "Unknown",
@@ -235,14 +235,17 @@ export async function importFillReadyImpl(supabase: SupabaseLike): Promise<Impor
             createdAt: new Date().toISOString(),
             importedFromUnleashed: true,
             unleashedSalesOrderNumber: so.OrderNumber,
-            unleashedAssemblyNumber: assemblyNumber,
             assemblyComponents,
-            assemblyStatus,
-            assemblyCreatedAt,
+            // Production progress: master totals from the imported Sales Order.
+            originalQuantity: bottleCount,
+            originalPallets: 1,
+            completedQuantity: 0,
+            completedPallets: 0,
           },
         })
         .select("id")
         .single();
+
 
       if (insertError) throw new Error(`DB insert failed: ${insertError.message}`);
 
