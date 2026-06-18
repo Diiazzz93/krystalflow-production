@@ -164,75 +164,26 @@ export async function importFillReadyImpl(supabase: SupabaseLike): Promise<Impor
         throw new Error(`No Bill of Materials found for product ${productCode}`);
       }
 
-      // 4) Find-or-create the linked Assembly in Unleashed.
-      //    Match criteria: same product + quantity + comment referencing the SO number.
-      let assemblyId: string | null = null;
-      let assemblyNumber: string | null = null;
-      let assemblyStatus: string | null = null;
-      let assemblyCreatedAt: string | null = null;
-      let assemblyComponents: Array<{
+      // 4) Build component blueprint from the BOM.
+      //    KrystalFlow no longer creates an Assembly at import time — Assemblies
+      //    are created per-pallet only after QC approval. This preserves the
+      //    master Sales Order in Unleashed as the source reference.
+      const assemblyComponents: Array<{
         productCode: string;
         productGuid?: string;
         name: string;
         quantity: number;
         unit?: string;
-      }> = [];
-
-      const existing = await findExistingAssembly(productCode, qty, so.OrderNumber);
-      if (existing?.Guid) {
-        assemblyId = existing.Guid;
-        assemblyNumber = existing.AssemblyNumber ?? null;
-        assemblyStatus = existing.AssemblyStatus ?? null;
-        assemblyCreatedAt = normaliseUnleashedDate(existing.AssemblyDate);
-      } else {
-        const assemblyPayload = {
-          Quantity: qty,
-          Product: { Guid: productGuid },
-          SourceWarehouse: so.Warehouse?.WarehouseCode ? { WarehouseCode: so.Warehouse.WarehouseCode } : undefined,
-          DestinationWarehouse: so.Warehouse?.WarehouseCode ? { WarehouseCode: so.Warehouse.WarehouseCode } : undefined,
-          Comments: `Auto-created by KrystalFlow from Sales Order ${so.OrderNumber}`,
-        };
-        try {
-          const created = await ulPost<UnleashedAssembly>("/Assemblies", assemblyPayload);
-          assemblyId = created?.Guid ?? null;
-          assemblyNumber = created?.AssemblyNumber ?? null;
-          assemblyStatus = created?.AssemblyStatus ?? null;
-          assemblyCreatedAt = normaliseUnleashedDate(created?.AssemblyDate) ?? new Date().toISOString();
-        } catch (e) {
-          const msg = e instanceof Error ? e.message : String(e);
-          await supabase.from("unleashed_sync_log").insert({
-            sales_order_id: so.Guid,
-            sales_order_number: so.OrderNumber,
-            outcome: "error",
-            message: `Assembly create failed: ${msg}`,
-          });
-        }
-      }
-
-      // 4b) Fetch the Assembly detail to read its component lines.
-      if (assemblyId) {
-        try {
-          const { assembly: detail } = await fetchAssembly(assemblyId);
-          assemblyStatus = detail?.AssemblyStatus ?? assemblyStatus;
-          assemblyCreatedAt = normaliseUnleashedDate(detail?.AssemblyDate) ?? assemblyCreatedAt;
-          assemblyComponents = mapAssemblyComponents(detail?.AssemblyLines);
-        } catch {
-          // Fall back to BOM lines if assembly fetch fails.
-          assemblyComponents = bomLines.map((line: UnleashedBomLine) => ({
-            productCode: line.ComponentProduct?.ProductCode ?? "",
-            productGuid: line.ComponentProduct?.Guid,
-            name: line.ComponentProduct?.ProductCode ?? "",
-            quantity: Number(line.ComponentQuantity ?? 0) * qty,
-          })).filter((c: { productCode: string }) => c.productCode);
-        }
-      } else {
-        assemblyComponents = bomLines.map((line: UnleashedBomLine) => ({
+      }> = bomLines
+        .map((line: UnleashedBomLine) => ({
           productCode: line.ComponentProduct?.ProductCode ?? "",
           productGuid: line.ComponentProduct?.Guid,
           name: line.ComponentProduct?.ProductCode ?? "",
           quantity: Number(line.ComponentQuantity ?? 0) * qty,
-        })).filter((c: { productCode: string }) => c.productCode);
-      }
+        }))
+        .filter((c: { productCode: string }) => c.productCode);
+
+
 
 
 
