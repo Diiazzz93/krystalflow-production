@@ -58,6 +58,14 @@ export interface QCEntry {
   packagingOperator?: string;
   // Unique human-readable code printed on the pallet sticker for traceability
   palletCode?: string;
+  // Production progress tracking
+  /** Boxes/units produced on this pallet. Defaults to job.originalQuantity / job.originalPallets. */
+  palletQuantity?: number;
+  /** True when QC passed and supervisor signed off — triggers per-pallet Unleashed Assembly. */
+  qcApproved?: boolean;
+  unleashedAssemblyId?: string;
+  unleashedAssemblyNumber?: string;
+  unleashedAssemblyStatus?: string;
 }
 
 export interface Job {
@@ -106,6 +114,15 @@ export interface Job {
   assemblyStatus?: string;
   assemblyCreatedAt?: string;
   assemblyCompletedAt?: string;
+  // Production progress (Sales Order tracking)
+  /** Master order quantity from the imported Sales Order. Never reduced. */
+  originalQuantity?: number;
+  /** Master pallet count from import. Never reduced. */
+  originalPallets?: number;
+  /** Sum of QC-approved pallet quantities. Mirrors palletsCompleted's per-pallet totals. */
+  completedQuantity?: number;
+  /** Mirrors palletsCompleted as a stable progress field. */
+  completedPallets?: number;
 }
 
 export interface AssemblyComponent {
