@@ -35,11 +35,19 @@ import {
   ALL_STATUSES,
   PRIORITIES,
   STATUS_COLORS,
+  completedPallets,
+  completedQuantity,
   estimatedFinish,
   fmtDateTime,
+  originalPallets,
+  originalQuantity,
+  progressPalletPct,
   progressPct,
+  remainingPallets,
+  remainingQuantity,
   runtimeMinutes,
   uid,
+
 } from "@/lib/utils-domain";
 import type { Job, ReadyState } from "@/lib/types";
 import { Progress } from "@/components/ui/progress";
