@@ -10,10 +10,12 @@ import {
   ACTIVE_STATUSES,
   PRIORITY_COLOR,
   STATUS_COLORS,
+  completedPallets,
   estimatedFinish,
   fmtDate,
   fmtTime,
-  
+  originalPallets,
+  remainingPallets,
 } from "@/lib/utils-domain";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -25,9 +27,13 @@ import {
   Layers,
   Package,
   Plus,
+  Boxes,
 } from "lucide-react";
 import { JobDialog } from "@/components/jobs/JobDialog";
 import { StockAlertsCard } from "@/components/stock/StockAlertsCard";
+import { computeJobStockCheck } from "@/lib/job-stock";
+import { useStockStore } from "@/lib/stock-store";
+
 
 export const Route = createFileRoute("/")({
   component: Dashboard,
