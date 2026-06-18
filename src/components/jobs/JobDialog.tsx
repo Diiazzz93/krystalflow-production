@@ -42,7 +42,7 @@ import {
   originalPallets,
   originalQuantity,
   progressPalletPct,
-  progressPct,
+
   remainingPallets,
   remainingQuantity,
   runtimeMinutes,
