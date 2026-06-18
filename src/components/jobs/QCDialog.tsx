@@ -28,6 +28,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { getAllPresets, subscribeToPresets, type QCPreset } from "@/lib/qc-presets";
 import { toast } from "sonner";
+import { useServerFn } from "@tanstack/react-start";
+import { createPalletAssembly } from "@/lib/unleashed/assembly.functions";
+
 
 const CHECKS = [
   ["fillLevel", "Fill level"],
