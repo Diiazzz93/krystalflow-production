@@ -608,3 +608,30 @@ function ReadySel({ value, onChange }: { value: ReadyState; onChange: (v: ReadyS
     </Select>
   );
 }
+
+function ProgressStat({
+  label,
+  primary,
+  secondary,
+  tone,
+}: {
+  label: string;
+  primary: string;
+  secondary: string;
+  tone?: "emerald" | "amber";
+}) {
+  const toneClass =
+    tone === "emerald"
+      ? "text-emerald-700 dark:text-emerald-300"
+      : tone === "amber"
+        ? "text-amber-700 dark:text-amber-300"
+        : "text-foreground";
+  return (
+    <div className="rounded-md border border-border bg-background/60 px-2.5 py-2">
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className={`text-sm font-semibold tabular-nums ${toneClass}`}>{primary}</div>
+      <div className="text-[11px] text-muted-foreground tabular-nums">{secondary}</div>
+    </div>
+  );
+}
+
