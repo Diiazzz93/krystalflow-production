@@ -10,10 +10,12 @@ import {
   ACTIVE_STATUSES,
   PRIORITY_COLOR,
   STATUS_COLORS,
+  completedPallets,
   estimatedFinish,
   fmtDate,
   fmtTime,
-  
+  originalPallets,
+  remainingPallets,
 } from "@/lib/utils-domain";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -25,9 +27,13 @@ import {
   Layers,
   Package,
   Plus,
+  Boxes,
 } from "lucide-react";
 import { JobDialog } from "@/components/jobs/JobDialog";
 import { StockAlertsCard } from "@/components/stock/StockAlertsCard";
+import { computeJobStockCheck } from "@/lib/job-stock";
+import { useStockStore } from "@/lib/stock-store";
+
 
 export const Route = createFileRoute("/")({
   component: Dashboard,
@@ -35,6 +41,7 @@ export const Route = createFileRoute("/")({
 
 function Dashboard() {
   const { jobs, qc } = useStore();
+  const { items: stockItems } = useStockStore();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
 
@@ -63,6 +70,46 @@ function Dashboard() {
   );
   const bottlesToday = todays.reduce((sum, j) => sum + j.bottlesCompleted, 0);
   const palletsToday = qc.filter((q) => isToday(q.timestamp)).length;
+
+  // Aggregate pallet progress across active jobs (Sales Order tracking).
+  const palletTotals = active.reduce(
+    (acc, j) => {
+      acc.total += originalPallets(j);
+      acc.done += completedPallets(j);
+      acc.remaining += remainingPallets(j);
+      return acc;
+    },
+    { total: 0, done: 0, remaining: 0 },
+  );
+
+  // Aggregate remaining materials required across active jobs, based on
+  // remaining quantity (not original). Group by SKU + description.
+  const remainingMaterials = (() => {
+    const map = new Map<string, { description: string; required: number; available: number; unit: string }>();
+    for (const j of active) {
+      const check = computeJobStockCheck(j, stockItems);
+      for (const r of check.requirements) {
+        if (r.required <= 0) continue;
+        const key = (r.stock?.sku ?? r.description).toLowerCase();
+        const prev = map.get(key);
+        if (prev) {
+          prev.required += r.required;
+        } else {
+          map.set(key, {
+            description: r.description,
+            required: r.required,
+            available: r.available,
+            unit: r.unit,
+          });
+        }
+      }
+    }
+    return Array.from(map.values())
+      .map((m) => ({ ...m, short: Math.max(0, m.required - m.available) }))
+      .sort((a, b) => b.short - a.short || b.required - a.required)
+      .slice(0, 8);
+  })();
+
 
   function openCreate() {
     setEditing(null);
@@ -271,8 +318,75 @@ function Dashboard() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Layers className="size-4 text-muted-foreground" />
+                Production progress
+              </CardTitle>
+              <span className="text-xs text-muted-foreground tabular-nums">
+                {palletTotals.done} / {palletTotals.total} pallets
+              </span>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Progress
+                value={palletTotals.total ? Math.round((palletTotals.done / palletTotals.total) * 100) : 0}
+                className="h-2"
+              />
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <PalletStat label="Total" value={palletTotals.total} />
+                <PalletStat label="Completed" value={palletTotals.done} tone="emerald" />
+                <PalletStat label="Remaining" value={palletTotals.remaining} tone="amber" />
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Across {active.length} active job{active.length === 1 ? "" : "s"}. Source Sales Orders in Unleashed are never modified.
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Boxes className="size-4 text-muted-foreground" />
+                Remaining materials required
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {remainingMaterials.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No outstanding material requirements — calculated from remaining quantities only.
+                </p>
+              ) : (
+                <ul className="space-y-1.5">
+                  {remainingMaterials.map((m) => (
+                    <li
+                      key={m.description}
+                      className="flex items-center justify-between rounded-md border border-border px-2.5 py-1.5"
+                    >
+                      <span className="text-sm truncate pr-2">{m.description}</span>
+                      <span className="text-xs tabular-nums shrink-0">
+                        <span className={m.short > 0 ? "text-red-600 dark:text-red-400 font-semibold" : "text-foreground"}>
+                          {m.required.toLocaleString()}
+                        </span>
+                        <span className="text-muted-foreground"> {m.unit}</span>
+                        {m.short > 0 && (
+                          <span className="ml-2 text-red-600 dark:text-red-400">
+                            ({m.short.toLocaleString()} short)
+                          </span>
+                        )}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <StockAlertsCard />
         </div>
+
 
         {delayed.length > 0 && (
           <Card className="border-orange-500/40 bg-orange-500/5">
@@ -338,3 +452,27 @@ function Stat({
     </Card>
   );
 }
+
+function PalletStat({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  tone?: "emerald" | "amber";
+}) {
+  const toneClass =
+    tone === "emerald"
+      ? "text-emerald-700 dark:text-emerald-300"
+      : tone === "amber"
+        ? "text-amber-700 dark:text-amber-300"
+        : "text-foreground";
+  return (
+    <div className="rounded-md border border-border bg-background/60 py-2">
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className={`text-lg font-bold tabular-nums ${toneClass}`}>{value.toLocaleString()}</div>
+    </div>
+  );
+}
+

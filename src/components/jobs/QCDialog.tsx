@@ -28,6 +28,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { getAllPresets, subscribeToPresets, type QCPreset } from "@/lib/qc-presets";
 import { toast } from "sonner";
+import { useServerFn } from "@tanstack/react-start";
+import { createPalletAssembly } from "@/lib/unleashed/assembly.functions";
+
 
 const CHECKS = [
   ["fillLevel", "Fill level"],
@@ -77,6 +80,17 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
   );
 
   const nextPallet = (job?.palletsCompleted ?? 0) + 1;
+  const createAssembly = useServerFn(createPalletAssembly);
+
+  // Default pallet quantity: original boxes/bottles ÷ original pallets.
+  const defaultPalletQuantity = useMemo(() => {
+    if (!job) return 0;
+    const original = job.originalQuantity ?? job.quantity ?? 0;
+    const pallets = job.originalPallets ?? job.pallets ?? 0;
+    if (!pallets) return 0;
+    return Math.round(original / pallets);
+  }, [job]);
+
 
   const [presets, setPresets] = useState<QCPreset[]>(() => getAllPresets());
   useEffect(() => {
@@ -95,8 +109,10 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
     bottleCondition: "Pass",
   });
   const [bottleCount, setBottleCount] = useState(1200);
+  const [palletQuantity, setPalletQuantity] = useState<number | "">("");
   const [operatorName, setOperatorName] = useState(job?.operator ?? "");
   const [notes, setNotes] = useState("");
+
 
   // Log Sheet (JotForm parity)
   const [mNumber, setMNumber] = useState("");
@@ -209,6 +225,10 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
       ? "Fail"
       : "Pass";
     const palletCode = generatePalletCode();
+    const effectivePalletQuantity =
+      palletQuantity !== "" && Number(palletQuantity) > 0
+        ? Number(palletQuantity)
+        : defaultPalletQuantity;
     const entry: QCEntry = {
       id: uid(),
       jobId,
@@ -241,6 +261,8 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
       capperOperator: capperOperator || undefined,
       packagingOperator: packagingOperator || undefined,
       palletCode,
+      palletQuantity: effectivePalletQuantity || undefined,
+      qcApproved: result === "Pass" && !!supervisorSignatureDataUrl,
     };
     addQC(entry);
     setLastSubmittedId(entry.id);
@@ -249,6 +271,32 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
       `Pallet #${entry.palletNumber} logged · ${entry.result}`,
       { description: `Code ${palletCode} — sticker ready to print.` },
     );
+
+    // On Pass, create the per-pallet Assembly in Unleashed. Non-blocking:
+    // failures show a toast but never break the QC flow.
+    if (result === "Pass" && job?.unleashedSalesOrderNumber && effectivePalletQuantity > 0) {
+      createAssembly({
+        data: {
+          jobId,
+          palletQuantity: effectivePalletQuantity,
+          palletCode,
+          autoComplete: false,
+        },
+      })
+        .then((res) => {
+          if (res.assemblyNumber) {
+            toast.success(`Unleashed Assembly ${res.assemblyNumber} created`, {
+              description: `Pallet ${palletCode} · ${effectivePalletQuantity} units`,
+            });
+          }
+        })
+        .catch((e: unknown) => {
+          toast.error("Unleashed Assembly not created", {
+            description: e instanceof Error ? e.message : String(e),
+          });
+        });
+    }
+
     // Scroll history to top so the new entry is visible
     requestAnimationFrame(() => {
       historyListRef.current?.scrollTo({ top: 0, behavior: "smooth" });
@@ -271,6 +319,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
       bottleCondition: "Pass",
     });
   }
+
 
 
   return (
@@ -455,6 +504,22 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
                     onChange={(e) => setBottleCount(Number(e.target.value))} />
                 </Field>
               </div>
+
+              {/* Production progress: how many boxes/units this pallet adds to Completed. */}
+              <div className="rounded-md border border-dashed border-border bg-muted/20 p-3">
+                <Field label={`Units produced on this pallet (defaults to ${defaultPalletQuantity.toLocaleString()})`}>
+                  <Input
+                    type="number"
+                    value={palletQuantity}
+                    placeholder={String(defaultPalletQuantity || "")}
+                    onChange={(e) => setPalletQuantity(e.target.value === "" ? "" : Number(e.target.value))}
+                  />
+                </Field>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Pass + supervisor signature increments the job's Completed total and creates an Unleashed Assembly for this pallet only.
+                </p>
+              </div>
+
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <FileField label="Finished product file" value={finishedProductFileName}

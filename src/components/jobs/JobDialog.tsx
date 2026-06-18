@@ -35,11 +35,19 @@ import {
   ALL_STATUSES,
   PRIORITIES,
   STATUS_COLORS,
+  completedPallets,
+  completedQuantity,
   estimatedFinish,
   fmtDateTime,
-  progressPct,
+  originalPallets,
+  originalQuantity,
+  progressPalletPct,
+
+  remainingPallets,
+  remainingQuantity,
   runtimeMinutes,
   uid,
+
 } from "@/lib/utils-domain";
 import type { Job, ReadyState } from "@/lib/types";
 import { Progress } from "@/components/ui/progress";
@@ -416,14 +424,36 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
         </Field>
 
         {isEdit && (
-          <div className="rounded-lg border border-border p-3 bg-muted/30 space-y-2">
+          <div className="rounded-lg border border-border p-3 bg-muted/30 space-y-3">
             <div className="flex items-center justify-between text-sm">
-              <span className="font-medium">Live progress</span>
-              <span className="text-muted-foreground">
-                {form.bottlesCompleted.toLocaleString()} / {form.quantity.toLocaleString()} bottles
+              <span className="font-medium">Production progress</span>
+              <span className="text-muted-foreground tabular-nums">
+                {progressPalletPct(form)}% complete
               </span>
             </div>
-            <Progress value={progressPct(form)} />
+
+            <div className="grid grid-cols-3 gap-3 text-xs">
+              <ProgressStat
+                label="Original order"
+                primary={`${originalQuantity(form).toLocaleString()} units`}
+                secondary={`${originalPallets(form)} pallets`}
+              />
+              <ProgressStat
+                label="Completed"
+                tone="emerald"
+                primary={`${completedQuantity(form).toLocaleString()} units`}
+                secondary={`${completedPallets(form)} pallets`}
+              />
+              <ProgressStat
+                label="Remaining"
+                tone="amber"
+                primary={`${remainingQuantity(form).toLocaleString()} units`}
+                secondary={`${remainingPallets(form)} pallets`}
+              />
+            </div>
+
+            <Progress value={progressPalletPct(form)} />
+
             <div className="grid grid-cols-3 gap-3 pt-1">
               <Field label="Bottles done">
                 <Input
@@ -447,8 +477,12 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
                 />
               </Field>
             </div>
+            <p className="text-[11px] text-muted-foreground">
+              KrystalFlow tracks progress against the original Sales Order without modifying it in Unleashed. Approved QC pallets create their own Assembly.
+            </p>
           </div>
         )}
+
 
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="text-xs text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
@@ -574,3 +608,30 @@ function ReadySel({ value, onChange }: { value: ReadyState; onChange: (v: ReadyS
     </Select>
   );
 }
+
+function ProgressStat({
+  label,
+  primary,
+  secondary,
+  tone,
+}: {
+  label: string;
+  primary: string;
+  secondary: string;
+  tone?: "emerald" | "amber";
+}) {
+  const toneClass =
+    tone === "emerald"
+      ? "text-emerald-700 dark:text-emerald-300"
+      : tone === "amber"
+        ? "text-amber-700 dark:text-amber-300"
+        : "text-foreground";
+  return (
+    <div className="rounded-md border border-border bg-background/60 px-2.5 py-2">
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className={`text-sm font-semibold tabular-nums ${toneClass}`}>{primary}</div>
+      <div className="text-[11px] text-muted-foreground tabular-nums">{secondary}</div>
+    </div>
+  );
+}
+

@@ -1,5 +1,7 @@
 import type { Job } from "@/lib/types";
 import type { StockItem } from "@/lib/stock";
+import { originalQuantity, remainingQuantity } from "@/lib/utils-domain";
+
 
 export type RequirementCategory = "bottle" | "cap" | "label" | "carton" | "liquid" | `assembly-${string}`;
 
@@ -61,11 +63,17 @@ export function computeJobStockCheck(
   stock: StockItem[] = [],
 ): JobStockCheck {
   const assemblyComponents = job.assemblyComponents ?? [];
+  // Scale requirements by remaining / original so stock checks track what's
+  // still to be produced, not the entire Sales Order.
+  const orig = originalQuantity(job);
+  const remaining = remainingQuantity(job);
+  const remainingRatio = orig > 0 ? remaining / orig : 1;
   if (assemblyComponents.length > 0) {
     const stockBySku = new Map(stock.map((item) => [item.sku.toLowerCase(), item]));
     const requirements: JobRequirement[] = assemblyComponents.map((component, index) => {
       const item = stockBySku.get((component.productCode ?? "").toLowerCase()) ?? null;
-      const required = Math.max(0, Number(component.quantity ?? 0));
+      const fullRequired = Math.max(0, Number(component.quantity ?? 0));
+      const required = Math.ceil(fullRequired * remainingRatio);
       const available = item?.availableStock ?? 0;
       const missing = Math.max(0, required - available);
       const status: JobRequirement["status"] =
@@ -94,11 +102,13 @@ export function computeJobStockCheck(
     };
   }
 
-  const qty = Math.max(0, job.quantity ?? 0);
+  // Base remaining-bottle math for the non-assembly path.
+  const qty = remaining > 0 ? remaining : Math.max(0, job.quantity ?? 0);
   const perCarton = Math.max(1, job.bottlesPerCarton ?? DEFAULT_BOTTLES_PER_CARTON);
   const cartons = Math.ceil(qty / perCarton);
   const litresPerBottle = parseBottleSizeLitres(job.bottleSize);
   const litresRequired = Math.ceil(litresPerBottle * qty);
+
 
   const blueprint: Array<{
     category: RequirementCategory;

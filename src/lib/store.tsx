@@ -136,6 +136,12 @@ function rowToJob(r: Record<string, unknown>): Job {
     labelSku: data.labelSku ?? inferred.labelSku,
     cartonSku: data.cartonSku ?? inferred.cartonSku,
     liquidSku: data.liquidSku ?? inferred.liquidSku,
+    // Production progress: original totals fall back to current values when
+    // the record was created before this feature shipped.
+    originalQuantity: data.originalQuantity ?? Number(data.quantity ?? 0),
+    originalPallets: data.originalPallets ?? Number(data.pallets ?? 0),
+    completedQuantity: Number(data.completedQuantity ?? 0),
+    completedPallets: Number(data.completedPallets ?? data.palletsCompleted ?? 0),
   };
 }
 
@@ -268,11 +274,29 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       // Mirror the auto-status side effects against Supabase.
       const j = jobs.find((x) => x.id === entry.jobId);
       if (!j) return;
-      if (failed) void updateJob(j.id, { status: "Requires Review" });
-      else if (j.status === "Scheduled") void updateJob(j.id, { status: "Filling" });
+      if (failed) {
+        void updateJob(j.id, { status: "Requires Review" });
+        return;
+      }
+
+      // Production progress tracking: bump completed totals when QC passes.
+      const original = j.originalQuantity ?? j.quantity ?? 0;
+      const originalPallets = j.originalPallets ?? j.pallets ?? 0;
+      const perPallet = entry.palletQuantity ?? (originalPallets > 0 ? original / originalPallets : 0);
+      const completedQuantity = Math.min(original, (j.completedQuantity ?? 0) + Math.max(0, perPallet));
+      const completedPallets = Math.min(originalPallets || Number.POSITIVE_INFINITY, (j.completedPallets ?? j.palletsCompleted ?? 0) + 1);
+      const isComplete = originalPallets > 0 && completedPallets >= originalPallets;
+      void updateJob(j.id, {
+        completedQuantity,
+        completedPallets,
+        palletsCompleted: completedPallets,
+        bottlesCompleted: Math.max(j.bottlesCompleted, completedQuantity),
+        status: isComplete ? "Complete" : j.status === "Scheduled" ? "Filling" : j.status,
+      });
     },
     [jobs, updateJob],
   );
+
 
   const reset = useCallback(() => {
     setLocal({ lines: [], qc: [] });
