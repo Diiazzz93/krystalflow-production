@@ -318,8 +318,75 @@ function Dashboard() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Layers className="size-4 text-muted-foreground" />
+                Production progress
+              </CardTitle>
+              <span className="text-xs text-muted-foreground tabular-nums">
+                {palletTotals.done} / {palletTotals.total} pallets
+              </span>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Progress
+                value={palletTotals.total ? Math.round((palletTotals.done / palletTotals.total) * 100) : 0}
+                className="h-2"
+              />
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <PalletStat label="Total" value={palletTotals.total} />
+                <PalletStat label="Completed" value={palletTotals.done} tone="emerald" />
+                <PalletStat label="Remaining" value={palletTotals.remaining} tone="amber" />
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Across {active.length} active job{active.length === 1 ? "" : "s"}. Source Sales Orders in Unleashed are never modified.
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Boxes className="size-4 text-muted-foreground" />
+                Remaining materials required
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {remainingMaterials.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No outstanding material requirements — calculated from remaining quantities only.
+                </p>
+              ) : (
+                <ul className="space-y-1.5">
+                  {remainingMaterials.map((m) => (
+                    <li
+                      key={m.description}
+                      className="flex items-center justify-between rounded-md border border-border px-2.5 py-1.5"
+                    >
+                      <span className="text-sm truncate pr-2">{m.description}</span>
+                      <span className="text-xs tabular-nums shrink-0">
+                        <span className={m.short > 0 ? "text-red-600 dark:text-red-400 font-semibold" : "text-foreground"}>
+                          {m.required.toLocaleString()}
+                        </span>
+                        <span className="text-muted-foreground"> {m.unit}</span>
+                        {m.short > 0 && (
+                          <span className="ml-2 text-red-600 dark:text-red-400">
+                            ({m.short.toLocaleString()} short)
+                          </span>
+                        )}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <StockAlertsCard />
         </div>
+
 
         {delayed.length > 0 && (
           <Card className="border-orange-500/40 bg-orange-500/5">
