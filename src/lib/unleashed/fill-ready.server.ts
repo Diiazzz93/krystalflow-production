@@ -253,18 +253,17 @@ export async function importFillReadyImpl(supabase: SupabaseLike): Promise<Impor
       summary.details.push({
         salesOrderNumber: so.OrderNumber,
         outcome: "imported",
-        message: assemblyId
-          ? `Job created, Assembly ${assemblyNumber}`
-          : "Job created (Assembly not created)",
+        message: "Job created (Assemblies are created per-pallet on QC approval)",
       });
       await supabase.from("unleashed_sync_log").insert({
         sales_order_id: so.Guid,
         sales_order_number: so.OrderNumber,
         outcome: "imported",
-        message: assemblyNumber ? `Assembly ${assemblyNumber}` : "Assembly not created",
+        message: "Job created (per-pallet assemblies)",
         job_id: jobRows?.id,
       });
       existingIds.add(so.Guid);
+
     } catch (e) {
       summary.errors++;
       const msg = e instanceof Error ? e.message : String(e);
