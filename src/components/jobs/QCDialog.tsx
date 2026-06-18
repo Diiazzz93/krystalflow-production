@@ -225,6 +225,10 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
       ? "Fail"
       : "Pass";
     const palletCode = generatePalletCode();
+    const effectivePalletQuantity =
+      palletQuantity !== "" && Number(palletQuantity) > 0
+        ? Number(palletQuantity)
+        : defaultPalletQuantity;
     const entry: QCEntry = {
       id: uid(),
       jobId,
@@ -257,6 +261,8 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
       capperOperator: capperOperator || undefined,
       packagingOperator: packagingOperator || undefined,
       palletCode,
+      palletQuantity: effectivePalletQuantity || undefined,
+      qcApproved: result === "Pass" && !!supervisorSignatureDataUrl,
     };
     addQC(entry);
     setLastSubmittedId(entry.id);
@@ -265,6 +271,32 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
       `Pallet #${entry.palletNumber} logged · ${entry.result}`,
       { description: `Code ${palletCode} — sticker ready to print.` },
     );
+
+    // On Pass, create the per-pallet Assembly in Unleashed. Non-blocking:
+    // failures show a toast but never break the QC flow.
+    if (result === "Pass" && job?.unleashedSalesOrderNumber && effectivePalletQuantity > 0) {
+      createAssembly({
+        data: {
+          jobId,
+          palletQuantity: effectivePalletQuantity,
+          palletCode,
+          autoComplete: false,
+        },
+      })
+        .then((res) => {
+          if (res.assemblyNumber) {
+            toast.success(`Unleashed Assembly ${res.assemblyNumber} created`, {
+              description: `Pallet ${palletCode} · ${effectivePalletQuantity} units`,
+            });
+          }
+        })
+        .catch((e: unknown) => {
+          toast.error("Unleashed Assembly not created", {
+            description: e instanceof Error ? e.message : String(e),
+          });
+        });
+    }
+
     // Scroll history to top so the new entry is visible
     requestAnimationFrame(() => {
       historyListRef.current?.scrollTo({ top: 0, behavior: "smooth" });
@@ -287,6 +319,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
       bottleCondition: "Pass",
     });
   }
+
 
 
   return (
