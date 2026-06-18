@@ -109,8 +109,10 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
     bottleCondition: "Pass",
   });
   const [bottleCount, setBottleCount] = useState(1200);
+  const [palletQuantity, setPalletQuantity] = useState<number | "">("");
   const [operatorName, setOperatorName] = useState(job?.operator ?? "");
   const [notes, setNotes] = useState("");
+
 
   // Log Sheet (JotForm parity)
   const [mNumber, setMNumber] = useState("");
