@@ -452,3 +452,27 @@ function Stat({
     </Card>
   );
 }
+
+function PalletStat({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  tone?: "emerald" | "amber";
+}) {
+  const toneClass =
+    tone === "emerald"
+      ? "text-emerald-700 dark:text-emerald-300"
+      : tone === "amber"
+        ? "text-amber-700 dark:text-amber-300"
+        : "text-foreground";
+  return (
+    <div className="rounded-md border border-border bg-background/60 py-2">
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className={`text-lg font-bold tabular-nums ${toneClass}`}>{value.toLocaleString()}</div>
+    </div>
+  );
+}
+
