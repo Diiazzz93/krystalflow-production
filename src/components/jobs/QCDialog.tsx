@@ -505,6 +505,22 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
                 </Field>
               </div>
 
+              {/* Production progress: how many boxes/units this pallet adds to Completed. */}
+              <div className="rounded-md border border-dashed border-border bg-muted/20 p-3">
+                <Field label={`Units produced on this pallet (defaults to ${defaultPalletQuantity.toLocaleString()})`}>
+                  <Input
+                    type="number"
+                    value={palletQuantity}
+                    placeholder={String(defaultPalletQuantity || "")}
+                    onChange={(e) => setPalletQuantity(e.target.value === "" ? "" : Number(e.target.value))}
+                  />
+                </Field>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Pass + supervisor signature increments the job's Completed total and creates an Unleashed Assembly for this pallet only.
+                </p>
+              </div>
+
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <FileField label="Finished product file" value={finishedProductFileName}
                   onChange={setFinishedProductFileName} />
