@@ -136,6 +136,12 @@ function rowToJob(r: Record<string, unknown>): Job {
     labelSku: data.labelSku ?? inferred.labelSku,
     cartonSku: data.cartonSku ?? inferred.cartonSku,
     liquidSku: data.liquidSku ?? inferred.liquidSku,
+    // Production progress: original totals fall back to current values when
+    // the record was created before this feature shipped.
+    originalQuantity: data.originalQuantity ?? Number(data.quantity ?? 0),
+    originalPallets: data.originalPallets ?? Number(data.pallets ?? 0),
+    completedQuantity: Number(data.completedQuantity ?? 0),
+    completedPallets: Number(data.completedPallets ?? data.palletsCompleted ?? 0),
   };
 }
 
