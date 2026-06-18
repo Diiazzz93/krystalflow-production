@@ -123,6 +123,38 @@ export function progressPct(job: Job) {
   return Math.min(100, Math.round((job.bottlesCompleted / job.quantity) * 100));
 }
 
+/** Original order quantity (boxes/bottles) — falls back to job.quantity for non-imported jobs. */
+export function originalQuantity(job: Job): number {
+  return Math.max(0, job.originalQuantity ?? job.quantity ?? 0);
+}
+
+export function originalPallets(job: Job): number {
+  return Math.max(0, job.originalPallets ?? job.pallets ?? 0);
+}
+
+export function completedQuantity(job: Job): number {
+  return Math.max(0, job.completedQuantity ?? 0);
+}
+
+export function completedPallets(job: Job): number {
+  return Math.max(0, job.completedPallets ?? job.palletsCompleted ?? 0);
+}
+
+export function remainingQuantity(job: Job): number {
+  return Math.max(0, originalQuantity(job) - completedQuantity(job));
+}
+
+export function remainingPallets(job: Job): number {
+  return Math.max(0, originalPallets(job) - completedPallets(job));
+}
+
+export function progressPalletPct(job: Job): number {
+  const total = originalPallets(job);
+  if (!total) return 0;
+  return Math.min(100, Math.round((completedPallets(job) / total) * 100));
+}
+
+
 export const STATUS_COLORS: Record<JobStatus, string> = {
   Scheduled: "bg-slate-500 text-white",
   Setup: "bg-amber-500 text-white",
