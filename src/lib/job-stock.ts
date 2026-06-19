@@ -2,6 +2,62 @@ import type { Job } from "@/lib/types";
 import type { StockItem } from "@/lib/stock";
 import { originalQuantity, remainingQuantity } from "@/lib/utils-domain";
 
+export interface SkuAllocation {
+  jobId: string;
+  jobNumber?: string;
+  customer?: string;
+  product?: string;
+  status: Job["status"];
+  scheduledStart?: string;
+  required: number;
+  unit: string;
+}
+
+/**
+ * Find all active (non-Complete) jobs whose computed material requirements
+ * include the given SKU. Used to show "where is this stock tied up".
+ */
+export function findJobsAllocatingSku(
+  jobs: Job[],
+  sku: string,
+  stock: StockItem[],
+  excludeJobId?: string,
+): SkuAllocation[] {
+  const target = sku.trim().toUpperCase();
+  if (!target) return [];
+  const allocations: SkuAllocation[] = [];
+  for (const job of jobs) {
+    if (job.id === excludeJobId) continue;
+    if (job.status === "Complete") continue;
+    const check = computeJobStockCheck(job, stock);
+    for (const req of check.requirements) {
+      const reqSku = req.stock?.sku?.toUpperCase();
+      if (reqSku === target && req.required > 0) {
+        allocations.push({
+          jobId: job.id,
+          jobNumber: job.jobNumber,
+          customer: job.customer,
+          product: job.product,
+          status: job.status,
+          scheduledStart: job.scheduledStart,
+          required: req.required,
+          unit: req.unit,
+        });
+        break;
+      }
+    }
+  }
+  // Sort by scheduled start (soonest first), unscheduled last.
+  allocations.sort((a, b) => {
+    const at = a.scheduledStart ? new Date(a.scheduledStart).getTime() : Infinity;
+    const bt = b.scheduledStart ? new Date(b.scheduledStart).getTime() : Infinity;
+    return at - bt;
+  });
+  return allocations;
+}
+
+
+
 
 export type RequirementCategory = "bottle" | "cap" | "label" | "carton" | "liquid" | `assembly-${string}`;
 
