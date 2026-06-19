@@ -4,7 +4,7 @@ import { originalQuantity, remainingQuantity } from "@/lib/utils-domain";
 
 export interface SkuAllocation {
   jobId: string;
-  jobNumber?: string;
+  salesOrderNumber?: string;
   customer?: string;
   product?: string;
   status: Job["status"];
