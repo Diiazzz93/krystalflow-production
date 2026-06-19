@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -8,10 +11,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Users } from "lucide-react";
+import { Loader2, UserPlus, Users } from "lucide-react";
 import { toast } from "sonner";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
-import { ROLE_LABELS, useAuth, type Role } from "@/lib/auth";
+import { ROLE_LABELS, useAuth, can, type Role } from "@/lib/auth";
+import { inviteUser } from "@/lib/users.functions";
 
 const ROLE_PRIORITY: Role[] = ["admin", "manager", "operator", "viewer"];
 const ALL_ROLES: Role[] = ["admin", "manager", "operator", "viewer"];

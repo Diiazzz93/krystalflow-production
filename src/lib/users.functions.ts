@@ -13,7 +13,7 @@ export const inviteUser = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => inviteSchema.parse(data))
   .handler(async ({ data, context }) => {
     // Caller must be admin
-    const { data: isAdmin, error: roleErr } = await context.supabase.rpc("has_role", {
+    const { data: isAdmin, error: roleErr } = await (context.supabase.rpc as any)("has_role", {
       _user_id: context.userId,
       _role: "admin",
     });
