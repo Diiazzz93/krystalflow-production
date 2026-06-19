@@ -35,7 +35,7 @@ export function findJobsAllocatingSku(
       if (reqSku === target && req.required > 0) {
         allocations.push({
           jobId: job.id,
-          jobNumber: job.jobNumber,
+          salesOrderNumber: job.unleashedSalesOrderNumber,
           customer: job.customer,
           product: job.product,
           status: job.status,
