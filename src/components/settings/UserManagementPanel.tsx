@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -8,10 +11,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Users } from "lucide-react";
+import { Loader2, UserPlus, Users } from "lucide-react";
 import { toast } from "sonner";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { ROLE_LABELS, useAuth, type Role } from "@/lib/auth";
+import { inviteUser } from "@/lib/users.functions";
 
 const ROLE_PRIORITY: Role[] = ["admin", "manager", "operator", "viewer"];
 const ALL_ROLES: Role[] = ["admin", "manager", "operator", "viewer"];
@@ -24,10 +29,36 @@ interface UserRow {
 }
 
 export function UserManagementPanel() {
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, can } = useAuth();
+  const isAdmin = can("users:manage");
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteName, setInviteName] = useState("");
+  const [inviteRole, setInviteRole] = useState<Role>("viewer");
+  const [inviting, setInviting] = useState(false);
+  const invite = useServerFn(inviteUser);
+
+  async function handleInvite(e: React.FormEvent) {
+    e.preventDefault();
+    if (!inviteEmail.trim()) return;
+    setInviting(true);
+    try {
+      await invite({ data: { email: inviteEmail.trim(), name: inviteName.trim() || undefined, role: inviteRole } });
+      toast.success(`Invitation sent to ${inviteEmail}`);
+      setInviteEmail("");
+      setInviteName("");
+      setInviteRole("viewer");
+      load();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to invite user";
+      toast.error(msg);
+    } finally {
+      setInviting(false);
+    }
+  }
+
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -96,7 +127,56 @@ export function UserManagementPanel() {
           Assign roles to control what each user can access. Admins have full access.
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-6">
+        {isAdmin && (
+          <form onSubmit={handleInvite} className="rounded-md border border-border p-4 space-y-3">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <UserPlus className="size-4" /> Invite a new user
+            </div>
+            <div className="grid gap-3 sm:grid-cols-[1fr_1fr_160px_auto] sm:items-end">
+              <div className="space-y-1">
+                <Label htmlFor="invite-email" className="text-xs">Email</Label>
+                <Input
+                  id="invite-email"
+                  type="email"
+                  required
+                  placeholder="person@company.com"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  disabled={inviting}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="invite-name" className="text-xs">Name (optional)</Label>
+                <Input
+                  id="invite-name"
+                  placeholder="Jane Doe"
+                  value={inviteName}
+                  onChange={(e) => setInviteName(e.target.value)}
+                  disabled={inviting}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Role</Label>
+                <Select value={inviteRole} onValueChange={(v) => setInviteRole(v as Role)} disabled={inviting}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {ALL_ROLES.map((r) => (
+                      <SelectItem key={r} value={r}>{ROLE_LABELS[r]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button type="submit" disabled={inviting || !inviteEmail.trim()}>
+                {inviting ? <Loader2 className="size-4 animate-spin" /> : "Send invite"}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              The user will receive an email with a link to set their password and sign in.
+            </p>
+          </form>
+        )}
+
         {loading ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="size-4 animate-spin" /> Loading users…
