@@ -29,10 +29,36 @@ interface UserRow {
 }
 
 export function UserManagementPanel() {
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, can } = useAuth();
+  const isAdmin = can("users:manage");
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteName, setInviteName] = useState("");
+  const [inviteRole, setInviteRole] = useState<Role>("viewer");
+  const [inviting, setInviting] = useState(false);
+  const invite = useServerFn(inviteUser);
+
+  async function handleInvite(e: React.FormEvent) {
+    e.preventDefault();
+    if (!inviteEmail.trim()) return;
+    setInviting(true);
+    try {
+      await invite({ data: { email: inviteEmail.trim(), name: inviteName.trim() || undefined, role: inviteRole } });
+      toast.success(`Invitation sent to ${inviteEmail}`);
+      setInviteEmail("");
+      setInviteName("");
+      setInviteRole("viewer");
+      load();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to invite user";
+      toast.error(msg);
+    } finally {
+      setInviting(false);
+    }
+  }
+
 
   const load = useCallback(async () => {
     setLoading(true);
