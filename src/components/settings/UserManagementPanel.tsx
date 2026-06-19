@@ -127,7 +127,56 @@ export function UserManagementPanel() {
           Assign roles to control what each user can access. Admins have full access.
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-6">
+        {isAdmin && (
+          <form onSubmit={handleInvite} className="rounded-md border border-border p-4 space-y-3">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <UserPlus className="size-4" /> Invite a new user
+            </div>
+            <div className="grid gap-3 sm:grid-cols-[1fr_1fr_160px_auto] sm:items-end">
+              <div className="space-y-1">
+                <Label htmlFor="invite-email" className="text-xs">Email</Label>
+                <Input
+                  id="invite-email"
+                  type="email"
+                  required
+                  placeholder="person@company.com"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  disabled={inviting}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="invite-name" className="text-xs">Name (optional)</Label>
+                <Input
+                  id="invite-name"
+                  placeholder="Jane Doe"
+                  value={inviteName}
+                  onChange={(e) => setInviteName(e.target.value)}
+                  disabled={inviting}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Role</Label>
+                <Select value={inviteRole} onValueChange={(v) => setInviteRole(v as Role)} disabled={inviting}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {ALL_ROLES.map((r) => (
+                      <SelectItem key={r} value={r}>{ROLE_LABELS[r]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button type="submit" disabled={inviting || !inviteEmail.trim()}>
+                {inviting ? <Loader2 className="size-4 animate-spin" /> : "Send invite"}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              The user will receive an email with a link to set their password and sign in.
+            </p>
+          </form>
+        )}
+
         {loading ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="size-4 animate-spin" /> Loading users…
