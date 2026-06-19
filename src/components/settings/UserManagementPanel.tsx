@@ -15,7 +15,7 @@ import { Loader2, UserPlus, Users } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
-import { ROLE_LABELS, useAuth, can, type Role } from "@/lib/auth";
+import { ROLE_LABELS, useAuth, type Role } from "@/lib/auth";
 import { inviteUser } from "@/lib/users.functions";
 
 const ROLE_PRIORITY: Role[] = ["admin", "manager", "operator", "viewer"];
