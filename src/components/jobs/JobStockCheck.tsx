@@ -5,6 +5,7 @@ import { computeJobStockCheck, type JobRequirement, type JobStockCheck as JobSto
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useStockStore } from "@/lib/stock-store";
+import { StockAllocationPopover } from "./StockAllocationPopover";
 
 interface Props {
   job: Job;
@@ -135,7 +136,16 @@ export function JobStockCheck({ job, className }: Props) {
                     <span className="text-xs text-muted-foreground">{r.unit}</span>
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums">
-                    {r.available.toLocaleString()}
+                    <div className="inline-flex items-center gap-1.5 justify-end">
+                      <span>{r.available.toLocaleString()}</span>
+                      {r.stock && (r.status === "low" || r.status === "short") && (
+                        <StockAllocationPopover
+                          sku={r.stock.sku}
+                          itemName={r.stock.name}
+                          excludeJobId={job.id}
+                        />
+                      )}
+                    </div>
                   </td>
                   <td
                     className={cn(
