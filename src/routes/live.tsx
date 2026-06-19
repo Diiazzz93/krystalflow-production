@@ -55,12 +55,26 @@ function LivePage() {
           {lines.map((line) => {
             const lineJobs = jobs.filter((j) => j.line === line.id);
             const running = lineJobs.find((j) => ACTIVE_STATUSES.includes(j.status));
-            const next = lineJobs
-              .filter((j) => j.status === "Scheduled")
+            const PLANNED_STATUSES = new Set([
+              "Scheduled",
+              "Pending Assembly Approval",
+              "Assembly Completed",
+              "On Hold",
+              "Delayed",
+              "Requires Review",
+            ]);
+            const upcoming = lineJobs
+              .filter(
+                (j) =>
+                  j.id !== running?.id &&
+                  !!j.scheduledStart &&
+                  PLANNED_STATUSES.has(j.status),
+              )
               .sort(
                 (a, b) =>
-                  (a.scheduledStart ? new Date(a.scheduledStart).getTime() : Infinity) - (b.scheduledStart ? new Date(b.scheduledStart).getTime() : Infinity),
-              )[0];
+                  new Date(a.scheduledStart!).getTime() -
+                  new Date(b.scheduledStart!).getTime(),
+              );
             return (
               <motion.div
                 key={line.id}
@@ -157,23 +171,34 @@ function LivePage() {
                       </p>
                     )}
 
-                    {next && (
-                      <div className="border-t border-border pt-3">
-                        <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">
-                          Up next
+                    {upcoming.length > 0 && (
+                      <div className="border-t border-border pt-3 space-y-1.5">
+                        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                          Up next ({upcoming.length})
                         </p>
-                        <button
-                          onClick={() => setEditId(next.id)}
-                          className="w-full text-left rounded-md px-2 py-1.5 hover:bg-accent/40"
-                        >
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="font-medium truncate">{next.customer}</span>
-                            <span className="text-xs text-muted-foreground">
-                              {fmtTime(next.scheduledStart)}
-                            </span>
-                          </div>
-                          <p className="text-xs text-muted-foreground truncate">{next.product}</p>
-                        </button>
+                        {upcoming.map((nx) => (
+                          <button
+                            key={nx.id}
+                            onClick={() => setEditId(nx.id)}
+                            className="w-full text-left rounded-md px-2 py-1.5 hover:bg-accent/40"
+                          >
+                            <div className="flex items-center justify-between gap-2 text-sm">
+                              <span className="font-medium truncate flex items-center gap-1.5">
+                                <span className={`size-1.5 rounded-full ${STATUS_DOT[nx.status]}`} />
+                                {nx.customer}
+                              </span>
+                              <span className="text-xs text-muted-foreground shrink-0">
+                                {fmtTime(nx.scheduledStart)}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-xs text-muted-foreground truncate">{nx.product}</p>
+                              <Badge variant="outline" className="text-[10px] shrink-0">
+                                {nx.status}
+                              </Badge>
+                            </div>
+                          </button>
+                        ))}
                       </div>
                     )}
                   </CardContent>
