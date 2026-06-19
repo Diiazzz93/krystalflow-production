@@ -55,12 +55,26 @@ function LivePage() {
           {lines.map((line) => {
             const lineJobs = jobs.filter((j) => j.line === line.id);
             const running = lineJobs.find((j) => ACTIVE_STATUSES.includes(j.status));
-            const next = lineJobs
-              .filter((j) => j.status === "Scheduled")
+            const PLANNED_STATUSES = new Set([
+              "Scheduled",
+              "Pending Assembly Approval",
+              "Assembly Completed",
+              "On Hold",
+              "Delayed",
+              "Requires Review",
+            ]);
+            const upcoming = lineJobs
+              .filter(
+                (j) =>
+                  j.id !== running?.id &&
+                  !!j.scheduledStart &&
+                  PLANNED_STATUSES.has(j.status),
+              )
               .sort(
                 (a, b) =>
-                  (a.scheduledStart ? new Date(a.scheduledStart).getTime() : Infinity) - (b.scheduledStart ? new Date(b.scheduledStart).getTime() : Infinity),
-              )[0];
+                  new Date(a.scheduledStart!).getTime() -
+                  new Date(b.scheduledStart!).getTime(),
+              );
             return (
               <motion.div
                 key={line.id}
