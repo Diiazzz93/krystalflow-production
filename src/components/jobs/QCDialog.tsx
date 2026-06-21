@@ -69,7 +69,8 @@ function generatePalletCode() {
 }
 
 export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
-  const { jobs, qc, addQC } = useStore();
+  const { jobs, qc, addQC, updateQC } = useStore();
+  const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
   const job = jobs.find((j) => j.id === jobId);
   const history = useMemo(
     () =>
@@ -148,11 +149,8 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
     return () => clearTimeout(t);
   }, [lastSubmittedId]);
 
-  // Prefill form from an existing entry (look-up by pallet code flow)
-  useEffect(() => {
-    if (!open || !prefillEntryId) return;
-    const e = qc.find((q) => q.id === prefillEntryId);
-    if (!e) return;
+  const loadFromEntry = (e: QCEntry) => {
+    setEditingEntryId(e.id);
     setPalletNumber(e.palletNumber);
     setChecks({
       fillLevel: e.fillLevel,
@@ -163,6 +161,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
       bottleCondition: e.bottleCondition,
     });
     setBottleCount(e.bottleCount);
+    setPalletQuantity(e.palletQuantity ?? "");
     setOperatorName(e.operatorName ?? "");
     setNotes(e.notes ?? "");
     setMNumber(e.mNumber ?? "");
@@ -189,9 +188,39 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
     setBottleQcOperator(e.bottleQcOperator ?? "");
     setCapperOperator(e.capperOperator ?? "");
     setPackagingOperator(e.packagingOperator ?? "");
+  };
+
+  const resetForNew = () => {
+    setEditingEntryId(null);
+    setPalletNumber(nextPallet);
+    setPalletQuantity("");
+    setNotes("");
+    setSupervisorSignatureDataUrl(undefined);
+    setPalletRowVolumes([{ row: "", pump1: "", pump2: "" }]);
+    setFillOperator("");
+    setBottleQcOperator("");
+    setCapperOperator("");
+    setPackagingOperator("");
+    setChecks({
+      fillLevel: "Pass",
+      capTightness: "Pass",
+      labelAlignment: "Pass",
+      batchCode: "Pass",
+      leakCheck: "Pass",
+      bottleCondition: "Pass",
+    });
+  };
+
+  // Prefill form from an existing entry (look-up by pallet code flow)
+  useEffect(() => {
+    if (!open || !prefillEntryId) return;
+    const e = qc.find((q) => q.id === prefillEntryId);
+    if (!e) return;
+    loadFromEntry(e);
     toast.info(`Loaded pallet #${e.palletNumber}`, {
       description: e.palletCode ? `Code ${e.palletCode}` : undefined,
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, prefillEntryId, qc]);
 
   if (!job) return null;
@@ -220,17 +249,21 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
     return v === "" ? undefined : Number(v);
   }
 
-  function submit() {
+  async function submit() {
     const result: "Pass" | "Fail" = Object.values(checks).some((v) => v === "Fail")
       ? "Fail"
       : "Pass";
-    const palletCode = generatePalletCode();
+    const existing = editingEntryId ? qc.find((q) => q.id === editingEntryId) : null;
+    const isEditing = !!existing;
+    // Preserve the original pallet code and id when editing — codes are permanent.
+    const palletCode = existing?.palletCode ?? generatePalletCode();
+    const entryId = existing?.id ?? (globalThis.crypto?.randomUUID?.() ?? uid());
     const effectivePalletQuantity =
       palletQuantity !== "" && Number(palletQuantity) > 0
         ? Number(palletQuantity)
         : defaultPalletQuantity;
     const entry: QCEntry = {
-      id: uid(),
+      id: entryId,
       jobId,
       palletNumber,
       ...checks,
@@ -238,7 +271,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
       operatorName,
       supervisorSignoff: supervisorName,
       notes,
-      timestamp: new Date().toISOString(),
+      timestamp: existing?.timestamp ?? new Date().toISOString(),
       result,
       mNumber: mNumber || undefined,
       logDate,
@@ -264,7 +297,20 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
       palletQuantity: effectivePalletQuantity || undefined,
       qcApproved: result === "Pass" && !!supervisorSignatureDataUrl,
     };
-    addQC(entry);
+
+    if (isEditing) {
+      await updateQC(entry.id, entry);
+      setLastSubmittedId(entry.id);
+      toast.success(`Pallet #${entry.palletNumber} updated · ${entry.result}`, {
+        description: `Code ${palletCode} — record updated.`,
+      });
+      requestAnimationFrame(() => {
+        historyListRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+      });
+      return;
+    }
+
+    await addQC(entry);
     setLastSubmittedId(entry.id);
     setStickerEntry(entry);
     toast.success(
@@ -302,22 +348,8 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
       historyListRef.current?.scrollTo({ top: 0, behavior: "smooth" });
     });
     setPalletNumber((n) => n + 1);
-    setNotes("");
-    setSupervisorSignatureDataUrl(undefined);
     setFinishTime(nowHHMM());
-    setPalletRowVolumes([{ row: "", pump1: "", pump2: "" }]);
-    setFillOperator("");
-    setBottleQcOperator("");
-    setCapperOperator("");
-    setPackagingOperator("");
-    setChecks({
-      fillLevel: "Pass",
-      capTightness: "Pass",
-      labelAlignment: "Pass",
-      batchCode: "Pass",
-      leakCheck: "Pass",
-      bottleCondition: "Pass",
-    });
+    resetForNew();
   }
 
 
@@ -601,8 +633,18 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
               </Field>
             </section>
 
+            {editingEntryId && (
+              <div className="flex items-center justify-between gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs">
+                <span className="text-amber-700 dark:text-amber-300">
+                  Editing saved pallet · code stays the same
+                </span>
+                <Button type="button" size="sm" variant="outline" onClick={resetForNew}>
+                  New entry
+                </Button>
+              </div>
+            )}
             <Button className="w-full" onClick={submit}>
-              Submit QC log
+              {editingEntryId ? "Save changes" : "Submit QC log"}
             </Button>
           </div>
 
@@ -634,23 +676,42 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
                     className={`ms-4 rounded-md transition-all duration-500 ${
                       h.id === lastSubmittedId
                         ? "bg-emerald-500/10 ring-1 ring-emerald-500/40 p-2 -m-2"
+                        : h.id === editingEntryId
+                        ? "bg-amber-500/10 ring-1 ring-amber-500/40 p-2 -m-2"
                         : ""
                     }`}
                   >
-
                     <span
                       className={`absolute -start-1.5 mt-1.5 size-3 rounded-full ${
                         h.result === "Pass" ? "bg-emerald-500" : "bg-red-500"
                       }`}
                     />
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">
-                        Pallet #{h.palletNumber}
-                        {h.mNumber && <span className="text-muted-foreground"> · {h.mNumber}</span>}
-                      </span>
-                      <Badge className={h.result === "Pass" ? "bg-emerald-600 text-white" : "bg-red-600 text-white"}>
-                        {h.result}
-                      </Badge>
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => {
+                        loadFromEntry(h);
+                        toast.info(`Loaded pallet #${h.palletNumber}`, {
+                          description: h.palletCode ? `Code ${h.palletCode}` : undefined,
+                        });
+                      }}
+                      onKeyDown={(ev) => {
+                        if (ev.key === "Enter" || ev.key === " ") {
+                          ev.preventDefault();
+                          loadFromEntry(h);
+                        }
+                      }}
+                      className="cursor-pointer rounded-md -mx-1 px-1 py-0.5 hover:bg-accent/40 focus:outline-none focus:ring-1 focus:ring-ring"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">
+                          Pallet #{h.palletNumber}
+                          {h.mNumber && <span className="text-muted-foreground"> · {h.mNumber}</span>}
+                        </span>
+                        <Badge className={h.result === "Pass" ? "bg-emerald-600 text-white" : "bg-red-600 text-white"}>
+                          {h.result}
+                        </Badge>
+                      </div>
                     </div>
                     {h.palletCode && (
                       <div className="mt-1 flex items-center justify-between gap-2 rounded border border-dashed border-border bg-muted/40 px-2 py-1">
@@ -659,7 +720,10 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
                           variant="ghost"
                           size="sm"
                           className="h-6 px-2 text-[10px]"
-                          onClick={() => setStickerEntry(h)}
+                          onClick={(ev) => {
+                            ev.stopPropagation();
+                            setStickerEntry(h);
+                          }}
                         >
                           Reprint
                         </Button>
