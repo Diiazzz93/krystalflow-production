@@ -74,6 +74,21 @@ function parseBottlesPerCarton(name: string, fallback: number | undefined): numb
   return m ? Number(m[1]) : fallback;
 }
 
+/**
+ * Decide whether the source Sales Order is denominated in cartons or bottles.
+ * Looks at the product code/name for boxed-fill markers like "6XBOTTLEFILL",
+ * "CARTONFILL", "12X1L" etc. Falls back to bottlesPerCarton / cartonsOrdered.
+ */
+function isCartonOrder(job: Pick<Job, "product" | "sku" | "cartonsOrdered" | "bottlesPerCarton">): boolean {
+  const text = `${job.product ?? ""} ${job.sku ?? ""}`.toUpperCase();
+  if (/\d+X[A-Z]*BOTTLEFILL/.test(text)) return true;
+  if (/CARTONFILL/.test(text)) return true;
+  if (/\b\d+\s*[X×]\s*\d/.test(text)) return true;
+  if ((job.cartonsOrdered ?? 0) > 0) return true;
+  if ((job.bottlesPerCarton ?? 1) > 1) return true;
+  return false;
+}
+
 function byCategory(items: StockItem[], cat: StockCategory) {
   return items.filter((i) => resolveCategory(i) === cat);
 }
@@ -282,13 +297,54 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
             />
           </Field>
 
-          <Field label="Quantity (bottles)">
-            <Input
-              type="number"
-              value={form.quantity}
-              onChange={(e) => set("quantity", Number(e.target.value))}
-            />
-          </Field>
+          {(() => {
+            const cartonMode = isCartonOrder(form);
+            const bpc = form.bottlesPerCarton && form.bottlesPerCarton > 0 ? form.bottlesPerCarton : 1;
+            const cartons =
+              form.cartonsOrdered ??
+              (cartonMode && bpc > 1 ? Math.round((form.quantity || 0) / bpc) : 0);
+            return (
+              <>
+                <Field
+                  label={`Quantity (cartons)${cartonMode ? " — primary" : ""}`}
+                >
+                  <Input
+                    type="number"
+                    value={cartons || ""}
+                    placeholder={cartonMode ? "e.g. 135" : "optional"}
+                    onChange={(e) => {
+                      const c = Number(e.target.value) || 0;
+                      setForm((f) => {
+                        const per = f.bottlesPerCarton && f.bottlesPerCarton > 0 ? f.bottlesPerCarton : 1;
+                        return {
+                          ...f,
+                          cartonsOrdered: c || undefined,
+                          quantity: c * per,
+                        };
+                      });
+                    }}
+                  />
+                </Field>
+                <Field label={`Quantity (bottles)${!cartonMode ? " — primary" : ""}`}>
+                  <Input
+                    type="number"
+                    value={form.quantity}
+                    onChange={(e) => {
+                      const b = Number(e.target.value) || 0;
+                      setForm((f) => {
+                        const per = f.bottlesPerCarton && f.bottlesPerCarton > 0 ? f.bottlesPerCarton : 1;
+                        return {
+                          ...f,
+                          quantity: b,
+                          cartonsOrdered: per > 1 ? Math.round(b / per) : f.cartonsOrdered,
+                        };
+                      });
+                    }}
+                  />
+                </Field>
+              </>
+            );
+          })()}
           <Field label="Bottle size (e.g. 500ml, 1L)">
             <Input
               value={form.bottleSize}
