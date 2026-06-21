@@ -633,8 +633,18 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
               </Field>
             </section>
 
+            {editingEntryId && (
+              <div className="flex items-center justify-between gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs">
+                <span className="text-amber-700 dark:text-amber-300">
+                  Editing saved pallet · code stays the same
+                </span>
+                <Button type="button" size="sm" variant="outline" onClick={resetForNew}>
+                  New entry
+                </Button>
+              </div>
+            )}
             <Button className="w-full" onClick={submit}>
-              Submit QC log
+              {editingEntryId ? "Save changes" : "Submit QC log"}
             </Button>
           </div>
 
