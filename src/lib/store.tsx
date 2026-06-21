@@ -18,7 +18,6 @@ const JOB_COLORS = ["#0ea5e9", "#22c55e", "#f97316", "#a855f7", "#ec4899", "#14b
 
 interface LocalState {
   lines: Line[];
-  qc: QCEntry[];
 }
 
 interface StoreContextValue {
@@ -32,23 +31,52 @@ interface StoreContextValue {
   addLine: (line: Line) => void;
   updateLine: (id: string, patch: Partial<Line>) => void;
   deleteLine: (id: string) => void;
-  addQC: (entry: QCEntry) => void;
+  addQC: (entry: QCEntry) => Promise<void>;
+  updateQC: (id: string, patch: Partial<QCEntry>) => Promise<void>;
   reset: () => void;
 }
 
 const StoreContext = createContext<StoreContextValue | null>(null);
 
 function loadLocal(): LocalState {
-  if (typeof window === "undefined") {
-    return { lines: [], qc: [] };
-  }
+  if (typeof window === "undefined") return { lines: [] };
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw) as LocalState;
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<LocalState>;
+      return { lines: parsed.lines ?? [] };
+    }
   } catch {
     /* ignore */
   }
-  return { lines: [], qc: [] };
+  return { lines: [] };
+}
+
+// ---- QC <-> DB row mapping ----
+function qcToRow(e: QCEntry) {
+  return {
+    id: e.id,
+    job_id: e.jobId,
+    pallet_code: e.palletCode ?? e.id,
+    pallet_number: e.palletNumber,
+    result: e.result,
+    operator_name: e.operatorName ?? "",
+    data: e as unknown as Record<string, unknown>,
+  };
+}
+
+function rowToQC(r: Record<string, unknown>): QCEntry {
+  const data = (r.data as Partial<QCEntry> | undefined) ?? {};
+  return {
+    ...(data as QCEntry),
+    id: String(r.id),
+    jobId: String(r.job_id ?? data.jobId ?? ""),
+    palletCode: String(r.pallet_code ?? data.palletCode ?? ""),
+    palletNumber: Number(r.pallet_number ?? data.palletNumber ?? 0),
+    result: (r.result as "Pass" | "Fail") ?? data.result ?? "Pass",
+    operatorName: String(r.operator_name ?? data.operatorName ?? ""),
+    timestamp: data.timestamp ?? String(r.created_at ?? new Date().toISOString()),
+  };
 }
 
 
