@@ -107,6 +107,45 @@ export type Database = {
         }
         Relationships: []
       }
+      pallet_qc_records: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          data: Json
+          id: string
+          job_id: string
+          operator_name: string | null
+          pallet_code: string
+          pallet_number: number
+          result: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          data?: Json
+          id?: string
+          job_id: string
+          operator_name?: string | null
+          pallet_code: string
+          pallet_number: number
+          result: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          data?: Json
+          id?: string
+          job_id?: string
+          operator_name?: string | null
+          pallet_code?: string
+          pallet_number?: number
+          result?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       production_jobs: {
         Row: {
           assembly_approved_at: string | null
