@@ -254,41 +254,43 @@ function QCPage() {
                           e.result === "Pass" ? "bg-emerald-500" : "bg-red-500"
                         }`}
                       />
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div>
-                          <div className="flex items-center gap-2 text-sm font-medium">
-                            {e.result === "Pass" ? (
-                              <CheckCircle2 className="size-4 text-emerald-500" />
-                            ) : (
-                              <XCircle className="size-4 text-red-500" />
-                            )}
-                            {job?.customer ?? "Unknown"} — Pallet #{e.palletNumber}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPrefillEntryId(e.id);
+                          setJobId(e.jobId);
+                        }}
+                        className="block w-full text-left rounded-md px-2 py-1 -mx-2 hover:bg-accent/40 focus:outline-none focus:ring-1 focus:ring-ring"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div>
+                            <div className="flex items-center gap-2 text-sm font-medium">
+                              {e.result === "Pass" ? (
+                                <CheckCircle2 className="size-4 text-emerald-500" />
+                              ) : (
+                                <XCircle className="size-4 text-red-500" />
+                              )}
+                              {job?.customer ?? "Unknown"} — Pallet #{e.palletNumber}
+                              {e.palletCode && (
+                                <code className="text-[10px] font-mono text-muted-foreground">{e.palletCode}</code>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              {job?.product} · {fmtDateTime(e.timestamp)} · {e.operatorName}
+                            </p>
                           </div>
-                          <p className="text-xs text-muted-foreground">
-                            {job?.product} · {fmtDateTime(e.timestamp)} · {e.operatorName}
-                          </p>
+                          <Badge
+                            className={
+                              e.result === "Pass"
+                                ? "bg-emerald-600 text-white"
+                                : "bg-red-600 text-white"
+                            }
+                          >
+                            {e.result}
+                          </Badge>
                         </div>
-                        <Badge
-                          className={
-                            e.result === "Pass"
-                              ? "bg-emerald-600 text-white"
-                              : "bg-red-600 text-white"
-                          }
-                        >
-                          {e.result}
-                        </Badge>
-                      </div>
-                      {e.notes && <p className="text-xs mt-1">{e.notes}</p>}
-                      {job && (
-                        <Button
-                          variant="link"
-                          size="sm"
-                          className="px-0 h-auto"
-                          onClick={() => setJobId(job.id)}
-                        >
-                          View job QC
-                        </Button>
-                      )}
+                        {e.notes && <p className="text-xs mt-1">{e.notes}</p>}
+                      </button>
                     </li>
                   );
                 })}
