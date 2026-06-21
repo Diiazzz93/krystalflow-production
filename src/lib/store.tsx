@@ -177,6 +177,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [local, setLocal] = useState<LocalState>(() => loadLocal());
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [qc, setQC] = useState<QCEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -202,20 +203,50 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return mapped;
   }, []);
 
-  // Initial jobs load (after auth ready). QC entries depend on jobs, so
-  // refresh seeded QC once jobs are present and qc is still empty.
+  const loadQC = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("pallet_qc_records")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) {
+      console.error("[qc] load failed", error);
+      toast.error(`Failed to load QC: ${error.message}`);
+      return [] as QCEntry[];
+    }
+    const mapped = (data ?? []).map((r) => rowToQC(r as unknown as Record<string, unknown>));
+    setQC(mapped);
+    return mapped;
+  }, []);
+
+  // Initial load (after auth ready).
   useEffect(() => {
     if (!user) {
       setJobs([]);
+      setQC([]);
       setLoading(false);
       return;
     }
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const list = await loadJobs();
-      if (!cancelled && list.length && local.qc.length === 0) {
-        setLocal((s) => ({ ...s, qc: buildSeedQC(list) }));
+      const [list] = await Promise.all([loadJobs(), loadQC()]);
+      // Seed QC if first run & none exist yet (purely demo fallback).
+      if (!cancelled && list.length) {
+        const { count } = await supabase
+          .from("pallet_qc_records")
+          .select("id", { head: true, count: "exact" });
+        if (!cancelled && (count ?? 0) === 0) {
+          const seeded = buildSeedQC(list);
+          if (seeded.length > 0) {
+            const rows = seeded.map((e) => qcToRow({
+              ...e,
+              id: (globalThis.crypto?.randomUUID?.() ?? e.id),
+              palletCode: e.palletCode ?? e.id,
+            }));
+            await supabase.from("pallet_qc_records").insert(rows as never);
+            await loadQC();
+          }
+        }
       }
       if (!cancelled) setLoading(false);
     })();
@@ -223,11 +254,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, loadJobs]);
+  }, [user, loadJobs, loadQC]);
 
   // ---- Jobs (Supabase) ----
   const addJob = useCallback<StoreContextValue["addJob"]>(async (job) => {
-    // Let DB generate id; ignore client's id so it stays unique.
     const { id: _ignored, ...rest } = jobToRow(job);
     const { data, error } = await supabase
       .from("production_jobs")
@@ -276,7 +306,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return;
     }
     setJobs((s) => s.filter((j) => j.id !== id));
-    setLocal((s) => ({ ...s, qc: s.qc.filter((q) => q.jobId !== id) }));
+    await supabase.from("pallet_qc_records").delete().eq("job_id", id);
+    setQC((s) => s.filter((q) => q.jobId !== id));
   }, []);
 
   // ---- Lines (local) ----
@@ -294,20 +325,29 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  // ---- QC (local) ----
-  const addQC = useCallback(
-    (entry: QCEntry) => {
-      const failed = entry.result === "Fail";
-      setLocal((s) => ({ ...s, qc: [...s.qc, entry] }));
-      // Mirror the auto-status side effects against Supabase.
+  // ---- QC (Supabase) ----
+  const addQC = useCallback<StoreContextValue["addQC"]>(
+    async (entry) => {
+      const row = qcToRow(entry);
+      const { data, error } = await supabase
+        .from("pallet_qc_records")
+        .insert(row as never)
+        .select()
+        .single();
+      if (error || !data) {
+        toast.error(error?.message ?? "Could not save QC record");
+        return;
+      }
+      const saved = rowToQC(data as unknown as Record<string, unknown>);
+      setQC((s) => [saved, ...s.filter((q) => q.id !== saved.id)]);
+
+      // Auto-status side effects (Pass/Fail).
       const j = jobs.find((x) => x.id === entry.jobId);
       if (!j) return;
-      if (failed) {
+      if (entry.result === "Fail") {
         void updateJob(j.id, { status: "Requires Review" });
         return;
       }
-
-      // Production progress tracking: bump completed totals when QC passes.
       const original = j.originalQuantity ?? j.quantity ?? 0;
       const originalPallets = j.originalPallets ?? j.pallets ?? 0;
       const perPallet = entry.palletQuantity ?? (originalPallets > 0 ? original / originalPallets : 0);
@@ -325,18 +365,46 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [jobs, updateJob],
   );
 
+  const updateQC = useCallback<StoreContextValue["updateQC"]>(
+    async (id, patch) => {
+      const current = qc.find((q) => q.id === id);
+      if (!current) return;
+      // Preserve immutable identifiers: palletCode never changes once issued.
+      const merged: QCEntry = { ...current, ...patch, id, palletCode: current.palletCode };
+      const row = qcToRow(merged);
+      const { data, error } = await supabase
+        .from("pallet_qc_records")
+        .update({
+          pallet_number: row.pallet_number,
+          result: row.result,
+          operator_name: row.operator_name,
+          data: row.data as never,
+        } as never)
+        .eq("id", id)
+        .select()
+        .single();
+      if (error || !data) {
+        toast.error(error?.message ?? "Could not update QC record");
+        return;
+      }
+      const saved = rowToQC(data as unknown as Record<string, unknown>);
+      setQC((s) => s.map((q) => (q.id === id ? saved : q)));
+    },
+    [qc],
+  );
 
   const reset = useCallback(() => {
-    setLocal({ lines: [], qc: [] });
+    setLocal({ lines: [] });
+    setQC([]);
     void loadJobs();
-  }, [loadJobs]);
-
+    void loadQC();
+  }, [loadJobs, loadQC]);
 
   const value = useMemo<StoreContextValue>(
     () => ({
       jobs,
       lines: local.lines,
-      qc: local.qc,
+      qc,
       loading,
       addJob,
       updateJob,
@@ -345,9 +413,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       updateLine,
       deleteLine,
       addQC,
+      updateQC,
       reset,
     }),
-    [jobs, local, loading, addJob, updateJob, deleteJob, addLine, updateLine, deleteLine, addQC, reset],
+    [jobs, local, qc, loading, addJob, updateJob, deleteJob, addLine, updateLine, deleteLine, addQC, updateQC, reset],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
