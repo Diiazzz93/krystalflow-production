@@ -249,17 +249,21 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
     return v === "" ? undefined : Number(v);
   }
 
-  function submit() {
+  async function submit() {
     const result: "Pass" | "Fail" = Object.values(checks).some((v) => v === "Fail")
       ? "Fail"
       : "Pass";
-    const palletCode = generatePalletCode();
+    const existing = editingEntryId ? qc.find((q) => q.id === editingEntryId) : null;
+    const isEditing = !!existing;
+    // Preserve the original pallet code and id when editing — codes are permanent.
+    const palletCode = existing?.palletCode ?? generatePalletCode();
+    const entryId = existing?.id ?? (globalThis.crypto?.randomUUID?.() ?? uid());
     const effectivePalletQuantity =
       palletQuantity !== "" && Number(palletQuantity) > 0
         ? Number(palletQuantity)
         : defaultPalletQuantity;
     const entry: QCEntry = {
-      id: uid(),
+      id: entryId,
       jobId,
       palletNumber,
       ...checks,
@@ -267,7 +271,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
       operatorName,
       supervisorSignoff: supervisorName,
       notes,
-      timestamp: new Date().toISOString(),
+      timestamp: existing?.timestamp ?? new Date().toISOString(),
       result,
       mNumber: mNumber || undefined,
       logDate,
@@ -293,7 +297,20 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
       palletQuantity: effectivePalletQuantity || undefined,
       qcApproved: result === "Pass" && !!supervisorSignatureDataUrl,
     };
-    addQC(entry);
+
+    if (isEditing) {
+      await updateQC(entry.id, entry);
+      setLastSubmittedId(entry.id);
+      toast.success(`Pallet #${entry.palletNumber} updated · ${entry.result}`, {
+        description: `Code ${palletCode} — record updated.`,
+      });
+      requestAnimationFrame(() => {
+        historyListRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+      });
+      return;
+    }
+
+    await addQC(entry);
     setLastSubmittedId(entry.id);
     setStickerEntry(entry);
     toast.success(
@@ -331,22 +348,8 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
       historyListRef.current?.scrollTo({ top: 0, behavior: "smooth" });
     });
     setPalletNumber((n) => n + 1);
-    setNotes("");
-    setSupervisorSignatureDataUrl(undefined);
     setFinishTime(nowHHMM());
-    setPalletRowVolumes([{ row: "", pump1: "", pump2: "" }]);
-    setFillOperator("");
-    setBottleQcOperator("");
-    setCapperOperator("");
-    setPackagingOperator("");
-    setChecks({
-      fillLevel: "Pass",
-      capTightness: "Pass",
-      labelAlignment: "Pass",
-      batchCode: "Pass",
-      leakCheck: "Pass",
-      bottleCondition: "Pass",
-    });
+    resetForNew();
   }
 
 
