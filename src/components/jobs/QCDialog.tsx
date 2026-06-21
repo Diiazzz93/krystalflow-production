@@ -69,7 +69,8 @@ function generatePalletCode() {
 }
 
 export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
-  const { jobs, qc, addQC } = useStore();
+  const { jobs, qc, addQC, updateQC } = useStore();
+  const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
   const job = jobs.find((j) => j.id === jobId);
   const history = useMemo(
     () =>
