@@ -676,11 +676,21 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
                     className={`ms-4 rounded-md transition-all duration-500 ${
                       h.id === lastSubmittedId
                         ? "bg-emerald-500/10 ring-1 ring-emerald-500/40 p-2 -m-2"
+                        : h.id === editingEntryId
+                        ? "bg-amber-500/10 ring-1 ring-amber-500/40 p-2 -m-2"
                         : ""
                     }`}
                   >
-
-                    <span
+                    <button
+                      type="button"
+                      onClick={() => {
+                        loadFromEntry(h);
+                        toast.info(`Loaded pallet #${h.palletNumber}`, {
+                          description: h.palletCode ? `Code ${h.palletCode}` : undefined,
+                        });
+                      }}
+                      className="w-full text-left"
+                    >
                       className={`absolute -start-1.5 mt-1.5 size-3 rounded-full ${
                         h.result === "Pass" ? "bg-emerald-500" : "bg-red-500"
                       }`}
