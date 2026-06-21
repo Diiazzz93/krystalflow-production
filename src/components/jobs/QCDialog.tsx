@@ -681,28 +681,37 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
                         : ""
                     }`}
                   >
-                    <button
-                      type="button"
+                    <span
+                      className={`absolute -start-1.5 mt-1.5 size-3 rounded-full ${
+                        h.result === "Pass" ? "bg-emerald-500" : "bg-red-500"
+                      }`}
+                    />
+                    <div
+                      role="button"
+                      tabIndex={0}
                       onClick={() => {
                         loadFromEntry(h);
                         toast.info(`Loaded pallet #${h.palletNumber}`, {
                           description: h.palletCode ? `Code ${h.palletCode}` : undefined,
                         });
                       }}
-                      className="w-full text-left"
+                      onKeyDown={(ev) => {
+                        if (ev.key === "Enter" || ev.key === " ") {
+                          ev.preventDefault();
+                          loadFromEntry(h);
+                        }
+                      }}
+                      className="cursor-pointer rounded-md -mx-1 px-1 py-0.5 hover:bg-accent/40 focus:outline-none focus:ring-1 focus:ring-ring"
                     >
-                      className={`absolute -start-1.5 mt-1.5 size-3 rounded-full ${
-                        h.result === "Pass" ? "bg-emerald-500" : "bg-red-500"
-                      }`}
-                    />
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">
-                        Pallet #{h.palletNumber}
-                        {h.mNumber && <span className="text-muted-foreground"> · {h.mNumber}</span>}
-                      </span>
-                      <Badge className={h.result === "Pass" ? "bg-emerald-600 text-white" : "bg-red-600 text-white"}>
-                        {h.result}
-                      </Badge>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">
+                          Pallet #{h.palletNumber}
+                          {h.mNumber && <span className="text-muted-foreground"> · {h.mNumber}</span>}
+                        </span>
+                        <Badge className={h.result === "Pass" ? "bg-emerald-600 text-white" : "bg-red-600 text-white"}>
+                          {h.result}
+                        </Badge>
+                      </div>
                     </div>
                     {h.palletCode && (
                       <div className="mt-1 flex items-center justify-between gap-2 rounded border border-dashed border-border bg-muted/40 px-2 py-1">
@@ -711,7 +720,10 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
                           variant="ghost"
                           size="sm"
                           className="h-6 px-2 text-[10px]"
-                          onClick={() => setStickerEntry(h)}
+                          onClick={(ev) => {
+                            ev.stopPropagation();
+                            setStickerEntry(h);
+                          }}
                         >
                           Reprint
                         </Button>
