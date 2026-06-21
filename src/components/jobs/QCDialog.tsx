@@ -149,11 +149,8 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
     return () => clearTimeout(t);
   }, [lastSubmittedId]);
 
-  // Prefill form from an existing entry (look-up by pallet code flow)
-  useEffect(() => {
-    if (!open || !prefillEntryId) return;
-    const e = qc.find((q) => q.id === prefillEntryId);
-    if (!e) return;
+  const loadFromEntry = (e: QCEntry) => {
+    setEditingEntryId(e.id);
     setPalletNumber(e.palletNumber);
     setChecks({
       fillLevel: e.fillLevel,
@@ -164,6 +161,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
       bottleCondition: e.bottleCondition,
     });
     setBottleCount(e.bottleCount);
+    setPalletQuantity(e.palletQuantity ?? "");
     setOperatorName(e.operatorName ?? "");
     setNotes(e.notes ?? "");
     setMNumber(e.mNumber ?? "");
@@ -190,9 +188,39 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
     setBottleQcOperator(e.bottleQcOperator ?? "");
     setCapperOperator(e.capperOperator ?? "");
     setPackagingOperator(e.packagingOperator ?? "");
+  };
+
+  const resetForNew = () => {
+    setEditingEntryId(null);
+    setPalletNumber(nextPallet);
+    setPalletQuantity("");
+    setNotes("");
+    setSupervisorSignatureDataUrl(undefined);
+    setPalletRowVolumes([{ row: "", pump1: "", pump2: "" }]);
+    setFillOperator("");
+    setBottleQcOperator("");
+    setCapperOperator("");
+    setPackagingOperator("");
+    setChecks({
+      fillLevel: "Pass",
+      capTightness: "Pass",
+      labelAlignment: "Pass",
+      batchCode: "Pass",
+      leakCheck: "Pass",
+      bottleCondition: "Pass",
+    });
+  };
+
+  // Prefill form from an existing entry (look-up by pallet code flow)
+  useEffect(() => {
+    if (!open || !prefillEntryId) return;
+    const e = qc.find((q) => q.id === prefillEntryId);
+    if (!e) return;
+    loadFromEntry(e);
     toast.info(`Loaded pallet #${e.palletNumber}`, {
       description: e.palletCode ? `Code ${e.palletCode}` : undefined,
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, prefillEntryId, qc]);
 
   if (!job) return null;
