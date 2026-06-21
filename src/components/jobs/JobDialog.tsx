@@ -297,13 +297,54 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
             />
           </Field>
 
-          <Field label="Quantity (bottles)">
-            <Input
-              type="number"
-              value={form.quantity}
-              onChange={(e) => set("quantity", Number(e.target.value))}
-            />
-          </Field>
+          {(() => {
+            const cartonMode = isCartonOrder(form);
+            const bpc = form.bottlesPerCarton && form.bottlesPerCarton > 0 ? form.bottlesPerCarton : 1;
+            const cartons =
+              form.cartonsOrdered ??
+              (cartonMode && bpc > 1 ? Math.round((form.quantity || 0) / bpc) : 0);
+            return (
+              <>
+                <Field
+                  label={`Quantity (cartons)${cartonMode ? " — primary" : ""}`}
+                >
+                  <Input
+                    type="number"
+                    value={cartons || ""}
+                    placeholder={cartonMode ? "e.g. 135" : "optional"}
+                    onChange={(e) => {
+                      const c = Number(e.target.value) || 0;
+                      setForm((f) => {
+                        const per = f.bottlesPerCarton && f.bottlesPerCarton > 0 ? f.bottlesPerCarton : 1;
+                        return {
+                          ...f,
+                          cartonsOrdered: c || undefined,
+                          quantity: c * per,
+                        };
+                      });
+                    }}
+                  />
+                </Field>
+                <Field label={`Quantity (bottles)${!cartonMode ? " — primary" : ""}`}>
+                  <Input
+                    type="number"
+                    value={form.quantity}
+                    onChange={(e) => {
+                      const b = Number(e.target.value) || 0;
+                      setForm((f) => {
+                        const per = f.bottlesPerCarton && f.bottlesPerCarton > 0 ? f.bottlesPerCarton : 1;
+                        return {
+                          ...f,
+                          quantity: b,
+                          cartonsOrdered: per > 1 ? Math.round(b / per) : f.cartonsOrdered,
+                        };
+                      });
+                    }}
+                  />
+                </Field>
+              </>
+            );
+          })()}
           <Field label="Bottle size (e.g. 500ml, 1L)">
             <Input
               value={form.bottleSize}
