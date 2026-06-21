@@ -74,6 +74,21 @@ function parseBottlesPerCarton(name: string, fallback: number | undefined): numb
   return m ? Number(m[1]) : fallback;
 }
 
+/**
+ * Decide whether the source Sales Order is denominated in cartons or bottles.
+ * Looks at the product code/name for boxed-fill markers like "6XBOTTLEFILL",
+ * "CARTONFILL", "12X1L" etc. Falls back to bottlesPerCarton / cartonsOrdered.
+ */
+function isCartonOrder(job: Pick<Job, "product" | "sku" | "cartonsOrdered" | "bottlesPerCarton">): boolean {
+  const text = `${job.product ?? ""} ${job.sku ?? ""}`.toUpperCase();
+  if (/\d+X[A-Z]*BOTTLEFILL/.test(text)) return true;
+  if (/CARTONFILL/.test(text)) return true;
+  if (/\b\d+\s*[X×]\s*\d/.test(text)) return true;
+  if ((job.cartonsOrdered ?? 0) > 0) return true;
+  if ((job.bottlesPerCarton ?? 1) > 1) return true;
+  return false;
+}
+
 function byCategory(items: StockItem[], cat: StockCategory) {
   return items.filter((i) => resolveCategory(i) === cat);
 }
