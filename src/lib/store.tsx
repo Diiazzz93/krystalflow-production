@@ -33,6 +33,8 @@ interface StoreContextValue {
   deleteLine: (id: string) => void;
   addQC: (entry: QCEntry) => Promise<void>;
   updateQC: (id: string, patch: Partial<QCEntry>) => Promise<void>;
+  deleteQC: (id: string) => Promise<void>;
+
   reset: () => void;
 }
 
@@ -393,6 +395,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [qc],
   );
 
+  const deleteQC = useCallback<StoreContextValue["deleteQC"]>(async (id) => {
+    const { error } = await supabase.from("pallet_qc_records").delete().eq("id", id);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    setQC((s) => s.filter((q) => q.id !== id));
+    toast.success("QC record deleted");
+  }, []);
+
   const reset = useCallback(() => {
     setLocal({ lines: [] });
     setQC([]);
@@ -414,9 +426,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       deleteLine,
       addQC,
       updateQC,
+      deleteQC,
       reset,
     }),
-    [jobs, local, qc, loading, addJob, updateJob, deleteJob, addLine, updateLine, deleteLine, addQC, updateQC, reset],
+    [jobs, local, qc, loading, addJob, updateJob, deleteJob, addLine, updateLine, deleteLine, addQC, updateQC, deleteQC, reset],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
