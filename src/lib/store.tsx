@@ -396,14 +396,45 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   );
 
   const deleteQC = useCallback<StoreContextValue["deleteQC"]>(async (id) => {
+    const entry = qc.find((q) => q.id === id);
     const { error } = await supabase.from("pallet_qc_records").delete().eq("id", id);
     if (error) {
       toast.error(error.message);
       return;
     }
     setQC((s) => s.filter((q) => q.id !== id));
+
+    // Reverse the production progress side effects from addQC.
+    if (entry) {
+      const j = jobs.find((x) => x.id === entry.jobId);
+      if (j) {
+        if (entry.result === "Fail") {
+          // Clear the auto "Requires Review" status set when the Fail was recorded,
+          // unless another Fail QC still exists for this job.
+          const otherFail = qc.some((q) => q.id !== id && q.jobId === j.id && q.result === "Fail");
+          if (!otherFail && j.status === "Requires Review") {
+            void updateJob(j.id, { status: "Scheduled" });
+          }
+        } else {
+          const original = j.originalQuantity ?? j.quantity ?? 0;
+          const originalPallets = j.originalPallets ?? j.pallets ?? 0;
+          const perPallet = entry.palletQuantity ?? (originalPallets > 0 ? original / originalPallets : 0);
+          const completedQuantity = Math.max(0, (j.completedQuantity ?? 0) - Math.max(0, perPallet));
+          const completedPallets = Math.max(0, (j.completedPallets ?? j.palletsCompleted ?? 0) - 1);
+          const wasComplete = j.status === "Complete";
+          void updateJob(j.id, {
+            completedQuantity,
+            completedPallets,
+            palletsCompleted: completedPallets,
+            bottlesCompleted: Math.min(j.bottlesCompleted, completedQuantity),
+            status: wasComplete ? "Filling" : completedPallets === 0 ? "Scheduled" : j.status,
+          });
+        }
+      }
+    }
+
     toast.success("QC record deleted");
-  }, []);
+  }, [qc, jobs, updateJob]);
 
   const reset = useCallback(() => {
     setLocal({ lines: [] });
