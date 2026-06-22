@@ -8,6 +8,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -30,6 +40,7 @@ import { getAllPresets, subscribeToPresets, type QCPreset } from "@/lib/qc-prese
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { createPalletAssembly } from "@/lib/unleashed/assembly.functions";
+
 
 
 const CHECKS = [
@@ -69,8 +80,10 @@ function generatePalletCode() {
 }
 
 export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
-  const { jobs, qc, addQC, updateQC } = useStore();
+  const { jobs, qc, addQC, updateQC, deleteQC } = useStore();
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
+  const [entryToDelete, setEntryToDelete] = useState<string | null>(null);
+
   const job = jobs.find((j) => j.id === jobId);
   const history = useMemo(
     () =>
@@ -638,11 +651,22 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
                 <span className="text-amber-700 dark:text-amber-300">
                   Editing saved pallet · code stays the same
                 </span>
-                <Button type="button" size="sm" variant="outline" onClick={resetForNew}>
-                  New entry
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => setEntryToDelete(editingEntryId)}
+                  >
+                    <Trash2 className="size-3.5" /> Delete
+                  </Button>
+                  <Button type="button" size="sm" variant="outline" onClick={resetForNew}>
+                    New entry
+                  </Button>
+                </div>
               </div>
             )}
+
             <Button className="w-full" onClick={submit}>
               {editingEntryId ? "Save changes" : "Submit QC log"}
             </Button>
@@ -772,6 +796,36 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
           <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
         </DialogFooter>
       </DialogContent>
+
+      <AlertDialog
+        open={!!entryToDelete}
+        onOpenChange={(v) => !v && setEntryToDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete QC record?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove pallet #{history.find((h) => h.id === entryToDelete)?.palletNumber}.
+              The pallet code will no longer be lookupable.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setEntryToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                if (!entryToDelete) return;
+                await deleteQC(entryToDelete);
+                setEntryToDelete(null);
+                resetForNew();
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {stickerEntry && (
         <PalletStickerDialog
           open={!!stickerEntry}
@@ -783,6 +837,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
     </Dialog>
   );
 }
+
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
