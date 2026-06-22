@@ -199,6 +199,22 @@ function seedFinished(): FinishedProductBOM[] {
       cartonsPerPallet: 432,
       updatedAt: now,
     },
+    {
+      id: "fin-san-500",
+      productName: "Pool Sanitiser 500ml",
+      productSku: "FIN-SAN-500",
+      bulkFormulaId: "blk-sanitiser",
+      containerSize: 500,
+      containerUnit: "ml",
+      liquidPerUnit: 0.5,
+      bottleSku: "AQP-500",
+      capSku: "CAP-28MM",
+      labelSku: "LBL-AQP-500",
+      cartonSku: "BOX-12X500",
+      unitsPerCarton: 12,
+      cartonsPerPallet: 80,
+      updatedAt: now,
+    },
   ];
 }
 
