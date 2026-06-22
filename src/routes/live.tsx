@@ -53,7 +53,7 @@ function LivePage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {lines.map((line) => {
-            const lineJobs = jobs.filter((j) => j.line === line.id);
+            const lineJobs = jobs.filter((j) => j.line === line.id || j.line === line.name);
             const running = lineJobs.find((j) => ACTIVE_STATUSES.includes(j.status));
             const PLANNED_STATUSES = new Set([
               "Scheduled",
