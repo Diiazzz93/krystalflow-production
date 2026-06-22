@@ -709,6 +709,8 @@ function PalletsBlock({
           <div className="h-10 flex items-center text-xs text-muted-foreground">
             {sourceItem && boxesPerPallet
               ? `${cartons?.toLocaleString() ?? "?"} cartons ÷ ${boxesPerPallet}/pallet (${sourceItem.sku})`
+              : nameFallback && boxesPerPallet
+              ? `${cartons?.toLocaleString() ?? "?"} cartons ÷ ${boxesPerPallet}/pallet · ${nameFallback.label}`
               : "Set 'Boxes per pallet' on the linked product in Stock to auto-calculate."}
           </div>
         </div>
