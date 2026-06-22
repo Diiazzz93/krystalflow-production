@@ -621,7 +621,15 @@ function PalletsBlock({
     }
   }
 
-  const boxesPerPallet = sourceItem?.boxesPerPallet;
+  // Name-based fallback for known products when no linked stock item has
+  // boxes-per-pallet configured. Keeps auto-calc working for IPA fills, etc.
+  const NAME_FALLBACK_BOXES_PER_PALLET: { match: RegExp; boxes: number; label: string }[] = [
+    { match: /\bipa\b|isopropyl/i, boxes: 432, label: "IPA (432 ctn/pallet)" },
+  ];
+  const haystack = `${job.product ?? ""} ${job.sku ?? ""} ${job.liquidSku ?? ""}`;
+  const nameFallback = NAME_FALLBACK_BOXES_PER_PALLET.find((r) => r.match.test(haystack));
+
+  const boxesPerPallet = sourceItem?.boxesPerPallet ?? nameFallback?.boxes;
   const cartons = deriveCartons(job).cartons;
 
   const suggested =
