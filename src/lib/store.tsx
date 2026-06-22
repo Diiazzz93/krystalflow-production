@@ -41,17 +41,18 @@ interface StoreContextValue {
 const StoreContext = createContext<StoreContextValue | null>(null);
 
 function loadLocal(): LocalState {
-  if (typeof window === "undefined") return { lines: [] };
+  if (typeof window === "undefined") return { lines: SEED_LINES };
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<LocalState>;
-      return { lines: parsed.lines ?? [] };
+      const lines = parsed.lines ?? [];
+      return { lines: lines.length > 0 ? lines : SEED_LINES };
     }
   } catch {
     /* ignore */
   }
-  return { lines: [] };
+  return { lines: SEED_LINES };
 }
 
 // ---- QC <-> DB row mapping ----
