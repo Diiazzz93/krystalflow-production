@@ -5,17 +5,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 
-export type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [k: string]: Json }
-  | Json[];
-
-export async function loadSetting<T extends Json>(
-  key: string,
-): Promise<T | null> {
+export async function loadSetting<T = unknown>(key: string): Promise<T | null> {
   try {
     const { data, error } = await supabase
       .from("app_settings")
@@ -30,10 +20,7 @@ export async function loadSetting<T extends Json>(
   }
 }
 
-export async function saveSetting<T extends Json>(
-  key: string,
-  value: T,
-): Promise<void> {
+export async function saveSetting(key: string, value: unknown): Promise<void> {
   const safe = JSON.parse(JSON.stringify(value));
   const { error } = await supabase
     .from("app_settings")
