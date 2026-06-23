@@ -171,11 +171,15 @@ function StockPage() {
       if (selectedGroups.length > 0) {
         const client = createUnleashedClient();
         const products = await client.fetchProducts(selectedGroups);
-        const selectedCodes = new Set(products.map((product) => product.ProductCode));
         const selectedKeys = new Set(products.map((product) => product.ProductCode.trim().toLowerCase()));
-        allowedCodes = new Set(imported.filter((item) => selectedKeys.has(item.sku.trim().toLowerCase())).map((item) => item.sku));
-        allowedKeys = selectedKeys;
-        if (allowedCodes.size === 0) allowedCodes = selectedCodes;
+        const matchingImported = imported.filter((item) => selectedKeys.has(item.sku.trim().toLowerCase()));
+        // If the saved Product Group selection does not include these imported
+        // rows (common with Unleashed sub-groups), still sync the imported
+        // SKUs instead of silently updating 0 rows.
+        if (matchingImported.length > 0) {
+          allowedCodes = new Set(matchingImported.map((item) => item.sku));
+          allowedKeys = selectedKeys;
+        }
       }
       const snapshot = await syncStockOnHand(undefined, allowedCodes, selectedGroups);
       const liveByCode = new Map(
