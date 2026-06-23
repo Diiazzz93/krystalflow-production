@@ -205,7 +205,7 @@ export function StockStoreProvider({ children }: { children: ReactNode }) {
     async (input) => {
       const { data, error } = await supabase
         .from("inventory_items")
-        .insert(inputToRow(input))
+        .upsert(inputToRow(input), { onConflict: "sku" })
         .select()
         .single();
       if (error || !data) {
@@ -213,7 +213,7 @@ export function StockStoreProvider({ children }: { children: ReactNode }) {
         return null;
       }
       const item = rowToItem(data);
-      setItems((prev) => [item, ...prev]);
+      setItems((prev) => [item, ...prev.filter((existing) => existing.id !== item.id && existing.sku !== item.sku)]);
       return item;
     },
     [],
