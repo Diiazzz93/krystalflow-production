@@ -28,7 +28,7 @@ import { CustomerSpecsView } from "@/components/customer-specs/CustomerSpecsView
 import { toast } from "sonner";
 import { useStockStore } from "@/lib/stock-store";
 import type { StockItem } from "@/lib/stock";
-import { refreshJobAssemblyComponents } from "@/lib/unleashed/fill-ready.functions";
+import { refreshJobAssemblyComponents, refreshJobBomComponents } from "@/lib/unleashed/fill-ready.functions";
 import {
   Table,
   TableBody,
