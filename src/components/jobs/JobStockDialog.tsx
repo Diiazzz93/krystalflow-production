@@ -454,6 +454,11 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
 
           <TabsContent value="assembly" className="space-y-3">
             <AssemblyInfoBlock job={currentJob} />
+            <div className="flex justify-end">
+              <Button size="sm" variant="outline" onClick={handlePullBom} disabled={bomLoading || !currentJob.sku}>
+                {bomLoading ? "Pulling…" : "Pull from Unleashed BOM"}
+              </Button>
+            </div>
             <AssemblyComponentsTable job={currentJob} stockItems={stockItems} />
           </TabsContent>
 
