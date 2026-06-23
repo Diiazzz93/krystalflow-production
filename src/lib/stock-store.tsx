@@ -180,6 +180,26 @@ export function StockStoreProvider({ children }: { children: ReactNode }) {
     };
   }, [user, load]);
 
+  // Keep tablets and other open devices in sync when stock is imported or
+  // adjusted elsewhere. Without this, each device only saw the first load.
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel("inventory-items-live")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "inventory_items" },
+        () => {
+          void load();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [user, load]);
+
 
   const addItem = useCallback<StockStoreValue["addItem"]>(
     async (input) => {
