@@ -97,7 +97,10 @@ async function saveRemote(list: QCPreset[]) {
   try {
     const { error } = await supabase
       .from("app_settings")
-      .upsert({ key: SETTINGS_KEY, value: list as unknown as object }, { onConflict: "key" });
+      .upsert(
+        { key: SETTINGS_KEY, value: JSON.parse(JSON.stringify(list)) },
+        { onConflict: "key" },
+      );
     if (error) throw error;
   } catch (e) {
     console.error("[qc-presets] failed to save to backend", e);
