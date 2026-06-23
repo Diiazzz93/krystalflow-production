@@ -53,13 +53,15 @@ export const deleteUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => deleteSchema.parse(data))
   .handler(async ({ data, context }) => {
-    // Caller must be admin
-    const { data: isAdmin, error: roleErr } = await (context.supabase.rpc as any)("has_role", {
-      _user_id: context.userId,
-      _role: "admin",
-    });
+    // Caller must be admin — query user_roles directly to avoid enum-cast issues with rpc
+    const { data: adminRow, error: roleErr } = await context.supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", context.userId)
+      .eq("role", "admin")
+      .maybeSingle();
     if (roleErr) throw new Error(roleErr.message);
-    if (!isAdmin) throw new Error("Only admins can delete users");
+    if (!adminRow) throw new Error("Only admins can delete users");
 
     if (data.userId === context.userId) {
       throw new Error("You can't delete your own account from here");
