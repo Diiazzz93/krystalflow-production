@@ -323,7 +323,7 @@ export async function importFillReadyImpl(supabase: SupabaseLike): Promise<Impor
   return summary;
 }
 
-async function fetchBom(productGuid: string): Promise<UnleashedBom | null> {
+export async function fetchBom(productGuid: string): Promise<UnleashedBom | null> {
   // Unleashed lists BOMs by productGuid; /BillOfMaterials/{guid} expects the BOM guid,
   // not the product guid.
   try {
@@ -336,6 +336,84 @@ async function fetchBom(productGuid: string): Promise<UnleashedBom | null> {
   } catch {
     return null;
   }
+}
+
+/**
+ * Pull the product's Bill of Materials from Unleashed and store the scaled
+ * component list on the job. Used to surface stock requirements BEFORE the
+ * per-pallet Assembly is created on QC approval.
+ */
+export async function refreshJobBomComponentsImpl(supabase: SupabaseLike, jobId: string) {
+  const { data: row, error } = await supabase
+    .from("production_jobs")
+    .select("id, sku, product, data")
+    .eq("id", jobId)
+    .single();
+  if (error || !row) return { ok: false as const, error: error?.message ?? "Job not found" };
+
+  const existing = (row.data ?? {}) as Record<string, unknown>;
+  const productCode = String(row.sku ?? existing.sku ?? "");
+  if (!productCode) return { ok: false as const, error: "Job has no SKU" };
+
+  interface UlProduct { Guid?: string; ProductCode?: string; ProductDescription?: string }
+  let productGuid: string | undefined;
+  let productDesc = String(row.product ?? existing.product ?? productCode);
+  try {
+    const resp = await ulFetchRaw<UlProduct>("/Products", `productCode=${productCode}&pageSize=1`);
+    productGuid = resp.Items?.[0]?.Guid;
+    if (resp.Items?.[0]?.ProductDescription) productDesc = resp.Items[0].ProductDescription;
+  } catch (e) {
+    return { ok: false as const, error: `Product lookup failed: ${e instanceof Error ? e.message : String(e)}` };
+  }
+  if (!productGuid) return { ok: false as const, error: `Unleashed product not found for SKU ${productCode}` };
+
+  const bom = await fetchBom(productGuid);
+  const bomLines = bom?.BillOfMaterialsLines ?? bom?.BillOfMaterialLines ?? [];
+  if (!bom || bomLines.length === 0) {
+    return { ok: false as const, error: `No Bill of Materials found for product ${productCode}` };
+  }
+
+  // Scale by the job's carton quantity (same math as the SO importer).
+  const pack = parseProductPackaging(productDesc);
+  const bottlesPerCarton = (existing.bottlesPerCarton as number | undefined) ?? pack.bottlesPerCarton;
+  const isBoxedProduct = (bottlesPerCarton ?? 1) > 1;
+  const cartonsOrdered =
+    (existing.cartonsOrdered as number | undefined) ??
+    (isBoxedProduct && typeof existing.quantity === "number" && bottlesPerCarton
+      ? Math.ceil((existing.quantity as number) / bottlesPerCarton)
+      : (existing.quantity as number | undefined));
+  const qty = Number(cartonsOrdered ?? 0);
+  if (!qty || qty <= 0) return { ok: false as const, error: "Job has no usable quantity for BOM scaling" };
+
+  const components = bomLines
+    .map((line) => ({
+      productCode: line.ComponentProduct?.ProductCode ?? "",
+      productGuid: line.ComponentProduct?.Guid,
+      name: line.ComponentProduct?.ProductCode ?? "",
+      quantity: Number(line.ComponentQuantity ?? 0) * qty,
+    }))
+    .filter((c) => c.productCode);
+
+  const merged: Record<string, unknown> = {
+    ...existing,
+    assemblyComponents: components,
+    bomSource: "bill-of-materials",
+    bomRefreshedAt: new Date().toISOString(),
+  };
+
+  const { error: updateError } = await supabase
+    .from("production_jobs")
+    .update({ data: merged })
+    .eq("id", jobId);
+  if (updateError) return { ok: false as const, error: updateError.message };
+
+  return {
+    ok: true as const,
+    source: "bom" as const,
+    assemblyComponents: components,
+    cartonsOrdered: isBoxedProduct ? qty : undefined,
+    bottlesPerCarton: isBoxedProduct ? bottlesPerCarton : undefined,
+  };
 }
 
 function normaliseUnleashedDate(value?: string | null): string | null {
