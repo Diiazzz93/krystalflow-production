@@ -54,7 +54,7 @@ export function setBranding(next: Branding) {
   current = next;
   saveLocal(next);
   // Fire-and-forget; UI updates immediately from local cache.
-  void saveSetting(SETTING_KEY, next as unknown as Record<string, unknown>).catch(() => {});
+  void saveSetting(SETTING_KEY, next).catch(() => {});
   listeners.forEach((l) => l());
 }
 
@@ -79,13 +79,13 @@ export function BrandingProvider({ children }: { children: ReactNode }) {
     // Hydrate from backend; if backend is empty but we have local data,
     // push the local data up (one-time migration per device).
     void (async () => {
-      const remote = await loadSetting<Record<string, unknown>>(SETTING_KEY);
+      const remote = await loadSetting<Partial<Branding>>(SETTING_KEY);
       if (remote && typeof remote === "object") {
-        current = { ...DEFAULT_BRANDING, ...(remote as Partial<Branding>) };
+        current = { ...DEFAULT_BRANDING, ...remote };
         saveLocal(current);
         listeners.forEach((l) => l());
       } else if (JSON.stringify(current) !== JSON.stringify(DEFAULT_BRANDING)) {
-        await saveSetting(SETTING_KEY, current as unknown as Record<string, unknown>).catch(() => {});
+        await saveSetting(SETTING_KEY, current).catch(() => {});
       }
       hydrated.current = true;
     })();
