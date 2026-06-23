@@ -531,7 +531,7 @@ function AssemblyInfoBlock({ job }: { job: Job }) {
   if (!hasAny) {
     return (
       <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-        No linked Unleashed Assembly for this job.
+        No Assembly linked yet — Assemblies are created per pallet after QC approval. Stock requirements below come from the product's Bill of Materials in Unleashed.
       </div>
     );
   }
@@ -556,7 +556,7 @@ function AssemblyComponentsTable({ job, stockItems }: { job: Job; stockItems: St
   if (components.length === 0) {
     return (
       <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground text-center">
-        No assembly components imported. They will appear here once the linked Unleashed Assembly is created.
+        No components yet. Click "Pull from Unleashed BOM" above to fetch the Bill of Materials for this product.
       </div>
     );
   }
