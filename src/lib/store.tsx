@@ -280,6 +280,32 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, loadJobs, loadQC]);
 
+  // Keep job/QC data live across devices, including the production tablet.
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel("production-data-live")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "production_jobs" },
+        () => {
+          void loadJobs();
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "pallet_qc_records" },
+        () => {
+          void loadQC();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [user, loadJobs, loadQC]);
+
   // ---- Jobs (Supabase) ----
   const addJob = useCallback<StoreContextValue["addJob"]>(async (job) => {
     const { id: _ignored, ...rest } = jobToRow(job);

@@ -180,12 +180,32 @@ export function StockStoreProvider({ children }: { children: ReactNode }) {
     };
   }, [user, load]);
 
+  // Keep tablets and other open devices in sync when stock is imported or
+  // adjusted elsewhere. Without this, each device only saw the first load.
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel("inventory-items-live")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "inventory_items" },
+        () => {
+          void load();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [user, load]);
+
 
   const addItem = useCallback<StockStoreValue["addItem"]>(
     async (input) => {
       const { data, error } = await supabase
         .from("inventory_items")
-        .insert(inputToRow(input))
+        .upsert(inputToRow(input), { onConflict: "sku" })
         .select()
         .single();
       if (error || !data) {
@@ -193,7 +213,7 @@ export function StockStoreProvider({ children }: { children: ReactNode }) {
         return null;
       }
       const item = rowToItem(data);
-      setItems((prev) => [item, ...prev]);
+      setItems((prev) => [item, ...prev.filter((existing) => existing.id !== item.id && existing.sku !== item.sku)]);
       return item;
     },
     [],
