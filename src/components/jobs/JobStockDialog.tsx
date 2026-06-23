@@ -28,7 +28,7 @@ import { CustomerSpecsView } from "@/components/customer-specs/CustomerSpecsView
 import { toast } from "sonner";
 import { useStockStore } from "@/lib/stock-store";
 import type { StockItem } from "@/lib/stock";
-import { refreshJobAssemblyComponents } from "@/lib/unleashed/fill-ready.functions";
+import { refreshJobAssemblyComponents, refreshJobBomComponents } from "@/lib/unleashed/fill-ready.functions";
 import {
   Table,
   TableBody,
@@ -135,7 +135,9 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
   const { can } = useAuth();
   const canEdit = can("jobs:edit") || can("jobs:create");
   const refreshAssembly = useServerFn(refreshJobAssemblyComponents);
+  const refreshBom = useServerFn(refreshJobBomComponents);
   const [assemblyPatch, setAssemblyPatch] = useState<(Partial<Job> & { jobId: string }) | null>(null);
+  const [bomLoading, setBomLoading] = useState(false);
 
   useEffect(() => {
     setAssemblyPatch(null);
@@ -144,10 +146,15 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
   useEffect(() => {
     const hasComponents = (job?.assemblyComponents?.length ?? 0) > 0 || (assemblyPatch?.assemblyComponents?.length ?? 0) > 0;
     const hasLinkedAssembly = Boolean(job?.unleashedAssemblyNumber || job?.assemblyStatus || (job as unknown as { unleashed_assembly_number?: string } | null)?.unleashed_assembly_number);
-    if (!open || !job || hasComponents || !hasLinkedAssembly || assemblyPatch?.jobId === job.id) return;
+    if (!open || !job || hasComponents || assemblyPatch?.jobId === job.id || !job.sku) return;
     const jobId = job.id;
     let cancelled = false;
-    refreshAssembly({ data: { jobId } })
+    // If an Assembly is linked, prefer its lines (planner may have edited them).
+    // Otherwise fall back to the product's BOM so stock requirements show before QC.
+    const fetcher = hasLinkedAssembly
+      ? refreshAssembly({ data: { jobId } })
+      : refreshBom({ data: { jobId } });
+    fetcher
       .then((result) => {
         if (cancelled) return;
         const refreshed = result as RefreshAssemblyResult;
@@ -164,11 +171,30 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
           bottleSize: refreshed.bottleSize,
         });
       })
-      .catch((error) => console.error("[jobs] assembly component refresh failed", error));
+      .catch((error) => console.error("[jobs] component refresh failed", error));
     return () => {
       cancelled = true;
     };
-  }, [open, job, assemblyPatch, refreshAssembly]);
+  }, [open, job, assemblyPatch, refreshAssembly, refreshBom]);
+
+  const handlePullBom = async () => {
+    if (!job?.id) return;
+    setBomLoading(true);
+    try {
+      const result = (await refreshBom({ data: { jobId: job.id } })) as RefreshAssemblyResult;
+      setAssemblyPatch({
+        jobId: job.id,
+        assemblyComponents: result.assemblyComponents,
+        cartonsOrdered: result.cartonsOrdered,
+        bottlesPerCarton: result.bottlesPerCarton,
+      });
+      toast.success(`Pulled ${result.assemblyComponents?.length ?? 0} components from Unleashed BOM`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not pull BOM from Unleashed");
+    } finally {
+      setBomLoading(false);
+    }
+  };
 
   const hydratedJob = useMemo(() => {
     if (!job) return null;
@@ -428,6 +454,11 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
 
           <TabsContent value="assembly" className="space-y-3">
             <AssemblyInfoBlock job={currentJob} />
+            <div className="flex justify-end">
+              <Button size="sm" variant="outline" onClick={handlePullBom} disabled={bomLoading || !currentJob.sku}>
+                {bomLoading ? "Pulling…" : "Pull from Unleashed BOM"}
+              </Button>
+            </div>
             <AssemblyComponentsTable job={currentJob} stockItems={stockItems} />
           </TabsContent>
 
@@ -500,7 +531,7 @@ function AssemblyInfoBlock({ job }: { job: Job }) {
   if (!hasAny) {
     return (
       <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-        No linked Unleashed Assembly for this job.
+        No Assembly linked yet — Assemblies are created per pallet after QC approval. Stock requirements below come from the product's Bill of Materials in Unleashed.
       </div>
     );
   }
@@ -525,7 +556,7 @@ function AssemblyComponentsTable({ job, stockItems }: { job: Job; stockItems: St
   if (components.length === 0) {
     return (
       <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground text-center">
-        No assembly components imported. They will appear here once the linked Unleashed Assembly is created.
+        No components yet. Click "Pull from Unleashed BOM" above to fetch the Bill of Materials for this product.
       </div>
     );
   }

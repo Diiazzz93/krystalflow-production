@@ -1,82 +1,61 @@
+## Problem
 
-## Goal
+Since we moved to **one Assembly per QC-approved pallet**, brand-new jobs (like the active IPA fill) have no `unleashedAssemblyNumber` until the first pallet passes QC. The Stock/Assembly tabs in the Job dialog gate everything on `hasLinkedAssembly`, so they show:
 
-Imported Unleashed Sales Orders become a **master production job** in KrystalFlow that tracks Original → Completed → Remaining (boxes + pallets) as pallets pass QC. KrystalFlow never modifies the SO itself; Unleashed Assemblies are created **per QC-approved pallet** instead of one big Assembly at import time.
+- "No linked Unleashed Assembly for this job"
+- "No assembly components imported"
+- Stock requirements card stays empty → operators can't see what raw material/caps/labels are needed before they start filling.
 
-## Data model (Job)
+The Sales Order import already fetches the product's **Bill of Materials** (BOM) and writes `assemblyComponents` into `data`, so the data we need exists in Unleashed independent of any Assembly — we're just not using it as a fallback in the UI, and older jobs imported before the refactor never got their BOM stored.
 
-Add to `Job` (in `src/lib/types.ts`) and persist via `data` jsonb:
-- `originalQuantity` (boxes/bottles — same unit as `quantity`)
-- `originalPallets`
-- `completedQuantity` (derived from QC entries; mirrored for fast reads)
-- `completedPallets` (mirror of `palletsCompleted`)
+## Fix — use the BOM as the source of truth for stock requirements
 
-Derived (computed, never written):
-- `remainingQuantity = originalQuantity - completedQuantity`
-- `remainingPallets = originalPallets - completedPallets`
-- `percentComplete = completedPallets / originalPallets`
+Treat the BOM (scaled by the job's carton/bottle quantity) as the authoritative "what this job needs" list. Only override component quantities with Assembly Lines once a per-pallet Assembly actually exists.
 
-Per `QCEntry` add:
-- `palletQuantity` (boxes on that pallet — defaults to `originalQuantity / originalPallets`, editable in QC dialog)
-- `qcApproved: boolean` (true when Pass and supervisor signs off)
-- `unleashedAssemblyId`, `unleashedAssemblyNumber`, `unleashedAssemblyStatus` (the per-pallet Assembly)
+### 1. New server function: `refreshJobBomComponents`
 
-## Import changes (`src/lib/unleashed/fill-ready.server.ts`)
+File: `src/lib/unleashed/fill-ready.functions.ts` (next to the existing `refreshJobAssemblyComponents`).
 
-- **Stop creating the big Assembly.** Remove the `ulPost("/Assemblies", …)` call and the `findExistingAssembly` lookup at import time. Keep BOM fetch only — its lines populate `assemblyComponents` on the master job so the stock blueprint still works.
-- Set `originalQuantity = bottleCount` (or `qty` for non-boxed), `originalPallets = data.pallets ?? 1`, `completedQuantity = 0`, `completedPallets = 0` on insert.
-- Drop `unleashed_assembly_id` / `unleashed_assembly_number` on the job row (these now live on QC entries). Backfill pass that fetched assembly detail is removed.
+- Auth: `requireSupabaseAuth`, admin/manager/operator allowed.
+- Input: `{ jobId }`.
+- Loads the job's SKU and primary quantity (cartons).
+- Looks up the Unleashed product GUID by `productCode`.
+- Fetches `/BillOfMaterials?productGuid=…` (reuse `fetchBom` from `fill-ready.server.ts`).
+- Scales each BOM line by the job's carton quantity (same math as importer).
+- Writes the resulting list into `production_jobs.data.assemblyComponents` (merge, don't overwrite other keys).
+- Returns the new components + scaled quantity for the dialog to hydrate.
 
-## QC approval workflow (`src/components/jobs/QCDialog.tsx` + `src/lib/store.tsx`)
+### 2. JobStockDialog — auto-pull BOM on open, regardless of Assembly link
 
-When a QC entry is submitted with `result === "Pass"` and supervisor signature present → `qcApproved = true`:
-1. `updateJob`: increment `completedQuantity += palletQuantity`, `completedPallets += 1`. Clamp so neither exceeds original.
-2. Call new server function `createPalletAssembly({ jobId, qcEntryId, quantity })` →
-   - Posts `/Assemblies` to Unleashed with `Quantity = palletQuantity`, product = job's SKU, comment referencing SO + pallet code.
-   - Optionally completes it (`AssemblyStatus = Completed`) if `autoCompleteAssembly` toggle is on.
-   - Returns `{ assemblyId, assemblyNumber, status }` which gets stored back on the QC entry.
-3. Toast shows "Pallet approved · Assembly KS-… created".
+`src/components/jobs/JobStockDialog.tsx`
 
-Fails are non-blocking: assembly errors are logged to `unleashed_sync_log` and surfaced via toast; completion totals still increment.
+- Replace the `hasLinkedAssembly` gate (line 146-147) so the effect fires whenever the dialog opens for a job with no components but a known SKU.
+- Prefer `refreshJobBomComponents` for the no-assembly case; keep `refreshJobAssemblyComponents` for jobs that DO have an Assembly linked (so per-pallet Assembly Lines override the BOM blueprint).
+- Update the empty-state text in `AssemblyInfoBlock` and `AssemblyComponentsTable` to reflect the new model:
+  - "No Assembly linked yet — Assemblies are created per pallet after QC approval. Components shown below come from the product's Bill of Materials."
 
-## Stock requirements (`src/lib/job-stock.ts`)
+### 3. Manual "Pull from Unleashed BOM" button
 
-`computeJobStockCheck` switches its base quantity from `job.quantity` → `job.remainingQuantity ?? job.quantity`. For the `assemblyComponents` branch, scale component quantities by `remaining / original` ratio so BOM-based requirements also shrink as pallets complete.
+In the Stock tab header of `JobStockDialog`, add a small button (admins/managers) that calls `refreshJobBomComponents` on demand for cases where the auto-pull fails (network blip, product code typo, etc.).
 
-## UI
+### 4. Stock requirements card already works
 
-**Job dialog / Job card** — new "Production progress" section:
-```
-Original order:   1000 boxes (10 pallets)
-Completed:        500 boxes (5 pallets) — 50%
-Remaining:        500 boxes (5 pallets)
-[████████████░░░░░░░░░░░░]
-```
-Plus per-pallet assembly list (pallet # → Assembly number + status).
+`computeJobStockCheck` already iterates `job.assemblyComponents`, so as soon as components are populated from the BOM, the "Stock requirements" header in the dialog will switch from "No stock selected" to the real list — no changes needed there.
 
-**Dashboard (`src/routes/index.tsx`)** — add cards:
-- Total pallets across active jobs / completed / remaining
-- Aggregated remaining materials required (sum of `computeJobStockCheck` across active jobs)
+## Technical Details
 
-## Migration
+- `fetchBom` is currently un-exported in `fill-ready.server.ts`; export it so the new server function can reuse it without duplicating the Unleashed call shape.
+- Quantity scaling uses the same `parseProductPackaging` + `qty × ComponentQuantity` formula already in the importer to stay consistent between newly-imported and back-filled jobs.
+- The per-pallet Assembly flow in `assembly.functions.ts` is untouched — it still creates one Assembly per QC pallet.
+- Once a real Assembly exists, `refreshJobAssemblyComponents` continues to overwrite the BOM-derived components with the Assembly Lines (which may differ slightly if a planner edited the Assembly in Unleashed).
 
-`production_jobs` already stores rich fields in `data` jsonb, so no schema change is strictly required — the new fields ride along. We will still add a small migration to drop the obsolete columns from the job row by leaving them nullable (`unleashed_assembly_id`, `unleashed_assembly_number` stay on the table but are no longer written by the importer; existing rows keep their values for reference).
+## Files Touched
 
-No new tables.
+- `src/lib/unleashed/fill-ready.server.ts` — export `fetchBom`, add small helper to build BOM components for a job.
+- `src/lib/unleashed/fill-ready.functions.ts` — new `refreshJobBomComponents` server function.
+- `src/components/jobs/JobStockDialog.tsx` — auto-pull BOM when no Assembly is linked, manual refresh button, updated empty-state copy.
 
-## Out of scope (explicit)
+## Out of Scope
 
-- No invoice creation, no child SOs, no SO modification in Unleashed.
-- No change to scheduling/calendar behaviour.
-- Hard-delete and "Unschedule" flows untouched.
-
-## Files to edit
-
-- `src/lib/types.ts` — add Job + QCEntry fields
-- `src/lib/store.tsx` — map new fields; recompute completed on QC add; expose `unscheduleJob` unchanged
-- `src/lib/unleashed/fill-ready.server.ts` — remove upfront Assembly creation, set original totals
-- `src/lib/unleashed/assembly.functions.ts` *(new)* — `createPalletAssembly` server fn (auth + admin import inside handler)
-- `src/lib/job-stock.ts` — base on `remainingQuantity`
-- `src/components/jobs/QCDialog.tsx` — palletQuantity input, trigger assembly create on pass
-- `src/components/jobs/JobDialog.tsx` — progress section
-- `src/routes/index.tsx` — dashboard progress + remaining materials cards
+- Changing when/how per-pallet Assemblies are created.
+- Editing stored BOM data for historical jobs in bulk (the auto-pull on next dialog open handles backfill lazily).
