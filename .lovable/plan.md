@@ -1,61 +1,36 @@
-## Problem
+## Root cause
 
-Since we moved to **one Assembly per QC-approved pallet**, brand-new jobs (like the active IPA fill) have no `unleashedAssemblyNumber` until the first pallet passes QC. The Stock/Assembly tabs in the Job dialog gate everything on `hasLinkedAssembly`, so they show:
+The BOM pull always returns 0 components because the Unleashed BOM line parser uses the wrong field names. The code reads `ComponentProduct` and `ComponentQuantity`, but Unleashed's `/BillOfMaterials` API actually returns `Product` and `Quantity` on each line. Every line gets parsed as `{ productCode: "", quantity: 0 }` and then dropped by the `.filter(c => c.productCode)` guard. No error is thrown — the user just sees "Pulled 0 components".
 
-- "No linked Unleashed Assembly for this job"
-- "No assembly components imported"
-- Stock requirements card stays empty → operators can't see what raw material/caps/labels are needed before they start filling.
+The same bug also corrupts the initial Sales Order import path, so even fresh jobs imported from Unleashed have empty `assemblyComponents` until a per-pallet Assembly link gets attached.
 
-The Sales Order import already fetches the product's **Bill of Materials** (BOM) and writes `assemblyComponents` into `data`, so the data we need exists in Unleashed independent of any Assembly — we're just not using it as a fallback in the UI, and older jobs imported before the refactor never got their BOM stored.
+A temp "create-then-delete Assembly" workaround isn't needed — we already have the right data (the BOM); we're just parsing the wrong field names.
 
-## Fix — use the BOM as the source of truth for stock requirements
+## Fix
 
-Treat the BOM (scaled by the job's carton/bottle quantity) as the authoritative "what this job needs" list. Only override component quantities with Assembly Lines once a per-pallet Assembly actually exists.
+Single file: `src/lib/unleashed/fill-ready.server.ts`
 
-### 1. New server function: `refreshJobBomComponents`
+1. **`UnleashedBomLine` interface** (~lines 28-38) — rename:
+   - `ComponentProduct` → `Product`
+   - `ComponentQuantity` → `Quantity`
 
-File: `src/lib/unleashed/fill-ready.functions.ts` (next to the existing `refreshJobAssemblyComponents`).
+2. **SO importer** (~lines 178-184) — read `line.Product?.ProductCode`, `line.Product?.Guid`, `line.Quantity` instead of the `Component*` variants.
 
-- Auth: `requireSupabaseAuth`, admin/manager/operator allowed.
-- Input: `{ jobId }`.
-- Loads the job's SKU and primary quantity (cartons).
-- Looks up the Unleashed product GUID by `productCode`.
-- Fetches `/BillOfMaterials?productGuid=…` (reuse `fetchBom` from `fill-ready.server.ts`).
-- Scales each BOM line by the job's carton quantity (same math as importer).
-- Writes the resulting list into `production_jobs.data.assemblyComponents` (merge, don't overwrite other keys).
-- Returns the new components + scaled quantity for the dialog to hydrate.
+3. **`refreshJobBomComponentsImpl`** (~lines 388-395) — same field rename at the read site.
 
-### 2. JobStockDialog — auto-pull BOM on open, regardless of Assembly link
+## Safety / UX touch-ups
 
-`src/components/jobs/JobStockDialog.tsx`
+- `refreshJobBomComponentsImpl`: if parsing yields 0 components from a non-empty `bomLines`, return `{ ok: false, error: "BOM returned no components (parse mismatch)" }` so silent failures surface as a toast in future.
+- `JobStockDialog.tsx` auto-refresh catch: add a small `toast.error` (currently only `console.error`) so users see when the auto-pull fails on dialog open.
 
-- Replace the `hasLinkedAssembly` gate (line 146-147) so the effect fires whenever the dialog opens for a job with no components but a known SKU.
-- Prefer `refreshJobBomComponents` for the no-assembly case; keep `refreshJobAssemblyComponents` for jobs that DO have an Assembly linked (so per-pallet Assembly Lines override the BOM blueprint).
-- Update the empty-state text in `AssemblyInfoBlock` and `AssemblyComponentsTable` to reflect the new model:
-  - "No Assembly linked yet — Assemblies are created per pallet after QC approval. Components shown below come from the product's Bill of Materials."
+## Out of scope
 
-### 3. Manual "Pull from Unleashed BOM" button
+- No changes to Assembly creation timing or any Unleashed writes.
+- No temp-Assembly create/delete dance.
+- Historical jobs already saved with empty `assemblyComponents` will repopulate the next time the dialog opens (auto-refresh triggers when components are empty) or via the manual "Pull from Unleashed BOM" button.
 
-In the Stock tab header of `JobStockDialog`, add a small button (admins/managers) that calls `refreshJobBomComponents` on demand for cases where the auto-pull fails (network blip, product code typo, etc.).
+## Verification
 
-### 4. Stock requirements card already works
-
-`computeJobStockCheck` already iterates `job.assemblyComponents`, so as soon as components are populated from the BOM, the "Stock requirements" header in the dialog will switch from "No stock selected" to the real list — no changes needed there.
-
-## Technical Details
-
-- `fetchBom` is currently un-exported in `fill-ready.server.ts`; export it so the new server function can reuse it without duplicating the Unleashed call shape.
-- Quantity scaling uses the same `parseProductPackaging` + `qty × ComponentQuantity` formula already in the importer to stay consistent between newly-imported and back-filled jobs.
-- The per-pallet Assembly flow in `assembly.functions.ts` is untouched — it still creates one Assembly per QC pallet.
-- Once a real Assembly exists, `refreshJobAssemblyComponents` continues to overwrite the BOM-derived components with the Assembly Lines (which may differ slightly if a planner edited the Assembly in Unleashed).
-
-## Files Touched
-
-- `src/lib/unleashed/fill-ready.server.ts` — export `fetchBom`, add small helper to build BOM components for a job.
-- `src/lib/unleashed/fill-ready.functions.ts` — new `refreshJobBomComponents` server function.
-- `src/components/jobs/JobStockDialog.tsx` — auto-pull BOM when no Assembly is linked, manual refresh button, updated empty-state copy.
-
-## Out of Scope
-
-- Changing when/how per-pallet Assemblies are created.
-- Editing stored BOM data for historical jobs in bulk (the auto-pull on next dialog open handles backfill lazily).
+1. Open the active IPA fill job → Stock tab → should auto-populate with real component rows scaled by carton qty.
+2. Click "Pull from Unleashed BOM" → toast shows non-zero count.
+3. Re-import a Sales Order → newly imported job's `assemblyComponents` is populated immediately.

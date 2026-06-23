@@ -26,8 +26,10 @@ interface UnleashedSalesOrder {
 }
 
 interface UnleashedBomLine {
-  ComponentProduct?: { Guid?: string; ProductCode?: string } | null;
-  ComponentQuantity?: number;
+  // Unleashed /BillOfMaterials returns each line as { Product, Quantity, ... }
+  // (NOT ComponentProduct/ComponentQuantity — those exist on Assemblies).
+  Product?: { Guid?: string; ProductCode?: string } | null;
+  Quantity?: number;
 }
 
 interface UnleashedBom {
@@ -176,10 +178,10 @@ export async function importFillReadyImpl(supabase: SupabaseLike): Promise<Impor
         unit?: string;
       }> = bomLines
         .map((line: UnleashedBomLine) => ({
-          productCode: line.ComponentProduct?.ProductCode ?? "",
-          productGuid: line.ComponentProduct?.Guid,
-          name: line.ComponentProduct?.ProductCode ?? "",
-          quantity: Number(line.ComponentQuantity ?? 0) * qty,
+          productCode: line.Product?.ProductCode ?? "",
+          productGuid: line.Product?.Guid,
+          name: line.Product?.ProductCode ?? "",
+          quantity: Number(line.Quantity ?? 0) * qty,
         }))
         .filter((c: { productCode: string }) => c.productCode);
 
@@ -387,12 +389,19 @@ export async function refreshJobBomComponentsImpl(supabase: SupabaseLike, jobId:
 
   const components = bomLines
     .map((line) => ({
-      productCode: line.ComponentProduct?.ProductCode ?? "",
-      productGuid: line.ComponentProduct?.Guid,
-      name: line.ComponentProduct?.ProductCode ?? "",
-      quantity: Number(line.ComponentQuantity ?? 0) * qty,
+      productCode: line.Product?.ProductCode ?? "",
+      productGuid: line.Product?.Guid,
+      name: line.Product?.ProductCode ?? "",
+      quantity: Number(line.Quantity ?? 0) * qty,
     }))
     .filter((c) => c.productCode);
+
+  if (components.length === 0) {
+    return {
+      ok: false as const,
+      error: `BOM for ${productCode} returned ${bomLines.length} line(s) but no usable components could be parsed`,
+    };
+  }
 
   const merged: Record<string, unknown> = {
     ...existing,
