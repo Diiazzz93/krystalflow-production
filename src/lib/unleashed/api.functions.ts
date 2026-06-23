@@ -116,25 +116,6 @@ async function signedFetchAllPages<T>(
   return all;
 }
 
-async function signedFetchAllQueryPages<T>(
-  path: string,
-  baseEntries: Array<[string, string]>,
-): Promise<T[]> {
-  const all: T[] = [];
-  const MAX_PAGES = 200;
-  let page = 1;
-  while (page <= MAX_PAGES) {
-    const query = buildDecodedQuery([...baseEntries, ["pageNumber", String(page)]]);
-    const json = await signedFetchRaw<T>(path, query);
-    const items = json.Items ?? [];
-    all.push(...items);
-    const totalPages = json.Pagination?.NumberOfPages ?? 1;
-    if (page >= totalPages || items.length === 0) break;
-    page++;
-  }
-  return all;
-}
-
 export const unleashedFetchWarehouses = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async () => {
@@ -190,11 +171,35 @@ export const unleashedFetchStockOnHand = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { warehouseCode?: string } | undefined) => input ?? {})
   .handler(async ({ data }) => {
-    // /StockOnHand does NOT support the `/{pageNumber}` path style — it 404s.
-    // Use the base path and page through with query params.
     const entries: Array<[string, string]> = [["pageSize", "200"]];
     if (data.warehouseCode) entries.push(["warehouseCode", data.warehouseCode]);
-    return signedFetchAllQueryPages<UnleashedStockOnHand>("/StockOnHand", entries);
+
+    // Unleashed's StockOnHand endpoint ignores `pageNumber` as a query string
+    // and always returns page 1. Page through with `/StockOnHand/{page}` or
+    // products after the first 200 rows never update in the app.
+    const rows = await signedFetchAllPages<
+      Omit<UnleashedStockOnHand, "Warehouse" | "MinStockAlertLevel"> & {
+        Warehouse?: string | { WarehouseCode?: string; WarehouseName?: string } | null;
+        WarehouseCode?: string | null;
+        MinStockAlertLevel?: number | null;
+      }
+    >("/StockOnHand", entries);
+
+    return rows.map((row) => {
+      const warehouse =
+        typeof row.Warehouse === "string"
+          ? { WarehouseCode: row.WarehouseCode ?? "", WarehouseName: row.Warehouse }
+          : {
+              WarehouseCode: row.Warehouse?.WarehouseCode ?? row.WarehouseCode ?? "",
+              WarehouseName: row.Warehouse?.WarehouseName ?? "",
+            };
+
+      return {
+        ...row,
+        Warehouse: warehouse,
+        MinStockAlertLevel: Number(row.MinStockAlertLevel ?? 0),
+      } satisfies UnleashedStockOnHand;
+    });
   });
 
 export const unleashedPing = createServerFn({ method: "GET" })
