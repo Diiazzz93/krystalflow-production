@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Pencil, Trash2, Save, X } from "lucide-react";
+import { Plus, Pencil, Trash2, Save, X, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import {
   
@@ -84,14 +84,47 @@ function SettingsPage() {
     toast.success("Preset deleted");
   }
 
+  function forceResync() {
+    if (typeof window === "undefined") return;
+    if (
+      !confirm(
+        "Clear this device's cached data and reload the latest from the backend? Unsaved local changes will be lost.",
+      )
+    )
+      return;
+    const cacheKeys = [
+      "ks-branding",
+      "krystalshield.lineSetups.v1",
+      "krystalshield.customer-specs.v1",
+      "krystalshield.customer-specs.v2",
+      "krystalshield.v2.local",
+      "krystalshield.manufacturing.v1",
+      "qc-custom-presets-v1",
+    ];
+    for (const k of cacheKeys) {
+      try {
+        localStorage.removeItem(k);
+      } catch {
+        /* ignore */
+      }
+    }
+    toast.success("Cleared local cache — reloading…");
+    setTimeout(() => window.location.reload(), 400);
+  }
+
   return (
     <AppShell>
       <div className="space-y-6 max-w-5xl">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
-          <p className="text-sm text-muted-foreground">
-            Configure presets and defaults used across the production app.
-          </p>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
+            <p className="text-sm text-muted-foreground">
+              Configure presets and defaults used across the production app.
+            </p>
+          </div>
+          <Button variant="outline" onClick={forceResync} title="Clear this device's cache and pull the latest from the backend">
+            <RefreshCw className="size-4" /> Force resync from backend
+          </Button>
         </div>
 
         {isAdmin && <UserManagementPanel />}
