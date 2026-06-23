@@ -171,7 +171,10 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
           bottleSize: refreshed.bottleSize,
         });
       })
-      .catch((error) => console.error("[jobs] component refresh failed", error));
+      .catch((error) => {
+        console.error("[jobs] component refresh failed", error);
+        toast.error(error instanceof Error ? error.message : "Could not load stock requirements from Unleashed");
+      });
     return () => {
       cancelled = true;
     };
