@@ -19,9 +19,13 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
+import { loadSetting, saveSetting } from "./app-settings-kv";
+
+const SETTING_KEY = "customer_specs";
 
 export interface FillingInstructions {
   productType: string;
@@ -472,12 +476,30 @@ const Ctx = createContext<CustomerSpecsValue | null>(null);
 
 export function CustomerSpecsProvider({ children }: { children: ReactNode }) {
   const [specs, setSpecs] = useState<CustomerSpec[]>(() => load());
+  const hydrated = useRef(false);
+
+  // Hydrate from backend on mount.
+  useEffect(() => {
+    void (async () => {
+      const remote = await loadSetting<CustomerSpec[]>(SETTING_KEY);
+      if (Array.isArray(remote)) {
+        setSpecs(remote.map((s) => ({ ...s, products: s.products ?? [] })));
+      } else {
+        await saveSetting(SETTING_KEY, specs).catch(() => {});
+      }
+      hydrated.current = true;
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(specs));
     } catch {
       /* ignore */
+    }
+    if (hydrated.current) {
+      void saveSetting(SETTING_KEY, specs).catch(() => {});
     }
   }, [specs]);
 

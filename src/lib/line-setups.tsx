@@ -1,7 +1,7 @@
 // Line Setup Presets — saved filling line configurations operators can reuse
-// during product changeovers. Persisted in localStorage; shared by the
-// dedicated "Line Setup" sidebar page and the "View Line Setup" button
-// inside production jobs.
+// during product changeovers. Persisted in the shared backend (app_settings)
+// so previews and the published site see the same data; localStorage is used
+// as a fast first-paint cache.
 
 import {
   createContext,
@@ -9,9 +9,13 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
+import { loadSetting, saveSetting } from "./app-settings-kv";
+
+const SETTING_KEY = "line_setup_presets";
 
 export interface LineSetupPreset {
   id: string;
@@ -157,12 +161,32 @@ const LineSetupContext = createContext<Ctx | null>(null);
 
 export function LineSetupProvider({ children }: { children: ReactNode }) {
   const [presets, setPresets] = useState<LineSetupPreset[]>(() => load());
+  const hydrated = useRef(false);
 
+  // Hydrate from backend on mount.
+  useEffect(() => {
+    void (async () => {
+      const remote = await loadSetting<LineSetupPreset[]>(SETTING_KEY);
+      if (Array.isArray(remote)) {
+        setPresets(remote);
+      } else {
+        // No remote yet — push current local data as the initial value.
+        await saveSetting(SETTING_KEY, presets).catch(() => {});
+      }
+      hydrated.current = true;
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persist on every change (local cache + remote).
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(presets));
     } catch {
       /* ignore */
+    }
+    if (hydrated.current) {
+      void saveSetting(SETTING_KEY, presets).catch(() => {});
     }
   }, [presets]);
 
