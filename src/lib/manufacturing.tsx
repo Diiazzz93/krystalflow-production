@@ -16,11 +16,15 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
 import { type StockItem } from "@/lib/stock";
 import { useStockStore } from "@/lib/stock-store";
+import { loadSetting, saveSetting } from "@/lib/app-settings-kv";
+
+const SETTING_KEY = "manufacturing";
 
 // ---------- Types ----------
 
@@ -420,12 +424,34 @@ function uid(prefix: string) {
 
 export function ManufacturingProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<PersistShape>(() => load());
+  const hydrated = useRef(false);
+
+  // Hydrate from backend on mount.
+  useEffect(() => {
+    void (async () => {
+      const remote = await loadSetting<PersistShape>(SETTING_KEY);
+      if (remote && typeof remote === "object") {
+        setData({
+          bulkBOMs: remote.bulkBOMs ?? [],
+          finishedBOMs: remote.finishedBOMs ?? [],
+          assemblies: remote.assemblies ?? [],
+        });
+      } else {
+        await saveSetting(SETTING_KEY, data).catch(() => {});
+      }
+      hydrated.current = true;
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     } catch {
       /* ignore */
+    }
+    if (hydrated.current) {
+      void saveSetting(SETTING_KEY, data).catch(() => {});
     }
   }, [data]);
 

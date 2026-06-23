@@ -12,6 +12,9 @@ import { buildSeedQC, SEED_LINES } from "./seed";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
+import { loadSetting, saveSetting } from "@/lib/app-settings-kv";
+
+const LINES_SETTING_KEY = "production_lines";
 
 const STORAGE_KEY = "krystalshield.v2.local";
 const JOB_COLORS = ["#0ea5e9", "#22c55e", "#f97316", "#a855f7", "#ec4899", "#14b8a6", "#eab308"];
@@ -179,9 +182,24 @@ function rowToJob(r: Record<string, unknown>): Job {
 export function StoreProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [local, setLocal] = useState<LocalState>(() => loadLocal());
+  const [linesHydrated, setLinesHydrated] = useState(false);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [qc, setQC] = useState<QCEntry[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Hydrate lines from backend, then keep backend in sync with local changes.
+  useEffect(() => {
+    void (async () => {
+      const remote = await loadSetting<Line[]>(LINES_SETTING_KEY);
+      if (Array.isArray(remote) && remote.length > 0) {
+        setLocal({ lines: remote });
+      } else {
+        await saveSetting(LINES_SETTING_KEY, local.lines).catch(() => {});
+      }
+      setLinesHydrated(true);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     try {
@@ -189,7 +207,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     } catch {
       /* ignore */
     }
-  }, [local]);
+    if (linesHydrated) {
+      void saveSetting(LINES_SETTING_KEY, local.lines).catch(() => {});
+    }
+  }, [local, linesHydrated]);
 
   const loadJobs = useCallback(async () => {
     const { data, error } = await supabase
