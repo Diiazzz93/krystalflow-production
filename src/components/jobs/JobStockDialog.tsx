@@ -135,7 +135,9 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
   const { can } = useAuth();
   const canEdit = can("jobs:edit") || can("jobs:create");
   const refreshAssembly = useServerFn(refreshJobAssemblyComponents);
+  const refreshBom = useServerFn(refreshJobBomComponents);
   const [assemblyPatch, setAssemblyPatch] = useState<(Partial<Job> & { jobId: string }) | null>(null);
+  const [bomLoading, setBomLoading] = useState(false);
 
   useEffect(() => {
     setAssemblyPatch(null);
@@ -144,10 +146,15 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
   useEffect(() => {
     const hasComponents = (job?.assemblyComponents?.length ?? 0) > 0 || (assemblyPatch?.assemblyComponents?.length ?? 0) > 0;
     const hasLinkedAssembly = Boolean(job?.unleashedAssemblyNumber || job?.assemblyStatus || (job as unknown as { unleashed_assembly_number?: string } | null)?.unleashed_assembly_number);
-    if (!open || !job || hasComponents || !hasLinkedAssembly || assemblyPatch?.jobId === job.id) return;
+    if (!open || !job || hasComponents || assemblyPatch?.jobId === job.id || !job.sku) return;
     const jobId = job.id;
     let cancelled = false;
-    refreshAssembly({ data: { jobId } })
+    // If an Assembly is linked, prefer its lines (planner may have edited them).
+    // Otherwise fall back to the product's BOM so stock requirements show before QC.
+    const fetcher = hasLinkedAssembly
+      ? refreshAssembly({ data: { jobId } })
+      : refreshBom({ data: { jobId } });
+    fetcher
       .then((result) => {
         if (cancelled) return;
         const refreshed = result as RefreshAssemblyResult;
@@ -164,11 +171,30 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
           bottleSize: refreshed.bottleSize,
         });
       })
-      .catch((error) => console.error("[jobs] assembly component refresh failed", error));
+      .catch((error) => console.error("[jobs] component refresh failed", error));
     return () => {
       cancelled = true;
     };
-  }, [open, job, assemblyPatch, refreshAssembly]);
+  }, [open, job, assemblyPatch, refreshAssembly, refreshBom]);
+
+  const handlePullBom = async () => {
+    if (!job?.id) return;
+    setBomLoading(true);
+    try {
+      const result = (await refreshBom({ data: { jobId: job.id } })) as RefreshAssemblyResult;
+      setAssemblyPatch({
+        jobId: job.id,
+        assemblyComponents: result.assemblyComponents,
+        cartonsOrdered: result.cartonsOrdered,
+        bottlesPerCarton: result.bottlesPerCarton,
+      });
+      toast.success(`Pulled ${result.assemblyComponents?.length ?? 0} components from Unleashed BOM`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not pull BOM from Unleashed");
+    } finally {
+      setBomLoading(false);
+    }
+  };
 
   const hydratedJob = useMemo(() => {
     if (!job) return null;
