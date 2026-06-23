@@ -46,3 +46,30 @@ export const inviteUser = createServerFn({ method: "POST" })
 
     return { ok: true, userId: newUserId, email: data.email };
   });
+
+const deleteSchema = z.object({ userId: z.string().uuid() });
+
+export const deleteUser = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => deleteSchema.parse(data))
+  .handler(async ({ data, context }) => {
+    // Caller must be admin
+    const { data: isAdmin, error: roleErr } = await (context.supabase.rpc as any)("has_role", {
+      _user_id: context.userId,
+      _role: "admin",
+    });
+    if (roleErr) throw new Error(roleErr.message);
+    if (!isAdmin) throw new Error("Only admins can delete users");
+
+    if (data.userId === context.userId) {
+      throw new Error("You can't delete your own account from here");
+    }
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.auth.admin.deleteUser(data.userId);
+    if (error) throw new Error(error.message);
+
+    // Cascade removes profile + user_roles via foreign keys on auth.users
+    return { ok: true, userId: data.userId };
+  });
+
