@@ -11,12 +11,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, UserPlus, Users } from "lucide-react";
+import { Loader2, Trash2, UserPlus, Users } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { ROLE_LABELS, useAuth, type Role } from "@/lib/auth";
-import { inviteUser } from "@/lib/users.functions";
+import { deleteUser, inviteUser } from "@/lib/users.functions";
 
 const ROLE_PRIORITY: Role[] = ["admin", "manager", "operator", "viewer"];
 const ALL_ROLES: Role[] = ["admin", "manager", "operator", "viewer"];
@@ -34,11 +34,28 @@ export function UserManagementPanel() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteName, setInviteName] = useState("");
   const [inviteRole, setInviteRole] = useState<Role>("viewer");
   const [inviting, setInviting] = useState(false);
   const invite = useServerFn(inviteUser);
+  const removeUser = useServerFn(deleteUser);
+
+  async function handleDelete(u: UserRow) {
+    if (!confirm(`Delete ${u.name} (${u.email})? This permanently removes the user account and cannot be undone.`)) return;
+    setDeletingId(u.id);
+    try {
+      await removeUser({ data: { userId: u.id } });
+      setUsers((prev) => prev.filter((x) => x.id !== u.id));
+      toast.success(`Deleted ${u.email}`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to delete user";
+      toast.error(msg);
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   async function handleInvite(e: React.FormEvent) {
     e.preventDefault();
@@ -217,8 +234,23 @@ export function UserManagementPanel() {
                             {ROLE_LABELS[r]}
                           </SelectItem>
                         ))}
-                      </SelectContent>
+                    </SelectContent>
                     </Select>
+                    {isAdmin && !isSelf && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(u)}
+                        disabled={deletingId === u.id}
+                        title={`Delete ${u.email}`}
+                      >
+                        {deletingId === u.id ? (
+                          <Loader2 className="size-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="size-4 text-destructive" />
+                        )}
+                      </Button>
+                    )}
                   </div>
                 </div>
               );
