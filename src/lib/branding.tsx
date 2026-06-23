@@ -1,4 +1,5 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { loadSetting, saveSetting } from "./app-settings-kv";
 
 export type Branding = {
   companyName: string;
@@ -21,8 +22,9 @@ export const DEFAULT_BRANDING: Branding = {
 };
 
 const STORAGE_KEY = "ks-branding";
+const SETTING_KEY = "branding";
 
-function load(): Branding {
+function loadLocal(): Branding {
   if (typeof window === "undefined") return DEFAULT_BRANDING;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -33,7 +35,7 @@ function load(): Branding {
   }
 }
 
-function save(b: Branding) {
+function saveLocal(b: Branding) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(b));
   } catch {
@@ -50,7 +52,9 @@ export function getBranding(): Branding {
 
 export function setBranding(next: Branding) {
   current = next;
-  save(next);
+  saveLocal(next);
+  // Fire-and-forget; UI updates immediately from local cache.
+  void saveSetting(SETTING_KEY, next as unknown as Record<string, unknown>).catch(() => {});
   listeners.forEach((l) => l());
 }
 
@@ -64,12 +68,28 @@ const BrandingContext = createContext<Ctx | null>(null);
 
 export function BrandingProvider({ children }: { children: ReactNode }) {
   const [branding, setState] = useState<Branding>(DEFAULT_BRANDING);
+  const hydrated = useRef(false);
 
   useEffect(() => {
-    current = load();
+    current = loadLocal();
     setState(current);
     const fn = () => setState({ ...current });
     listeners.add(fn);
+
+    // Hydrate from backend; if backend is empty but we have local data,
+    // push the local data up (one-time migration per device).
+    void (async () => {
+      const remote = await loadSetting<Record<string, unknown>>(SETTING_KEY);
+      if (remote && typeof remote === "object") {
+        current = { ...DEFAULT_BRANDING, ...(remote as Partial<Branding>) };
+        saveLocal(current);
+        listeners.forEach((l) => l());
+      } else if (JSON.stringify(current) !== JSON.stringify(DEFAULT_BRANDING)) {
+        await saveSetting(SETTING_KEY, current as unknown as Record<string, unknown>).catch(() => {});
+      }
+      hydrated.current = true;
+    })();
+
     return () => {
       listeners.delete(fn);
     };
