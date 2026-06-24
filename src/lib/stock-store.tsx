@@ -32,6 +32,7 @@ export interface NewStockInput {
   notes?: string;
   dateReceived?: string;
   reorderLevel?: number;
+  unleashedGroup?: string;
 }
 
 export type AdjustmentType = "received" | "damaged" | "correction" | "stocktake";
