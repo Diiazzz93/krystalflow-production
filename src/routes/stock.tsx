@@ -168,10 +168,15 @@ function StockPage() {
       const importedCodes = new Set(imported.map((item) => item.sku));
       let allowedCodes = importedCodes;
       let allowedKeys = new Set(imported.map((item) => item.sku.trim().toLowerCase()));
+      const groupByCode = new Map<string, string>();
       if (selectedGroups.length > 0) {
         const client = createUnleashedClient();
         const products = await client.fetchProducts(selectedGroups);
         const selectedKeys = new Set(products.map((product) => product.ProductCode.trim().toLowerCase()));
+        for (const p of products) {
+          const g = p.ProductGroup?.GroupName?.trim();
+          if (g) groupByCode.set(p.ProductCode.trim().toLowerCase(), g);
+        }
         const matchingImported = imported.filter((item) => selectedKeys.has(item.sku.trim().toLowerCase()));
         // If the saved Product Group selection does not include these imported
         // rows (common with Unleashed sub-groups), still sync the imported
@@ -188,15 +193,18 @@ function StockPage() {
       let updated = 0;
 
       for (const item of imported) {
-        if (!allowedKeys.has(item.sku.trim().toLowerCase())) continue;
-        const live = liveByCode.get(item.sku.trim().toLowerCase());
+        const key = item.sku.trim().toLowerCase();
+        if (!allowedKeys.has(key)) continue;
+        const live = liveByCode.get(key);
         if (!live) continue;
+        const group = groupByCode.get(key);
         await updateItem(item.id, {
           quantityOnHand: Number(live.QtyOnHand ?? 0),
           availableStock: Number(live.AvailableQty ?? live.QtyOnHand ?? 0),
           allocatedStock: Number(live.AllocatedQty ?? 0),
           reorderLevel: Number(live.MinStockAlertLevel ?? item.reorderLevel ?? 0),
           location: live.Warehouse?.WarehouseCode ?? item.location,
+          ...(group ? { unleashedGroup: group } : {}),
         });
         updated++;
       }
