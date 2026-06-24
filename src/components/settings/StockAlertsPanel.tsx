@@ -188,6 +188,8 @@ export function StockAlertsPanel() {
 
         <CollapsibleContent>
           <CardContent className="space-y-3">
+            <FinishedGoodsGroupsPicker canEdit={canEdit} />
+
             <div className="flex flex-wrap items-center gap-2">
               <div className="relative flex-1 min-w-[200px] max-w-sm">
                 <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
