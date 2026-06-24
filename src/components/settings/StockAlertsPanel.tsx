@@ -25,12 +25,13 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { Bell, ChevronDown, Mail, Pencil, Save, Search, X } from "lucide-react";
+import { Bell, ChevronDown, Factory, Mail, Pencil, Save, Search, X } from "lucide-react";
 import { useStockStore } from "@/lib/stock-store";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 import { getStockStatus, STOCK_CATEGORIES, type StockItem, type StockStatus } from "@/lib/stock";
 import { WeeklyEmailPreviewDialog } from "@/components/stock/WeeklyEmailPreviewDialog";
+import { FinishedGoodsGroupsPicker } from "@/components/settings/FinishedGoodsGroupsPicker";
 import { cn } from "@/lib/utils";
 
 interface Draft {
