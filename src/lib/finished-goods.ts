@@ -81,7 +81,7 @@ export function useFinishedGoodsGroups(): string[] {
 
     // Cross-device sync via realtime on app_settings.
     const channel = supabase
-      .channel("finished-goods-groups-live")
+      .channel(`finished-goods-groups-live-${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         {
