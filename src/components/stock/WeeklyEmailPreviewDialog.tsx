@@ -9,6 +9,7 @@ import {
 import { useStockStore } from "@/lib/stock-store";
 import { useBranding } from "@/lib/branding";
 import { buildWeeklyEmailHtml } from "@/lib/stock-alerts";
+import { useFinishedGoodsGroups } from "@/lib/finished-goods";
 
 interface Props {
   open: boolean;
@@ -18,9 +19,10 @@ interface Props {
 export function WeeklyEmailPreviewDialog({ open, onOpenChange }: Props) {
   const { items } = useStockStore();
   const branding = useBrandingSafe();
+  const finishedGoodsGroups = useFinishedGoodsGroups();
   const html = useMemo(
-    () => buildWeeklyEmailHtml(items, { brand: branding }),
-    [items, branding],
+    () => buildWeeklyEmailHtml(items, { brand: branding, finishedGoodsGroups }),
+    [items, branding, finishedGoodsGroups],
   );
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
