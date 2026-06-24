@@ -112,6 +112,11 @@ function categoryBadge(cat: StockCategory) {
 
 function StockPage() {
   const { items, updateItem } = useStockStore();
+  const finishedGroups = useFinishedGoodsGroups();
+  const finishedGroupSet = useMemo(
+    () => new Set(finishedGroups.map((g) => g.trim()).filter(Boolean)),
+    [finishedGroups],
+  );
   const { hasRole } = useAuth();
   const canEdit = hasRole("admin", "manager");
   const autoSyncAttemptedRef = useRef(false);
@@ -122,12 +127,21 @@ function StockPage() {
   const [historyItem, setHistoryItem] = useState<StockItem | null>(null);
   const [syncingLive, setSyncingLive] = useState(false);
   const [q, setQ] = useState("");
-  const [status, setStatus] = useState<"all" | StockStatus>("all");
+  const [status, setStatus] = useState<"all" | StockStatus | "made-to-order">("all");
   const [category, setCategory] = useState<"all" | StockCategory>("all");
 
   const enriched = useMemo(
-    () => items.map((i) => ({ ...i, status: getStockStatus(i), categoryResolved: resolveCategory(i) })),
-    [items],
+    () =>
+      items.map((i) => {
+        const madeToOrder = !!i.unleashedGroup && finishedGroupSet.has(i.unleashedGroup.trim());
+        return {
+          ...i,
+          status: getStockStatus(i),
+          categoryResolved: resolveCategory(i),
+          madeToOrder,
+        };
+      }),
+    [items, finishedGroupSet],
   );
 
   const filtered = useMemo(() => {
