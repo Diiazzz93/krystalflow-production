@@ -167,6 +167,19 @@ export const unleashedFetchProducts = createServerFn({ method: "GET" })
     return Array.from(byCode.values());
   });
 
+export const unleashedDebugRawProduct = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { productCode: string }) => input)
+  .handler(async ({ data }) => {
+    const json = await signedFetchRaw<unknown>(
+      "/Products",
+      `productCode=${data.productCode}`,
+    );
+    return json.Items?.[0] ?? null;
+  });
+
+
+
 export const unleashedFetchStockOnHand = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { warehouseCode?: string } | undefined) => input ?? {})
