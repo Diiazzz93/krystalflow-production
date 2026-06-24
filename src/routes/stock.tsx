@@ -80,6 +80,17 @@ function statusBadge(status: StockStatus) {
   );
 }
 
+function madeToOrderBadge() {
+  return (
+    <Badge
+      variant="outline"
+      className="font-medium bg-muted/40 text-muted-foreground border-border"
+    >
+      Made to order
+    </Badge>
+  );
+}
+
 function fmtDateTime(iso: string) {
   const d = new Date(iso);
   return d.toLocaleString(undefined, {
