@@ -58,6 +58,7 @@ export type Database = {
           source: string | null
           supplier: string | null
           unit: string
+          unleashed_group: string | null
         }
         Insert: {
           alert_notes?: string | null
@@ -81,6 +82,7 @@ export type Database = {
           source?: string | null
           supplier?: string | null
           unit?: string
+          unleashed_group?: string | null
         }
         Update: {
           alert_notes?: string | null
@@ -104,6 +106,7 @@ export type Database = {
           source?: string | null
           supplier?: string | null
           unit?: string
+          unleashed_group?: string | null
         }
         Relationships: []
       }
