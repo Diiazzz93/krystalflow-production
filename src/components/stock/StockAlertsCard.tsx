@@ -2,28 +2,46 @@ import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, Bell, PackageMinus, PackageX } from "lucide-react";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
+  AlertTriangle,
+  Bell,
+  ChevronDown,
+  Factory,
+  PackageMinus,
+  PackageX,
+} from "lucide-react";
 import { useStockStore } from "@/lib/stock-store";
-import { getAlertItems, suggestedReorder } from "@/lib/stock-alerts";
+import { splitAlerts, suggestedReorder } from "@/lib/stock-alerts";
+import { useFinishedGoodsGroups } from "@/lib/finished-goods";
 import { LowStockReportDialog } from "@/components/stock/LowStockReportDialog";
 import { cn } from "@/lib/utils";
 
 export function StockAlertsCard() {
   const { items } = useStockStore();
+  const finishedGroups = useFinishedGoodsGroups();
   const [open, setOpen] = useState(false);
-  const alerts = useMemo(() => getAlertItems(items), [items]);
+  const [madeToOrderOpen, setMadeToOrderOpen] = useState(false);
+  const { reorderAlerts, madeToOrder } = useMemo(
+    () => splitAlerts(items, finishedGroups),
+    [items, finishedGroups],
+  );
 
-  const out = alerts.filter((i) => i.status === "out-of-stock");
-  const crit = alerts.filter((i) => i.status === "critical-stock");
-  const low = alerts.filter((i) => i.status === "low-stock");
-  const topReorder = alerts
+  const out = reorderAlerts.filter((i) => i.status === "out-of-stock");
+  const crit = reorderAlerts.filter((i) => i.status === "critical-stock");
+  const low = reorderAlerts.filter((i) => i.status === "low-stock");
+  const topReorder = reorderAlerts
     .map((i) => ({ item: i, qty: suggestedReorder(i) }))
     .filter((r) => r.qty > 0)
     .sort((a, b) => b.qty - a.qty)
     .slice(0, 4);
 
   return (
-    <Card className={cn(alerts.length > 0 && "border-amber-500/40 bg-amber-500/5")}>
+    <Card className={cn(reorderAlerts.length > 0 && "border-amber-500/40 bg-amber-500/5")}>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="flex items-center gap-2">
           <Bell className="size-4" /> Stock alerts
@@ -54,9 +72,9 @@ export function StockAlertsCard() {
           />
         </div>
 
-        {alerts.length === 0 ? (
+        {reorderAlerts.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            All stock is above alert thresholds.
+            All raw materials are above their alert thresholds.
           </p>
         ) : (
           <div className="space-y-1.5">
@@ -87,6 +105,54 @@ export function StockAlertsCard() {
               ))
             )}
           </div>
+        )}
+
+        {madeToOrder.length > 0 && (
+          <Collapsible open={madeToOrderOpen} onOpenChange={setMadeToOrderOpen}>
+            <CollapsibleTrigger asChild>
+              <button
+                type="button"
+                className="flex w-full items-center justify-between rounded-md border border-dashed border-border px-2.5 py-2 text-left text-xs text-muted-foreground hover:bg-muted/40"
+              >
+                <span className="flex items-center gap-2">
+                  <Factory className="size-3.5" />
+                  <span>
+                    <span className="font-medium text-foreground">{madeToOrder.length}</span> made-to-order
+                    finished good{madeToOrder.length === 1 ? "" : "s"} — produced on demand
+                  </span>
+                </span>
+                <ChevronDown
+                  className={cn(
+                    "size-3.5 transition-transform",
+                    madeToOrderOpen && "rotate-180",
+                  )}
+                />
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-1 pt-1.5">
+              {madeToOrder.slice(0, 8).map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between rounded-md border border-border/60 bg-card/50 px-2.5 py-1.5"
+                >
+                  <div className="min-w-0">
+                    <div className="text-sm truncate">{item.name}</div>
+                    <div className="font-mono text-[11px] text-muted-foreground truncate">
+                      {item.sku}
+                    </div>
+                  </div>
+                  <Badge variant="outline" className="shrink-0 text-[10px] font-normal">
+                    Made to order
+                  </Badge>
+                </div>
+              ))}
+              {madeToOrder.length > 8 && (
+                <div className="text-[11px] text-muted-foreground pl-1">
+                  +{madeToOrder.length - 8} more in low stock report
+                </div>
+              )}
+            </CollapsibleContent>
+          </Collapsible>
         )}
       </CardContent>
       <LowStockReportDialog open={open} onOpenChange={setOpen} />
