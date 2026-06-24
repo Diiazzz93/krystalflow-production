@@ -296,7 +296,7 @@ function UnleashedSyncPage() {
           unit: p.UnitOfMeasure?.Name || "units",
           location: live?.Warehouse?.WarehouseCode ?? "",
           source: "Unleashed",
-          unleashedGroup: p.ProductGroup?.GroupName,
+          unleashedGroup: p.ProductSubGroup?.GroupName ?? p.ProductGroup?.GroupName,
         });
         if (result) added++;
       }
