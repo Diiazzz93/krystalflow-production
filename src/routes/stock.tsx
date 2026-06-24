@@ -378,8 +378,8 @@ function StockPage() {
                       <TableRow
                         key={i.id}
                         className={cn(
-                          i.status === "low-stock" && "bg-amber-500/5",
-                          i.status === "out-of-stock" && "bg-red-500/5",
+                          !i.madeToOrder && i.status === "low-stock" && "bg-amber-500/5",
+                          !i.madeToOrder && i.status === "out-of-stock" && "bg-red-500/5",
                         )}
                       >
                         <TableCell className="font-medium">{i.name}</TableCell>
@@ -394,8 +394,8 @@ function StockPage() {
                         <TableCell
                           className={cn(
                             "text-right tabular-nums font-medium",
-                            i.status === "low-stock" && "text-amber-600 dark:text-amber-400",
-                            i.status === "out-of-stock" && "text-red-600 dark:text-red-400",
+                            !i.madeToOrder && i.status === "low-stock" && "text-amber-600 dark:text-amber-400",
+                            !i.madeToOrder && i.status === "out-of-stock" && "text-red-600 dark:text-red-400",
                           )}
                         >
                           {i.availableStock.toLocaleString()}
@@ -403,7 +403,9 @@ function StockPage() {
                         <TableCell className="text-right tabular-nums text-muted-foreground">
                           {i.allocatedStock.toLocaleString()}
                         </TableCell>
-                        <TableCell>{statusBadge(i.status)}</TableCell>
+                        <TableCell>
+                          {i.madeToOrder ? madeToOrderBadge() : statusBadge(i.status)}
+                        </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           {i.location}
                         </TableCell>
