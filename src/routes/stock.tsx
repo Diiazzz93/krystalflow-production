@@ -207,8 +207,9 @@ function StockPage() {
         const products = await client.fetchProducts(selectedGroups);
         const selectedKeys = new Set(products.map((product) => product.ProductCode.trim().toLowerCase()));
         for (const p of products) {
-          const g = p.ProductGroup?.GroupName?.trim();
+          const g = (p.ProductSubGroup?.GroupName ?? p.ProductGroup?.GroupName)?.trim();
           if (g) groupByCode.set(p.ProductCode.trim().toLowerCase(), g);
+
         }
         const matchingImported = imported.filter((item) => selectedKeys.has(item.sku.trim().toLowerCase()));
         // If the saved Product Group selection does not include these imported

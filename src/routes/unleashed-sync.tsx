@@ -269,7 +269,11 @@ function UnleashedSyncPage() {
               allocatedStock: Number(live.AllocatedQty ?? 0),
               reorderLevel: Number(live.MinStockAlertLevel ?? existingItem.reorderLevel ?? 0),
               location: live.Warehouse?.WarehouseCode ?? existingItem.location,
-              unleashedGroup: p.ProductGroup?.GroupName ?? existingItem.unleashedGroup,
+              unleashedGroup:
+                p.ProductSubGroup?.GroupName ??
+                p.ProductGroup?.GroupName ??
+                existingItem.unleashedGroup,
+
             });
             updated++;
           } else {
@@ -292,7 +296,7 @@ function UnleashedSyncPage() {
           unit: p.UnitOfMeasure?.Name || "units",
           location: live?.Warehouse?.WarehouseCode ?? "",
           source: "Unleashed",
-          unleashedGroup: p.ProductGroup?.GroupName,
+          unleashedGroup: p.ProductSubGroup?.GroupName ?? p.ProductGroup?.GroupName,
         });
         if (result) added++;
       }

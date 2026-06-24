@@ -159,13 +159,22 @@ export const unleashedFetchProducts = createServerFn({ method: "GET" })
         ["productGroup", group],
       ];
       const items = await signedFetchAllPages<UnleashedProduct>("/Products", entries);
-      const matchingItems = items.filter((p) => p.ProductGroup?.GroupName?.trim() === group);
+      const matchingItems = items.filter(
+        (p) =>
+          p.ProductGroup?.GroupName?.trim() === group ||
+          p.ProductSubGroup?.GroupName?.trim() === group,
+      );
+
       for (const p of matchingItems) {
         if (!byCode.has(p.ProductCode)) byCode.set(p.ProductCode, p);
       }
     }
     return Array.from(byCode.values());
   });
+
+
+
+
 
 export const unleashedFetchStockOnHand = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
