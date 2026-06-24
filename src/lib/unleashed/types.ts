@@ -20,6 +20,9 @@ export interface UnleashedProduct {
   ProductCode: string;
   ProductDescription: string;
   ProductGroup?: { GroupName: string } | null;
+  /** Unleashed leaf sub-group (a Product Group with a ParentGroupGuid). */
+  ProductSubGroup?: { GroupName: string } | null;
+
   UnitOfMeasure?: { Name: string } | null;
   /** Custom — used by our app to route a product into the right requirement bucket. */
   LovableCategory: UnleashedCategory;
