@@ -146,7 +146,12 @@ function StockPage() {
 
   const filtered = useMemo(() => {
     return enriched.filter((i) => {
-      if (status !== "all" && i.status !== status) return false;
+      if (status === "made-to-order") {
+        if (!i.madeToOrder) return false;
+      } else if (status !== "all") {
+        if (i.madeToOrder) return false;
+        if (i.status !== status) return false;
+      }
       if (category !== "all" && i.categoryResolved !== category) return false;
       if (q) {
         const t = q.toLowerCase();
@@ -162,9 +167,11 @@ function StockPage() {
   }, [enriched, q, status, category]);
 
   const totals = useMemo(() => {
+    // Exclude made-to-order finished goods from the "low / out" count — those
+    // are produced on demand and shouldn't trigger reorder alerts.
     return {
       products: enriched.length,
-      low: enriched.filter((i) => i.status !== "in-stock").length,
+      low: enriched.filter((i) => !i.madeToOrder && i.status !== "in-stock").length,
       available: enriched.reduce((s, i) => s + i.availableStock, 0),
       allocated: enriched.reduce((s, i) => s + i.allocatedStock, 0),
     };
