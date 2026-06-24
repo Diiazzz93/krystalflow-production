@@ -25,7 +25,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { Bell, ChevronDown, Factory, Mail, Pencil, Save, Search, X } from "lucide-react";
+import { Bell, ChevronDown, Mail, Pencil, Save, Search, X } from "lucide-react";
 import { useStockStore } from "@/lib/stock-store";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
