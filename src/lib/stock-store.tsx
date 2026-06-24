@@ -32,6 +32,7 @@ export interface NewStockInput {
   notes?: string;
   dateReceived?: string;
   reorderLevel?: number;
+  unleashedGroup?: string;
 }
 
 export type AdjustmentType = "received" | "damaged" | "correction" | "stocktake";
@@ -96,6 +97,7 @@ function rowToItem(r: Record<string, unknown>): StockItem {
       r.boxes_per_pallet === null || r.boxes_per_pallet === undefined
         ? undefined
         : Number(r.boxes_per_pallet),
+    unleashedGroup: (r.unleashed_group as string) ?? undefined,
     lastUpdated: String(r.last_updated ?? new Date().toISOString()),
   };
 }
@@ -114,6 +116,7 @@ function inputToRow(input: NewStockInput) {
     source: input.source?.trim() || null,
     notes: input.notes?.trim() || null,
     date_received: input.dateReceived || null,
+    unleashed_group: input.unleashedGroup?.trim() || null,
   };
 }
 
@@ -137,6 +140,8 @@ function patchToRow(patch: Partial<StockItem>) {
   if (patch.dateReceived !== undefined) row.date_received = patch.dateReceived;
   if (patch.boxesPerPallet !== undefined)
     row.boxes_per_pallet = patch.boxesPerPallet === null ? null : patch.boxesPerPallet;
+  if (patch.unleashedGroup !== undefined)
+    row.unleashed_group = patch.unleashedGroup?.trim() || null;
   row.last_updated = new Date().toISOString();
   return row;
 }

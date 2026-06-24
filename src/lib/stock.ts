@@ -59,6 +59,10 @@ export interface StockItem {
   /** When set on a finished-product / liquid item, jobs for this product
    *  auto-calculate pallets needed = ceil(cartonsOrdered / boxesPerPallet). */
   boxesPerPallet?: number;
+  /** Unleashed Product Group name (e.g. "Recochem Bottles", "Finished Goods").
+   *  Used to flag made-to-order finished goods so their always-zero stock
+   *  doesn't trigger out-of-stock alerts. */
+  unleashedGroup?: string;
 }
 
 export function getStockStatus(item: StockItem): StockStatus {

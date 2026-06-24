@@ -31,6 +31,7 @@ import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 import { getStockStatus, STOCK_CATEGORIES, type StockItem, type StockStatus } from "@/lib/stock";
 import { WeeklyEmailPreviewDialog } from "@/components/stock/WeeklyEmailPreviewDialog";
+import { FinishedGoodsGroupsPicker } from "@/components/settings/FinishedGoodsGroupsPicker";
 import { cn } from "@/lib/utils";
 
 interface Draft {
@@ -187,6 +188,8 @@ export function StockAlertsPanel() {
 
         <CollapsibleContent>
           <CardContent className="space-y-3">
+            <FinishedGoodsGroupsPicker canEdit={canEdit} />
+
             <div className="flex flex-wrap items-center gap-2">
               <div className="relative flex-1 min-w-[200px] max-w-sm">
                 <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />

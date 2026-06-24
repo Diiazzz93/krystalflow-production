@@ -41,6 +41,7 @@ import { cn } from "@/lib/utils";
 import { createUnleashedClient } from "@/lib/unleashed/client";
 import { getSelectedProductGroups } from "@/lib/unleashed/mapping";
 import { syncStockOnHand } from "@/lib/unleashed/stock-mirror";
+import { useFinishedGoodsGroups } from "@/lib/finished-goods";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/stock")({
@@ -79,6 +80,17 @@ function statusBadge(status: StockStatus) {
   );
 }
 
+function madeToOrderBadge() {
+  return (
+    <Badge
+      variant="outline"
+      className="font-medium bg-muted/40 text-muted-foreground border-border"
+    >
+      Made to order
+    </Badge>
+  );
+}
+
 function fmtDateTime(iso: string) {
   const d = new Date(iso);
   return d.toLocaleString(undefined, {
@@ -111,6 +123,11 @@ function categoryBadge(cat: StockCategory) {
 
 function StockPage() {
   const { items, updateItem } = useStockStore();
+  const finishedGroups = useFinishedGoodsGroups();
+  const finishedGroupSet = useMemo(
+    () => new Set(finishedGroups.map((g) => g.trim()).filter(Boolean)),
+    [finishedGroups],
+  );
   const { hasRole } = useAuth();
   const canEdit = hasRole("admin", "manager");
   const autoSyncAttemptedRef = useRef(false);
@@ -121,17 +138,31 @@ function StockPage() {
   const [historyItem, setHistoryItem] = useState<StockItem | null>(null);
   const [syncingLive, setSyncingLive] = useState(false);
   const [q, setQ] = useState("");
-  const [status, setStatus] = useState<"all" | StockStatus>("all");
+  const [status, setStatus] = useState<"all" | StockStatus | "made-to-order">("all");
   const [category, setCategory] = useState<"all" | StockCategory>("all");
 
   const enriched = useMemo(
-    () => items.map((i) => ({ ...i, status: getStockStatus(i), categoryResolved: resolveCategory(i) })),
-    [items],
+    () =>
+      items.map((i) => {
+        const madeToOrder = !!i.unleashedGroup && finishedGroupSet.has(i.unleashedGroup.trim());
+        return {
+          ...i,
+          status: getStockStatus(i),
+          categoryResolved: resolveCategory(i),
+          madeToOrder,
+        };
+      }),
+    [items, finishedGroupSet],
   );
 
   const filtered = useMemo(() => {
     return enriched.filter((i) => {
-      if (status !== "all" && i.status !== status) return false;
+      if (status === "made-to-order") {
+        if (!i.madeToOrder) return false;
+      } else if (status !== "all") {
+        if (i.madeToOrder) return false;
+        if (i.status !== status) return false;
+      }
       if (category !== "all" && i.categoryResolved !== category) return false;
       if (q) {
         const t = q.toLowerCase();
@@ -147,9 +178,11 @@ function StockPage() {
   }, [enriched, q, status, category]);
 
   const totals = useMemo(() => {
+    // Exclude made-to-order finished goods from the "low / out" count — those
+    // are produced on demand and shouldn't trigger reorder alerts.
     return {
       products: enriched.length,
-      low: enriched.filter((i) => i.status !== "in-stock").length,
+      low: enriched.filter((i) => !i.madeToOrder && i.status !== "in-stock").length,
       available: enriched.reduce((s, i) => s + i.availableStock, 0),
       allocated: enriched.reduce((s, i) => s + i.allocatedStock, 0),
     };
@@ -168,10 +201,15 @@ function StockPage() {
       const importedCodes = new Set(imported.map((item) => item.sku));
       let allowedCodes = importedCodes;
       let allowedKeys = new Set(imported.map((item) => item.sku.trim().toLowerCase()));
+      const groupByCode = new Map<string, string>();
       if (selectedGroups.length > 0) {
         const client = createUnleashedClient();
         const products = await client.fetchProducts(selectedGroups);
         const selectedKeys = new Set(products.map((product) => product.ProductCode.trim().toLowerCase()));
+        for (const p of products) {
+          const g = p.ProductGroup?.GroupName?.trim();
+          if (g) groupByCode.set(p.ProductCode.trim().toLowerCase(), g);
+        }
         const matchingImported = imported.filter((item) => selectedKeys.has(item.sku.trim().toLowerCase()));
         // If the saved Product Group selection does not include these imported
         // rows (common with Unleashed sub-groups), still sync the imported
@@ -188,15 +226,18 @@ function StockPage() {
       let updated = 0;
 
       for (const item of imported) {
-        if (!allowedKeys.has(item.sku.trim().toLowerCase())) continue;
-        const live = liveByCode.get(item.sku.trim().toLowerCase());
+        const key = item.sku.trim().toLowerCase();
+        if (!allowedKeys.has(key)) continue;
+        const live = liveByCode.get(key);
         if (!live) continue;
+        const group = groupByCode.get(key);
         await updateItem(item.id, {
           quantityOnHand: Number(live.QtyOnHand ?? 0),
           availableStock: Number(live.AvailableQty ?? live.QtyOnHand ?? 0),
           allocatedStock: Number(live.AllocatedQty ?? 0),
           reorderLevel: Number(live.MinStockAlertLevel ?? item.reorderLevel ?? 0),
           location: live.Warehouse?.WarehouseCode ?? item.location,
+          ...(group ? { unleashedGroup: group } : {}),
         });
         updated++;
       }
@@ -313,6 +354,7 @@ function StockPage() {
                     <SelectItem value="low-stock">Low stock</SelectItem>
                     <SelectItem value="critical-stock">Critical</SelectItem>
                     <SelectItem value="out-of-stock">Out of stock</SelectItem>
+                    <SelectItem value="made-to-order">Made to order</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -347,8 +389,8 @@ function StockPage() {
                       <TableRow
                         key={i.id}
                         className={cn(
-                          i.status === "low-stock" && "bg-amber-500/5",
-                          i.status === "out-of-stock" && "bg-red-500/5",
+                          !i.madeToOrder && i.status === "low-stock" && "bg-amber-500/5",
+                          !i.madeToOrder && i.status === "out-of-stock" && "bg-red-500/5",
                         )}
                       >
                         <TableCell className="font-medium">{i.name}</TableCell>
@@ -363,8 +405,8 @@ function StockPage() {
                         <TableCell
                           className={cn(
                             "text-right tabular-nums font-medium",
-                            i.status === "low-stock" && "text-amber-600 dark:text-amber-400",
-                            i.status === "out-of-stock" && "text-red-600 dark:text-red-400",
+                            !i.madeToOrder && i.status === "low-stock" && "text-amber-600 dark:text-amber-400",
+                            !i.madeToOrder && i.status === "out-of-stock" && "text-red-600 dark:text-red-400",
                           )}
                         >
                           {i.availableStock.toLocaleString()}
@@ -372,7 +414,9 @@ function StockPage() {
                         <TableCell className="text-right tabular-nums text-muted-foreground">
                           {i.allocatedStock.toLocaleString()}
                         </TableCell>
-                        <TableCell>{statusBadge(i.status)}</TableCell>
+                        <TableCell>
+                          {i.madeToOrder ? madeToOrderBadge() : statusBadge(i.status)}
+                        </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           {i.location}
                         </TableCell>
@@ -430,8 +474,8 @@ function StockPage() {
                   key={i.id}
                   className={cn(
                     "rounded-md border border-border bg-card p-3 space-y-2",
-                    i.status === "low-stock" && "bg-amber-500/5",
-                    i.status === "out-of-stock" && "bg-red-500/5",
+                    !i.madeToOrder && i.status === "low-stock" && "bg-amber-500/5",
+                    !i.madeToOrder && i.status === "out-of-stock" && "bg-red-500/5",
                   )}
                 >
                   <div className="flex items-start justify-between gap-2">
@@ -440,7 +484,7 @@ function StockPage() {
                       <div className="font-mono text-xs text-muted-foreground">{i.sku}</div>
                       <div className="mt-1">{categoryBadge(i.categoryResolved)}</div>
                     </div>
-                    {statusBadge(i.status)}
+                    {i.madeToOrder ? madeToOrderBadge() : statusBadge(i.status)}
                   </div>
                   <div className="grid grid-cols-3 gap-2 text-xs">
                     <div>
@@ -455,8 +499,8 @@ function StockPage() {
                       <div
                         className={cn(
                           "tabular-nums font-medium",
-                          i.status === "low-stock" && "text-amber-600 dark:text-amber-400",
-                          i.status === "out-of-stock" && "text-red-600 dark:text-red-400",
+                          !i.madeToOrder && i.status === "low-stock" && "text-amber-600 dark:text-amber-400",
+                          !i.madeToOrder && i.status === "out-of-stock" && "text-red-600 dark:text-red-400",
                         )}
                       >
                         {i.availableStock.toLocaleString()}
