@@ -41,6 +41,7 @@ import { cn } from "@/lib/utils";
 import { createUnleashedClient } from "@/lib/unleashed/client";
 import { getSelectedProductGroups } from "@/lib/unleashed/mapping";
 import { syncStockOnHand } from "@/lib/unleashed/stock-mirror";
+import { useFinishedGoodsGroups } from "@/lib/finished-goods";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/stock")({
