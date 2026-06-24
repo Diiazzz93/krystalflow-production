@@ -474,8 +474,8 @@ function StockPage() {
                   key={i.id}
                   className={cn(
                     "rounded-md border border-border bg-card p-3 space-y-2",
-                    i.status === "low-stock" && "bg-amber-500/5",
-                    i.status === "out-of-stock" && "bg-red-500/5",
+                    !i.madeToOrder && i.status === "low-stock" && "bg-amber-500/5",
+                    !i.madeToOrder && i.status === "out-of-stock" && "bg-red-500/5",
                   )}
                 >
                   <div className="flex items-start justify-between gap-2">
@@ -484,7 +484,7 @@ function StockPage() {
                       <div className="font-mono text-xs text-muted-foreground">{i.sku}</div>
                       <div className="mt-1">{categoryBadge(i.categoryResolved)}</div>
                     </div>
-                    {statusBadge(i.status)}
+                    {i.madeToOrder ? madeToOrderBadge() : statusBadge(i.status)}
                   </div>
                   <div className="grid grid-cols-3 gap-2 text-xs">
                     <div>
@@ -499,8 +499,8 @@ function StockPage() {
                       <div
                         className={cn(
                           "tabular-nums font-medium",
-                          i.status === "low-stock" && "text-amber-600 dark:text-amber-400",
-                          i.status === "out-of-stock" && "text-red-600 dark:text-red-400",
+                          !i.madeToOrder && i.status === "low-stock" && "text-amber-600 dark:text-amber-400",
+                          !i.madeToOrder && i.status === "out-of-stock" && "text-red-600 dark:text-red-400",
                         )}
                       >
                         {i.availableStock.toLocaleString()}
