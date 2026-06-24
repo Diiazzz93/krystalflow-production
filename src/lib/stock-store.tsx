@@ -140,6 +140,8 @@ function patchToRow(patch: Partial<StockItem>) {
   if (patch.dateReceived !== undefined) row.date_received = patch.dateReceived;
   if (patch.boxesPerPallet !== undefined)
     row.boxes_per_pallet = patch.boxesPerPallet === null ? null : patch.boxesPerPallet;
+  if (patch.unleashedGroup !== undefined)
+    row.unleashed_group = patch.unleashedGroup?.trim() || null;
   row.last_updated = new Date().toISOString();
   return row;
 }
