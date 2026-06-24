@@ -116,6 +116,7 @@ function inputToRow(input: NewStockInput) {
     source: input.source?.trim() || null,
     notes: input.notes?.trim() || null,
     date_received: input.dateReceived || null,
+    unleashed_group: input.unleashedGroup?.trim() || null,
   };
 }
 
