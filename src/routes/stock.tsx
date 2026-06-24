@@ -343,6 +343,7 @@ function StockPage() {
                     <SelectItem value="low-stock">Low stock</SelectItem>
                     <SelectItem value="critical-stock">Critical</SelectItem>
                     <SelectItem value="out-of-stock">Out of stock</SelectItem>
+                    <SelectItem value="made-to-order">Made to order</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
