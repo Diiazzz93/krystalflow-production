@@ -239,10 +239,10 @@ function JobsPage() {
                     {upcoming > 0 && <Badge variant="outline">{upcoming} upcoming</Badge>}
                   </header>
                   <div className="hidden md:block overflow-x-auto">
-                    <JobsTable jobs={g.jobs} onEdit={openEdit} onQC={setQcId} onViewStock={setStockJobId} hideCustomer />
+                    <JobsTable jobs={g.jobs} onEdit={openEdit} onQC={setQcId} onViewStock={setStockJobId} onComplete={canComplete ? handleComplete : undefined} hideCustomer />
                   </div>
                   <div className="md:hidden p-3">
-                    <JobsCardList jobs={g.jobs} onEdit={openEdit} onQC={setQcId} onViewStock={setStockJobId} hideCustomer />
+                    <JobsCardList jobs={g.jobs} onEdit={openEdit} onQC={setQcId} onViewStock={setStockJobId} onComplete={canComplete ? handleComplete : undefined} hideCustomer />
                   </div>
                 </section>
               );
