@@ -84,6 +84,7 @@ const PERMISSIONS: Record<Role, Permission[]> = {
     "page:qc", "page:stock", "page:shipping", "page:line-setup", "page:customer-specs",
     "page:manufacturing",
   ],
+  pending: [],
 };
 
 export const ROLE_LABELS: Record<Role, string> = {
@@ -91,6 +92,7 @@ export const ROLE_LABELS: Record<Role, string> = {
   manager: "Manager",
   operator: "Operator",
   viewer: "Viewer",
+  pending: "Pending approval",
 };
 
 interface AuthContextValue {
