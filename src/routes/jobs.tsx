@@ -191,10 +191,10 @@ function JobsPage() {
         {view === "list" ? (
           <>
             <div className="hidden md:block rounded-lg border border-border bg-card overflow-x-auto">
-              <JobsTable jobs={filtered} onEdit={openEdit} onQC={setQcId} onViewStock={setStockJobId} onComplete={canComplete ? handleComplete : undefined} />
+              <JobsTable jobs={filtered} onEdit={openEdit} onQC={setQcId} onViewStock={setStockJobId} />
             </div>
             <div className="md:hidden">
-              <JobsCardList jobs={filtered} onEdit={openEdit} onQC={setQcId} onViewStock={setStockJobId} onComplete={canComplete ? handleComplete : undefined} />
+              <JobsCardList jobs={filtered} onEdit={openEdit} onQC={setQcId} onViewStock={setStockJobId} />
             </div>
           </>
         ) : (
@@ -227,10 +227,10 @@ function JobsPage() {
                     {upcoming > 0 && <Badge variant="outline">{upcoming} upcoming</Badge>}
                   </header>
                   <div className="hidden md:block overflow-x-auto">
-                    <JobsTable jobs={g.jobs} onEdit={openEdit} onQC={setQcId} onViewStock={setStockJobId} onComplete={canComplete ? handleComplete : undefined} hideCustomer />
+                    <JobsTable jobs={g.jobs} onEdit={openEdit} onQC={setQcId} onViewStock={setStockJobId} hideCustomer />
                   </div>
                   <div className="md:hidden p-3">
-                    <JobsCardList jobs={g.jobs} onEdit={openEdit} onQC={setQcId} onViewStock={setStockJobId} onComplete={canComplete ? handleComplete : undefined} hideCustomer />
+                    <JobsCardList jobs={g.jobs} onEdit={openEdit} onQC={setQcId} onViewStock={setStockJobId} hideCustomer />
                   </div>
                 </section>
               );
