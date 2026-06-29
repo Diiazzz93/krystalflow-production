@@ -252,6 +252,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
     });
     setBottleCount(e.bottleCount);
     setPalletQuantity(e.palletQuantity ?? "");
+    setPalletType(e.palletType ?? "CHEP");
     setOperatorName(e.operatorName ?? "");
     setNotes(e.notes ?? "");
     setMNumber(e.mNumber ?? "");
