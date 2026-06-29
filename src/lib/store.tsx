@@ -543,6 +543,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       loading,
       addJob,
       updateJob,
+      completeJob,
       deleteJob,
       addLine,
       updateLine,
@@ -552,7 +553,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       deleteQC,
       reset,
     }),
-    [jobs, local, qc, loading, addJob, updateJob, deleteJob, addLine, updateLine, deleteLine, addQC, updateQC, deleteQC, reset],
+    [jobs, local, qc, loading, addJob, updateJob, completeJob, deleteJob, addLine, updateLine, deleteLine, addQC, updateQC, deleteQC, reset],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
