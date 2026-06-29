@@ -356,19 +356,7 @@ function JobsTable({
                 >
                   <ShieldCheck className="size-4 mr-1" /> QC
                 </Button>
-                {onComplete && j.status !== "Complete" && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="text-green-600 hover:text-green-700"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onComplete(j);
-                    }}
-                  >
-                    <CheckCircle2 className="size-4 mr-1" /> Complete
-                  </Button>
-                )}
+
               </div>
             </TableCell>
 
