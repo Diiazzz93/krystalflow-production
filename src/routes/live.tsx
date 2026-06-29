@@ -26,7 +26,7 @@ export const Route = createFileRoute("/live")({
 function LivePage() {
   const { jobs, lines } = useStore();
   const [editId, setEditId] = useState<string | null>(null);
-  const [qcId, setQcId] = useState<string | null>(null);
+  const [qcId, setQcId] = usePersistedQcId();
 
   const issuesCount = jobs.filter(
     (j) => j.status === "Delayed" || j.status === "Requires Review",
