@@ -68,6 +68,9 @@ function JobsPage() {
 
   const filtered = useMemo(() => {
     return jobs
+      // Completed jobs are hidden from the active job list (they stay in
+      // analytics / history but aren't actionable here).
+      .filter((j) => status === "Complete" ? true : j.status !== "Complete")
       .filter((j) => status === "all" || j.status === status)
       .filter((j) => customer === "all" || j.customer === customer)
       .filter((j) =>
