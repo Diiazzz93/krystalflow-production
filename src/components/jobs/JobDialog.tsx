@@ -603,6 +603,24 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             {canEdit ? "Cancel" : "Close"}
           </Button>
+          {isEdit && canComplete && form.status !== "Complete" && (
+            <Button
+              variant="secondary"
+              onClick={() => {
+                const done = form.palletsCompleted ?? 0;
+                const planned = form.originalPallets ?? form.pallets ?? 0;
+                if (planned > 0 && done >= planned) {
+                  void completeJob(form.id);
+                  toast.success("Job marked complete");
+                  onOpenChange(false);
+                } else {
+                  setConfirmComplete(true);
+                }
+              }}
+            >
+              Mark complete
+            </Button>
+          )}
           {canEdit && (
             <Button onClick={save}>{isEdit ? "Save changes" : "Create job"}</Button>
           )}
