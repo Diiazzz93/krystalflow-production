@@ -439,8 +439,10 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
     });
     setPalletNumber((n) => n + 1);
     setFinishTime(nowHHMM());
+    clearDraft();
     resetForNew();
   }
+
 
 
 
