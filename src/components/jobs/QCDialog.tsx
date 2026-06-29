@@ -389,6 +389,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
     if (isEditing) {
       await updateQC(entry.id, entry);
       setLastSubmittedId(entry.id);
+      clearDraft();
       toast.success(`Pallet #${entry.palletNumber} updated · ${entry.result}`, {
         description: `Code ${palletCode} — record updated.`,
       });
@@ -397,6 +398,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
       });
       return;
     }
+
 
     await addQC(entry);
     setLastSubmittedId(entry.id);
