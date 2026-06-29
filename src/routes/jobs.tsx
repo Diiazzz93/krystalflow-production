@@ -53,7 +53,7 @@ function JobsPage() {
   const [view, setView] = useState<"list" | "company">("list");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
-  const [qcId, setQcId] = useState<string | null>(null);
+  const [qcId, setQcId] = usePersistedQcId();
   const [stockJobId, setStockJobId] = useState<string | null>(null);
 
 
