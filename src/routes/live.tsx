@@ -25,9 +25,13 @@ export const Route = createFileRoute("/live")({
 });
 
 function LivePage() {
-  const { jobs, lines } = useStore();
+  const { jobs, lines, completeJob } = useStore();
+  const { can } = useAuth();
+  const canComplete = can("jobs:update-progress") || can("jobs:edit");
   const [editId, setEditId] = useState<string | null>(null);
   const [qcId, setQcId] = usePersistedQcId();
+  const [completeId, setCompleteId] = useState<string | null>(null);
+  const completing = completeId ? jobs.find((j) => j.id === completeId) ?? null : null;
 
   const issuesCount = jobs.filter(
     (j) => j.status === "Delayed" || j.status === "Requires Review",
