@@ -44,10 +44,9 @@ export const Route = createFileRoute("/jobs")({
 });
 
 function JobsPage() {
-  const { jobs, completeJob } = useStore();
+  const { jobs } = useStore();
   const { can } = useAuth();
   const canCreate = can("jobs:create");
-  const canComplete = can("jobs:edit");
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<string>("all");
   const [customer, setCustomer] = useState<string>("all");
@@ -57,17 +56,6 @@ function JobsPage() {
   const [qcId, setQcId] = usePersistedQcId();
   const [stockJobId, setStockJobId] = useState<string | null>(null);
 
-  const handleComplete = (job: Job) => {
-    const done = job.completedPallets ?? job.palletsCompleted ?? 0;
-    const planned = job.originalPallets ?? job.pallets ?? 0;
-    const short = planned > 0 && done < planned;
-    const msg = short
-      ? `Finish job short? Only ${done} of ${planned} pallets are QC'd. The job will be marked Complete and removed from active runs.`
-      : "Mark this job as Complete?";
-    if (window.confirm(msg)) {
-      void completeJob(job.id);
-    }
-  };
 
 
   const customers = useMemo(() => {
