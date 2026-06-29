@@ -18,8 +18,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { ROLE_LABELS, useAuth, type Role } from "@/lib/auth";
 import { deleteUser, inviteUser } from "@/lib/users.functions";
 
-const ROLE_PRIORITY: Role[] = ["admin", "manager", "operator", "viewer"];
-const ALL_ROLES: Role[] = ["admin", "manager", "operator", "viewer"];
+const ROLE_PRIORITY: Role[] = ["admin", "manager", "operator", "viewer", "pending"];
+const ALL_ROLES: Role[] = ["admin", "manager", "operator", "viewer", "pending"];
 
 interface UserRow {
   id: string;
