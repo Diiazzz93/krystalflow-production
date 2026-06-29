@@ -180,6 +180,24 @@ function LivePage() {
                           >
                             Manage
                           </Button>
+                          {canComplete && (
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => {
+                                const done = running.palletsCompleted ?? 0;
+                                const planned = running.originalPallets ?? running.pallets ?? 0;
+                                if (planned > 0 && done >= planned) {
+                                  void completeJob(running.id);
+                                  toast.success("Job marked complete");
+                                } else {
+                                  setCompleteId(running.id);
+                                }
+                              }}
+                            >
+                              Complete
+                            </Button>
+                          )}
                         </div>
                       </div>
                     ) : (
