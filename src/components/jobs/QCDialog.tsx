@@ -386,6 +386,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
       packagingOperator: packagingOperator || undefined,
       palletCode,
       palletQuantity: effectivePalletQuantity || undefined,
+      palletType,
       qcApproved: result === "Pass" && !!supervisorSignatureDataUrl,
     };
 
