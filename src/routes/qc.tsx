@@ -28,7 +28,7 @@ function QCPage() {
   const [filter, setFilter] = useState<"all" | "Pass" | "Fail">("all");
   const [customerFilter, setCustomerFilter] = useState<string>("all");
   const [productFilter, setProductFilter] = useState<string>("all");
-  const [jobId, setJobId] = useState<string | null>(null);
+  const [jobId, setJobId] = usePersistedQcId();
   const [prefillEntryId, setPrefillEntryId] = useState<string | null>(null);
   const [lookup, setLookup] = useState("");
 
