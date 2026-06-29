@@ -415,11 +415,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const perPallet = entry.palletQuantity ?? (originalPallets > 0 ? original / originalPallets : 0);
       const completedQuantity = Math.min(original, (j.completedQuantity ?? 0) + Math.max(0, perPallet));
       const completedPallets = Math.min(originalPallets || Number.POSITIVE_INFINITY, (j.completedPallets ?? j.palletsCompleted ?? 0) + 1);
-      const jobBottleTotal = j.quantity ?? 0;
-      const bottlesCompleted = jobBottleTotal > 0 ? Math.min(jobBottleTotal, totalBottles) : totalBottles;
-      const palletsDone = originalPallets > 0 && completedPallets >= originalPallets;
-      const bottlesDone = jobBottleTotal > 0 && bottlesCompleted >= jobBottleTotal;
-      const isComplete = palletsDone || bottlesDone;
       // Sum actual bottles filled across all passing QC entries for this job
       // (including the one we just saved). Use bottleCount when present so the
       // Live Board's "bottles X / Y" matches what the operator logged, instead
@@ -430,6 +425,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const totalBottles = passEntries.reduce((sum, q) => sum + (Number(q.bottleCount) || 0), 0);
       const jobBottleTotal = j.quantity ?? 0;
       const bottlesCompleted = jobBottleTotal > 0 ? Math.min(jobBottleTotal, totalBottles) : totalBottles;
+      const palletsDone = originalPallets > 0 && completedPallets >= originalPallets;
+      const bottlesDone = jobBottleTotal > 0 && bottlesCompleted >= jobBottleTotal;
+      const isComplete = palletsDone || bottlesDone;
       void updateJob(j.id, {
         completedQuantity,
         completedPallets,
