@@ -248,6 +248,37 @@ function LivePage() {
       {qcId && (
         <QCDialog jobId={qcId} open={!!qcId} onOpenChange={(v) => !v && setQcId(null)} />
       )}
+      <AlertDialog open={!!completing} onOpenChange={(v) => !v && setCompleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Finish job short?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {completing ? (
+                <>
+                  {(completing.palletsCompleted ?? 0)} of {(completing.originalPallets ?? completing.pallets ?? 0)} pallets done
+                  {" "}({(completing.bottlesCompleted ?? 0).toLocaleString()} of {(completing.quantity ?? 0).toLocaleString()} bottles).
+                  This will close the job as <strong>Complete</strong> and remove it from the Live Board.
+                  QC records and counts are kept as-is. Continue?
+                </>
+              ) : null}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (completeId) {
+                  void completeJob(completeId);
+                  toast.success("Job marked complete");
+                }
+                setCompleteId(null);
+              }}
+            >
+              Finish short
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppShell>
   );
 }
