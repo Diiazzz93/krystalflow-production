@@ -131,9 +131,10 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
   const { presets } = useLineSetups();
   const { getSpecForJob } = useCustomerSpecs();
   const { items: stockItems } = useStockStore();
-  const { updateJob, lines } = useStore();
+  const { updateJob, lines, completeJob } = useStore();
   const { can } = useAuth();
   const canEdit = can("jobs:edit") || can("jobs:create");
+  const canComplete = can("jobs:edit");
   const refreshAssembly = useServerFn(refreshJobAssemblyComponents);
   const refreshBom = useServerFn(refreshJobBomComponents);
   const [assemblyPatch, setAssemblyPatch] = useState<(Partial<Job> & { jobId: string }) | null>(null);
