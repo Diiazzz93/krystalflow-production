@@ -270,12 +270,14 @@ function JobsTable({
   onEdit,
   onQC,
   onViewStock,
+  onComplete,
   hideCustomer = false,
 }: {
   jobs: Job[];
   onEdit: (id: string) => void;
   onQC: (id: string) => void;
   onViewStock: (id: string) => void;
+  onComplete?: (job: Job) => void;
   hideCustomer?: boolean;
 }) {
   return (
