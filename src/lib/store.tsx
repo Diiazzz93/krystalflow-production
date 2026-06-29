@@ -409,13 +409,24 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const completedQuantity = Math.min(original, (j.completedQuantity ?? 0) + Math.max(0, perPallet));
       const completedPallets = Math.min(originalPallets || Number.POSITIVE_INFINITY, (j.completedPallets ?? j.palletsCompleted ?? 0) + 1);
       const isComplete = originalPallets > 0 && completedPallets >= originalPallets;
+      // Sum actual bottles filled across all passing QC entries for this job
+      // (including the one we just saved). Use bottleCount when present so the
+      // Live Board's "bottles X / Y" matches what the operator logged, instead
+      // of falling back to the cartons-based completedQuantity.
+      const passEntries = [saved, ...qc.filter((q) => q.id !== saved.id)].filter(
+        (q) => q.jobId === j.id && q.result !== "Fail",
+      );
+      const totalBottles = passEntries.reduce((sum, q) => sum + (Number(q.bottleCount) || 0), 0);
+      const jobBottleTotal = j.quantity ?? 0;
+      const bottlesCompleted = jobBottleTotal > 0 ? Math.min(jobBottleTotal, totalBottles) : totalBottles;
       void updateJob(j.id, {
         completedQuantity,
         completedPallets,
         palletsCompleted: completedPallets,
-        bottlesCompleted: Math.max(j.bottlesCompleted, completedQuantity),
+        bottlesCompleted,
         status: isComplete ? "Complete" : j.status === "Scheduled" ? "Filling" : j.status,
       });
+
     },
     [jobs, updateJob, user?.id],
   );
@@ -492,13 +503,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         } else if (completedPallets === 0 && j.status === "Filling") {
           nextStatus = "Scheduled";
         }
+        const totalBottles = passQC.reduce((sum, q) => sum + (Number(q.bottleCount) || 0), 0);
+        const jobBottleTotal = j.quantity ?? 0;
+        const bottlesCompleted = jobBottleTotal > 0 ? Math.min(jobBottleTotal, totalBottles) : totalBottles;
         void updateJob(j.id, {
           completedQuantity,
           completedPallets,
           palletsCompleted: completedPallets,
-          bottlesCompleted: completedQuantity,
+          bottlesCompleted,
           status: nextStatus,
         });
+
       }
     }
 
