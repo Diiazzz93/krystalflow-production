@@ -30,6 +30,7 @@ interface StoreContextValue {
   loading: boolean;
   addJob: (job: Job) => Promise<void>;
   updateJob: (id: string, patch: Partial<Job>) => Promise<void>;
+  completeJob: (id: string) => Promise<void>;
   deleteJob: (id: string) => Promise<void>;
   addLine: (line: Line) => void;
   updateLine: (id: string, patch: Partial<Line>) => void;
