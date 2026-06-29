@@ -307,6 +307,43 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     };
   }, [user, loadJobs, loadQC]);
 
+  // Reconcile any jobs whose pallet/bottle totals already meet the target but
+  // whose status / counters never got flipped to Complete (e.g. QC records
+  // created before progress tracking shipped, or an edited last pallet that
+  // topped up the bottle count). Runs whenever jobs or QC list changes.
+  useEffect(() => {
+    if (loading || !jobs.length) return;
+    for (const j of jobs) {
+      if (j.status === "Complete") continue;
+      const jobQC = qc.filter((q) => q.jobId === j.id);
+      if (jobQC.length === 0) continue;
+      const passQC = jobQC.filter((q) => q.result !== "Fail");
+      const originalPallets = j.originalPallets ?? j.pallets ?? 0;
+      const jobBottleTotal = j.quantity ?? 0;
+      const completedPallets = passQC.length;
+      const totalBottles = passQC.reduce((sum, q) => sum + (Number(q.bottleCount) || 0), 0);
+      const bottlesCompleted = jobBottleTotal > 0 ? Math.min(jobBottleTotal, totalBottles) : totalBottles;
+      const palletsDone = originalPallets > 0 && completedPallets >= originalPallets;
+      const bottlesDone = jobBottleTotal > 0 && bottlesCompleted >= jobBottleTotal;
+      const hasFail = jobQC.some((q) => q.result === "Fail");
+      const shouldComplete = !hasFail && (palletsDone || bottlesDone);
+      const countersStale =
+        (j.palletsCompleted ?? 0) !== completedPallets ||
+        (j.bottlesCompleted ?? 0) !== bottlesCompleted;
+      if (shouldComplete || countersStale) {
+        void updateJob(j.id, {
+          completedPallets,
+          palletsCompleted: completedPallets,
+          bottlesCompleted,
+          status: shouldComplete ? "Complete" : j.status,
+          ...(shouldComplete && !j.actualEnd ? { actualEnd: new Date().toISOString() } : {}),
+        });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobs, qc, loading]);
+
+
   // ---- Jobs (Supabase) ----
   const addJob = useCallback<StoreContextValue["addJob"]>(async (job) => {
     const { id: _ignored, ...rest } = jobToRow(job);
