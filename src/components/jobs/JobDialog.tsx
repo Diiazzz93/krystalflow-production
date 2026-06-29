@@ -661,6 +661,32 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <AlertDialog open={confirmComplete} onOpenChange={setConfirmComplete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Finish job short?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {(form.palletsCompleted ?? 0)} of {(form.originalPallets ?? form.pallets ?? 0)} pallets done
+              {" "}({(form.bottlesCompleted ?? 0).toLocaleString()} of {(form.quantity ?? 0).toLocaleString()} bottles).
+              This will close the job as <strong>Complete</strong> and stop it appearing on the Live Board.
+              QC records and completed counts are kept as-is. Continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                void completeJob(form.id);
+                setConfirmComplete(false);
+                toast.success("Job marked complete");
+                onOpenChange(false);
+              }}
+            >
+              Finish short
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
