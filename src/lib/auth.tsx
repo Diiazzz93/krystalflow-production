@@ -17,7 +17,7 @@ import {
 } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-export type Role = "admin" | "manager" | "operator" | "viewer";
+export type Role = "admin" | "manager" | "operator" | "viewer" | "pending";
 
 export interface AuthUser {
   id: string;
