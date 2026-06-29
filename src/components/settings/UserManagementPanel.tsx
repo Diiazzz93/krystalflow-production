@@ -96,7 +96,7 @@ export function UserManagementPanel() {
 
       const rows: UserRow[] = (profiles ?? []).map((p) => {
         const userRoles = rolesByUser.get(p.id) ?? [];
-        const role = ROLE_PRIORITY.find((r) => userRoles.includes(r)) ?? "viewer";
+        const role = ROLE_PRIORITY.find((r) => userRoles.includes(r)) ?? "pending";
         return { id: p.id, email: p.email, name: p.name || p.email.split("@")[0], role };
       });
       rows.sort((a, b) => a.email.localeCompare(b.email));
