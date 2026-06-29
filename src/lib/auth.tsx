@@ -112,7 +112,7 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 // Highest-privilege role wins if a user has multiple (e.g. admin + manager).
-const ROLE_PRIORITY: Role[] = ["admin", "manager", "operator", "viewer"];
+const ROLE_PRIORITY: Role[] = ["admin", "manager", "operator", "viewer", "pending"];
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
