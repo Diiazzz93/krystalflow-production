@@ -503,13 +503,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         } else if (completedPallets === 0 && j.status === "Filling") {
           nextStatus = "Scheduled";
         }
+        const totalBottles = passQC.reduce((sum, q) => sum + (Number(q.bottleCount) || 0), 0);
+        const jobBottleTotal = j.quantity ?? 0;
+        const bottlesCompleted = jobBottleTotal > 0 ? Math.min(jobBottleTotal, totalBottles) : totalBottles;
         void updateJob(j.id, {
           completedQuantity,
           completedPallets,
           palletsCompleted: completedPallets,
-          bottlesCompleted: completedQuantity,
+          bottlesCompleted,
           status: nextStatus,
         });
+
       }
     }
 
