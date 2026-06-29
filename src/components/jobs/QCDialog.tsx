@@ -651,8 +651,8 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
 
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <FileField label="Finished product file" value={finishedProductFileName}
-                  onChange={setFinishedProductFileName} />
+                <FileField label="Finished pallet photo" value={finishedProductFileName}
+                  onChange={setFinishedProductFileName} accept="image/*" />
                 <FileField label="Final product photo" value={finalProductPhotoName}
                   onChange={setFinalProductPhotoName} accept="image/*" />
               </div>
