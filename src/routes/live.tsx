@@ -17,6 +17,7 @@ import {
 } from "@/lib/utils-domain";
 import { JobDialog } from "@/components/jobs/JobDialog";
 import { QCDialog } from "@/components/jobs/QCDialog";
+import { usePersistedQcId } from "@/lib/qc-open-state";
 import { AlertTriangle, Clock, ShieldCheck, Timer, User } from "lucide-react";
 
 export const Route = createFileRoute("/live")({
@@ -26,7 +27,7 @@ export const Route = createFileRoute("/live")({
 function LivePage() {
   const { jobs, lines } = useStore();
   const [editId, setEditId] = useState<string | null>(null);
-  const [qcId, setQcId] = useState<string | null>(null);
+  const [qcId, setQcId] = usePersistedQcId();
 
   const issuesCount = jobs.filter(
     (j) => j.status === "Delayed" || j.status === "Requires Review",

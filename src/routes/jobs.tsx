@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { JobDialog } from "@/components/jobs/JobDialog";
 import { QCDialog } from "@/components/jobs/QCDialog";
+import { usePersistedQcId } from "@/lib/qc-open-state";
 import { JobStockDialog } from "@/components/jobs/JobStockDialog";
 import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
@@ -52,7 +53,7 @@ function JobsPage() {
   const [view, setView] = useState<"list" | "company">("list");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
-  const [qcId, setQcId] = useState<string | null>(null);
+  const [qcId, setQcId] = usePersistedQcId();
   const [stockJobId, setStockJobId] = useState<string | null>(null);
 
 

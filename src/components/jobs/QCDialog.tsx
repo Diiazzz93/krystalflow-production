@@ -154,6 +154,8 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
   const [lastSubmittedId, setLastSubmittedId] = useState<string | null>(null);
   const [stickerEntry, setStickerEntry] = useState<QCEntry | null>(null);
   const historyListRef = useRef<HTMLOListElement>(null);
+  const hydratedRef = useRef(false);
+  const draftKey = `qc-draft:${jobId}`;
 
   // Clear highlight after 2.5s
   useEffect(() => {
@@ -161,6 +163,79 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
     const t = setTimeout(() => setLastSubmittedId(null), 2500);
     return () => clearTimeout(t);
   }, [lastSubmittedId]);
+
+  // Restore unsaved draft (e.g. after iOS WebView reload from camera).
+  useEffect(() => {
+    if (!open || hydratedRef.current || prefillEntryId) return;
+    hydratedRef.current = true;
+    try {
+      const raw = sessionStorage.getItem(draftKey);
+      if (!raw) return;
+      const s = JSON.parse(raw);
+      if (s.editingEntryId) setEditingEntryId(s.editingEntryId);
+      if (s.palletNumber != null) setPalletNumber(s.palletNumber);
+      if (s.checks) setChecks(s.checks);
+      if (s.bottleCount != null) setBottleCount(s.bottleCount);
+      if (s.palletQuantity !== undefined) setPalletQuantity(s.palletQuantity);
+      if (s.operatorName != null) setOperatorName(s.operatorName);
+      if (s.notes != null) setNotes(s.notes);
+      if (s.mNumber != null) setMNumber(s.mNumber);
+      if (s.logDate) setLogDate(s.logDate);
+      if (s.bottleWeight !== undefined) setBottleWeight(s.bottleWeight);
+      if (s.capWeight !== undefined) setCapWeight(s.capWeight);
+      if (s.liquidWeightPer100ml !== undefined) setLiquidWeightPer100ml(s.liquidWeightPer100ml);
+      if (s.totalWeightGrams !== undefined) setTotalWeightGrams(s.totalWeightGrams);
+      if (s.palletRowVolumes) setPalletRowVolumes(s.palletRowVolumes);
+      if (s.startTime) setStartTime(s.startTime);
+      if (s.finishTime != null) setFinishTime(s.finishTime);
+      if (s.minimumVolume !== undefined) setMinimumVolume(s.minimumVolume);
+      if (s.maximumVolume !== undefined) setMaximumVolume(s.maximumVolume);
+      if (s.boxesPerPallet !== undefined) setBoxesPerPallet(s.boxesPerPallet);
+      if (s.finishedProductFileName != null) setFinishedProductFileName(s.finishedProductFileName);
+      if (s.finalProductPhotoName != null) setFinalProductPhotoName(s.finalProductPhotoName);
+      if (s.supervisorName != null) setSupervisorName(s.supervisorName);
+      if (s.supervisorSignatureDataUrl) setSupervisorSignatureDataUrl(s.supervisorSignatureDataUrl);
+      if (s.fillOperator != null) setFillOperator(s.fillOperator);
+      if (s.bottleQcOperator != null) setBottleQcOperator(s.bottleQcOperator);
+      if (s.capperOperator != null) setCapperOperator(s.capperOperator);
+      if (s.packagingOperator != null) setPackagingOperator(s.packagingOperator);
+      toast.info("Restored unsaved QC draft");
+    } catch {
+      /* ignore */
+    }
+  }, [open, prefillEntryId, draftKey]);
+
+  // Persist draft on every change so a WebView reload doesn't lose progress.
+  useEffect(() => {
+    if (!open || !hydratedRef.current) return;
+    try {
+      sessionStorage.setItem(
+        draftKey,
+        JSON.stringify({
+          editingEntryId, palletNumber, checks, bottleCount, palletQuantity,
+          operatorName, notes, mNumber, logDate, bottleWeight, capWeight,
+          liquidWeightPer100ml, totalWeightGrams, palletRowVolumes, startTime,
+          finishTime, minimumVolume, maximumVolume, boxesPerPallet,
+          finishedProductFileName, finalProductPhotoName, supervisorName,
+          supervisorSignatureDataUrl, fillOperator, bottleQcOperator,
+          capperOperator, packagingOperator,
+        }),
+      );
+    } catch {
+      /* quota — ignore */
+    }
+  }, [open, draftKey, editingEntryId, palletNumber, checks, bottleCount,
+      palletQuantity, operatorName, notes, mNumber, logDate, bottleWeight,
+      capWeight, liquidWeightPer100ml, totalWeightGrams, palletRowVolumes,
+      startTime, finishTime, minimumVolume, maximumVolume, boxesPerPallet,
+      finishedProductFileName, finalProductPhotoName, supervisorName,
+      supervisorSignatureDataUrl, fillOperator, bottleQcOperator,
+      capperOperator, packagingOperator]);
+
+  const clearDraft = () => {
+    try { sessionStorage.removeItem(draftKey); } catch { /* ignore */ }
+  };
+
 
   const loadFromEntry = (e: QCEntry) => {
     setEditingEntryId(e.id);
@@ -314,6 +389,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
     if (isEditing) {
       await updateQC(entry.id, entry);
       setLastSubmittedId(entry.id);
+      clearDraft();
       toast.success(`Pallet #${entry.palletNumber} updated · ${entry.result}`, {
         description: `Code ${palletCode} — record updated.`,
       });
@@ -322,6 +398,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
       });
       return;
     }
+
 
     await addQC(entry);
     setLastSubmittedId(entry.id);
@@ -362,13 +439,15 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
     });
     setPalletNumber((n) => n + 1);
     setFinishTime(nowHHMM());
+    clearDraft();
     resetForNew();
   }
 
 
 
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) clearDraft(); onOpenChange(v); }}>
       <DialogContent
         className="max-w-5xl max-h-[92vh] overflow-y-auto"
         onInteractOutside={(e) => e.preventDefault()}
@@ -798,7 +877,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+          <Button variant="outline" onClick={() => { clearDraft(); onOpenChange(false); }}>Close</Button>
         </DialogFooter>
       </DialogContent>
 

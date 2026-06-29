@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { useStore } from "@/lib/store";
 import { fmtDateTime } from "@/lib/utils-domain";
 import { QCDialog } from "@/components/jobs/QCDialog";
+import { usePersistedQcId } from "@/lib/qc-open-state";
 import { CheckCircle2, ShieldAlert, XCircle, Search } from "lucide-react";
 import { toast } from "sonner";
 
@@ -27,7 +28,7 @@ function QCPage() {
   const [filter, setFilter] = useState<"all" | "Pass" | "Fail">("all");
   const [customerFilter, setCustomerFilter] = useState<string>("all");
   const [productFilter, setProductFilter] = useState<string>("all");
-  const [jobId, setJobId] = useState<string | null>(null);
+  const [jobId, setJobId] = usePersistedQcId();
   const [prefillEntryId, setPrefillEntryId] = useState<string | null>(null);
   const [lookup, setLookup] = useState("");
 
