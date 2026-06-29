@@ -47,6 +47,22 @@ function ShippingPage() {
     return m;
   }, [qc]);
 
+  // Look up pallet type for a given job + pallet number so Shipping can label
+  // each pallet (e.g. "P1 · CHEP") without re-opening the QC record.
+  const palletTypeByJob = useMemo(() => {
+    const m = new Map<string, Map<number, NonNullable<typeof qc[number]["palletType"]>>>();
+    for (const q of qc) {
+      if (!q.palletNumber || !q.palletType) continue;
+      let inner = m.get(q.jobId);
+      if (!inner) {
+        inner = new Map();
+        m.set(q.jobId, inner);
+      }
+      inner.set(q.palletNumber, q.palletType);
+    }
+    return m;
+  }, [qc]);
+
   const shippedByJob = useMemo(() => {
     const m = new Map<string, Set<number>>();
     for (const s of shipments) {
