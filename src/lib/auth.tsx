@@ -127,7 +127,7 @@ async function loadAuthUser(userId: string, email: string): Promise<AuthUser | n
 
     if (!rolesError) {
       const roleList = (roles ?? []).map((r) => r.role as Role);
-      const role: Role = ROLE_PRIORITY.find((r) => roleList.includes(r)) ?? "viewer";
+      const role: Role = ROLE_PRIORITY.find((r) => roleList.includes(r)) ?? "pending";
 
       return {
         id: userId,
