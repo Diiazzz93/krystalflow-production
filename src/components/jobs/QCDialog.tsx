@@ -178,6 +178,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
       if (s.checks) setChecks(s.checks);
       if (s.bottleCount != null) setBottleCount(s.bottleCount);
       if (s.palletQuantity !== undefined) setPalletQuantity(s.palletQuantity);
+      if (s.palletType) setPalletType(s.palletType);
       if (s.operatorName != null) setOperatorName(s.operatorName);
       if (s.notes != null) setNotes(s.notes);
       if (s.mNumber != null) setMNumber(s.mNumber);
