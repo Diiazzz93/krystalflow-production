@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { getAllPresets, subscribeToPresets, type QCPreset } from "@/lib/qc-presets";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { useServerFn } from "@tanstack/react-start";
 import { createPalletAssembly } from "@/lib/unleashed/assembly.functions";
 
@@ -124,6 +125,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
   });
   const [bottleCount, setBottleCount] = useState(1200);
   const [palletQuantity, setPalletQuantity] = useState<number | "">("");
+  const [palletType, setPalletType] = useState<"CHEP" | "Recochem" | "Plain">("CHEP");
   const [operatorName, setOperatorName] = useState(job?.operator ?? "");
   const [notes, setNotes] = useState("");
 
@@ -177,6 +179,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
       if (s.checks) setChecks(s.checks);
       if (s.bottleCount != null) setBottleCount(s.bottleCount);
       if (s.palletQuantity !== undefined) setPalletQuantity(s.palletQuantity);
+      if (s.palletType) setPalletType(s.palletType);
       if (s.operatorName != null) setOperatorName(s.operatorName);
       if (s.notes != null) setNotes(s.notes);
       if (s.mNumber != null) setMNumber(s.mNumber);
@@ -212,7 +215,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
       sessionStorage.setItem(
         draftKey,
         JSON.stringify({
-          editingEntryId, palletNumber, checks, bottleCount, palletQuantity,
+          editingEntryId, palletNumber, checks, bottleCount, palletQuantity, palletType,
           operatorName, notes, mNumber, logDate, bottleWeight, capWeight,
           liquidWeightPer100ml, totalWeightGrams, palletRowVolumes, startTime,
           finishTime, minimumVolume, maximumVolume, boxesPerPallet,
@@ -225,7 +228,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
       /* quota — ignore */
     }
   }, [open, draftKey, editingEntryId, palletNumber, checks, bottleCount,
-      palletQuantity, operatorName, notes, mNumber, logDate, bottleWeight,
+      palletQuantity, palletType, operatorName, notes, mNumber, logDate, bottleWeight,
       capWeight, liquidWeightPer100ml, totalWeightGrams, palletRowVolumes,
       startTime, finishTime, minimumVolume, maximumVolume, boxesPerPallet,
       finishedProductFileName, finalProductPhotoName, supervisorName,
@@ -250,6 +253,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
     });
     setBottleCount(e.bottleCount);
     setPalletQuantity(e.palletQuantity ?? "");
+    setPalletType(e.palletType ?? "CHEP");
     setOperatorName(e.operatorName ?? "");
     setNotes(e.notes ?? "");
     setMNumber(e.mNumber ?? "");
@@ -383,6 +387,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
       packagingOperator: packagingOperator || undefined,
       palletCode,
       palletQuantity: effectivePalletQuantity || undefined,
+      palletType,
       qcApproved: result === "Pass" && !!supervisorSignatureDataUrl,
     };
 
@@ -614,10 +619,29 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
                 </Field>
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <Field label="Pallet #">
                   <Input type="number" value={palletNumber}
                     onChange={(e) => setPalletNumber(Number(e.target.value))} />
+                </Field>
+                <Field label="Pallet type">
+                  <div className="flex gap-1">
+                    {(["CHEP", "Recochem", "Plain"] as const).map((t) => (
+                      <button
+                        type="button"
+                        key={t}
+                        onClick={() => setPalletType(t)}
+                        className={cn(
+                          "flex-1 rounded-md border px-2 py-2 text-xs font-medium transition-colors",
+                          palletType === t
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-card hover:bg-accent/40",
+                        )}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
                 </Field>
                 <Field label="Boxes per pallet">
                   <Input type="number" value={boxesPerPallet}
@@ -628,6 +652,8 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
                     onChange={(e) => setBottleCount(Number(e.target.value))} />
                 </Field>
               </div>
+
+
 
               {/* Production progress: how many boxes/units this pallet adds to Completed. */}
               <div className="rounded-md border border-dashed border-border bg-muted/20 p-3">

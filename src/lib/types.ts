@@ -58,6 +58,8 @@ export interface QCEntry {
   packagingOperator?: string;
   // Unique human-readable code printed on the pallet sticker for traceability
   palletCode?: string;
+  /** Type of physical pallet used — surfaced on Shipping so the right pallet stock is picked. */
+  palletType?: "CHEP" | "Recochem" | "Plain";
   // Production progress tracking
   /** Boxes/units produced on this pallet. Defaults to job.originalQuantity / job.originalPallets. */
   palletQuantity?: number;
