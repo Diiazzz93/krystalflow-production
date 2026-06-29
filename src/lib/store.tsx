@@ -415,7 +415,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const perPallet = entry.palletQuantity ?? (originalPallets > 0 ? original / originalPallets : 0);
       const completedQuantity = Math.min(original, (j.completedQuantity ?? 0) + Math.max(0, perPallet));
       const completedPallets = Math.min(originalPallets || Number.POSITIVE_INFINITY, (j.completedPallets ?? j.palletsCompleted ?? 0) + 1);
-      const isComplete = originalPallets > 0 && completedPallets >= originalPallets;
       // Sum actual bottles filled across all passing QC entries for this job
       // (including the one we just saved). Use bottleCount when present so the
       // Live Board's "bottles X / Y" matches what the operator logged, instead
@@ -426,6 +425,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const totalBottles = passEntries.reduce((sum, q) => sum + (Number(q.bottleCount) || 0), 0);
       const jobBottleTotal = j.quantity ?? 0;
       const bottlesCompleted = jobBottleTotal > 0 ? Math.min(jobBottleTotal, totalBottles) : totalBottles;
+      const palletsDone = originalPallets > 0 && completedPallets >= originalPallets;
+      const bottlesDone = jobBottleTotal > 0 && bottlesCompleted >= jobBottleTotal;
+      const isComplete = palletsDone || bottlesDone;
       void updateJob(j.id, {
         completedQuantity,
         completedPallets,
@@ -461,9 +463,52 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         return;
       }
       const saved = rowToQC(data as unknown as Record<string, unknown>);
-      setQC((s) => s.map((q) => (q.id === id ? saved : q)));
+      const nextQC = qc.map((q) => (q.id === id ? saved : q));
+      setQC(nextQC);
+
+      // Recompute job progress from the updated QC set so edits to pallet
+      // bottle/carton counts (e.g. an operator topping up the last pallet
+      // with leftover boxes) flow through to the job totals.
+      const j = jobs.find((x) => x.id === saved.jobId);
+      if (j) {
+        const jobQC = nextQC.filter((q) => q.jobId === j.id);
+        const passQC = jobQC.filter((q) => q.result !== "Fail");
+        const original = j.originalQuantity ?? j.quantity ?? 0;
+        const originalPallets = j.originalPallets ?? j.pallets ?? 0;
+        const perPalletFallback = originalPallets > 0 ? original / originalPallets : 0;
+        const completedQuantityRaw = passQC.reduce(
+          (sum, q) => sum + (q.palletQuantity ?? perPalletFallback),
+          0,
+        );
+        const completedPallets = passQC.length;
+        const completedQuantity = original > 0
+          ? Math.min(original, completedQuantityRaw)
+          : completedQuantityRaw;
+        const totalBottles = passQC.reduce((sum, q) => sum + (Number(q.bottleCount) || 0), 0);
+        const jobBottleTotal = j.quantity ?? 0;
+        const bottlesCompleted = jobBottleTotal > 0 ? Math.min(jobBottleTotal, totalBottles) : totalBottles;
+        const hasFail = jobQC.some((q) => q.result === "Fail");
+        const palletsDone = originalPallets > 0 && completedPallets >= originalPallets;
+        const bottlesDone = jobBottleTotal > 0 && bottlesCompleted >= jobBottleTotal;
+        const isComplete = palletsDone || bottlesDone;
+        let nextStatus = j.status;
+        if (hasFail) {
+          nextStatus = "Requires Review";
+        } else if (isComplete) {
+          nextStatus = "Complete";
+        } else if (j.status === "Scheduled" && completedPallets > 0) {
+          nextStatus = "Filling";
+        }
+        void updateJob(j.id, {
+          completedQuantity,
+          completedPallets,
+          palletsCompleted: completedPallets,
+          bottlesCompleted,
+          status: nextStatus,
+        });
+      }
     },
-    [qc],
+    [qc, jobs, updateJob],
   );
 
   const deleteQC = useCallback<StoreContextValue["deleteQC"]>(async (id) => {
