@@ -448,12 +448,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) clearDraft(); onOpenChange(v); }}>
-      <DialogContent
-        className="max-w-5xl max-h-[92vh] overflow-y-auto"
-        onInteractOutside={(e) => e.preventDefault()}
-        onPointerDownOutside={(e) => e.preventDefault()}
-        onFocusOutside={(e) => e.preventDefault()}
-      >
+      <DialogContent className="max-w-5xl max-h-[92vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Quality Control — {job.product}</DialogTitle>
           <DialogDescription>
