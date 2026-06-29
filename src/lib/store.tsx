@@ -30,6 +30,7 @@ interface StoreContextValue {
   loading: boolean;
   addJob: (job: Job) => Promise<void>;
   updateJob: (id: string, patch: Partial<Job>) => Promise<void>;
+  completeJob: (id: string) => Promise<void>;
   deleteJob: (id: string) => Promise<void>;
   addLine: (line: Line) => void;
   updateLine: (id: string, patch: Partial<Line>) => void;
@@ -349,6 +350,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setJobs((s) => s.map((j) => (j.id === id ? rowToJob(data) : j)));
   }, [jobs]);
 
+  const completeJob = useCallback<StoreContextValue["completeJob"]>(async (id) => {
+    const current = jobs.find((j) => j.id === id);
+    if (!current) return;
+    await updateJob(id, { status: "Complete", actualEnd: new Date().toISOString() });
+  }, [jobs, updateJob]);
+
   const deleteJob = useCallback<StoreContextValue["deleteJob"]>(async (id) => {
     const { error } = await supabase.from("production_jobs").delete().eq("id", id);
     if (error) {
@@ -536,6 +543,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       loading,
       addJob,
       updateJob,
+      completeJob,
       deleteJob,
       addLine,
       updateLine,
@@ -545,7 +553,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       deleteQC,
       reset,
     }),
-    [jobs, local, qc, loading, addJob, updateJob, deleteJob, addLine, updateLine, deleteLine, addQC, updateQC, deleteQC, reset],
+    [jobs, local, qc, loading, addJob, updateJob, completeJob, deleteJob, addLine, updateLine, deleteLine, addQC, updateQC, deleteQC, reset],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

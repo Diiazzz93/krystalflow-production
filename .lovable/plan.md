@@ -1,34 +1,31 @@
-## Goal
-New sign-ups should land in a "waiting for admin approval" state and have no access to the app until an admin assigns them a real role.
+## Manual job completion
 
-## Changes
+Add a way for operators/managers/admins to manually finish a job, with a confirmation when it's being closed short of the planned pallets.
 
-### 1. Database (migration)
-- Add `'pending'` value to the `app_role` enum.
-- Update `handle_new_user()` trigger so non-first users get `role = 'pending'` (instead of `'viewer'`). First-ever user still becomes `'admin'`.
-- Leave existing users untouched.
+### Where the button appears
+- **Job dialog** (`src/components/jobs/JobDialog.tsx`) — primary location. New **Mark complete** button in the footer, next to existing actions. Hidden when the job is already `Complete` or `Cancelled`.
+- **Live Board** (`src/routes/live.tsx`) — small **Complete** action on the active job card so the line lead can finish without opening the dialog.
 
-### 2. Auth gate
-- In `src/routes/_authenticated/route.tsx` (or a small wrapper if the file is integration-managed), after the session check, fetch the current user's roles.
-  - If the user has only `'pending'` (or no roles), render a **"Pending approval"** screen instead of `<Outlet />`. The screen shows: "Your account is awaiting admin approval. Please contact your administrator." plus a Sign out button.
-  - Otherwise render the app normally.
-- This blocks pending users from every protected page in one place — no per-route changes needed.
+### Behavior
+- If `completedPallets >= originalPallets` → mark complete immediately, no confirm.
+- If `completedPallets < originalPallets` → open a confirm dialog:
+  - Title: "Finish job short?"
+  - Body: "X of Y pallets done (Z bottles of W). This will close the job as Complete and stop it appearing on the Live Board. Continue?"
+  - Buttons: **Cancel** / **Finish short**.
+- On confirm, call a new `completeJob(jobId, { short: boolean })` in `src/lib/store.tsx` that sets `status: "Complete"` and stamps `completedAt = now()`. It does **not** delete the job, does **not** alter QC records, and does **not** inflate `completedPallets`/`bottlesCompleted` — those keep their real values so analytics stay accurate.
+- Existing auto-complete on full QC remains unchanged.
 
-### 3. User Management UI (`UserManagementPanel.tsx`)
-- Show pending users with a distinct **"Pending"** badge at the top of the list.
-- Role dropdown already lets admin assign a real role — once changed away from `pending`, the user gains access on next navigation.
-- Invite form: default selected role stays **Viewer** (per your answer).
+### Permissions
+Uses existing `canEditJobs` permission from `src/lib/auth.tsx` — Admin, Manager, and Operator can complete (Operator already updates job progress today). Viewer and Pending cannot see the button.
 
-### 4. Role helpers (`src/lib/auth.tsx`)
-- Add `'pending'` to the `Role` type.
-- Treat `'pending'` as no permissions everywhere (it should never satisfy `hasRole`/`hasAnyRole` checks for real roles).
+### Live Board / lists
+- Live Board already filters out `Complete` jobs, so a manually completed job drops off immediately.
+- Jobs page keeps showing it under completed/history as today (no deletion).
 
-## Out of scope
-- No email notification to admins on new sign-up (can be added later if you want).
-- No changes to invite flow — admin-invited users still get whatever role the admin picks.
+### Files touched
+- `src/lib/store.tsx` — add `completeJob` action.
+- `src/components/jobs/JobDialog.tsx` — button + confirm dialog.
+- `src/routes/live.tsx` — small complete action on active job card.
+- `src/lib/auth.tsx` — no change (reuse `canEditJobs`).
 
-## Files touched
-- New migration (enum + trigger update)
-- `src/routes/_authenticated/route.tsx` or a new `PendingApprovalGate` component
-- `src/components/.../UserManagementPanel.tsx`
-- `src/lib/auth.tsx`
+No database migration needed — uses existing `status` and `completedAt` columns on `production_jobs`.

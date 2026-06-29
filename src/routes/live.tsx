@@ -7,6 +7,18 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useStore } from "@/lib/store";
+import { useAuth } from "@/lib/auth";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   ACTIVE_STATUSES,
   STATUS_COLORS,
@@ -25,9 +37,13 @@ export const Route = createFileRoute("/live")({
 });
 
 function LivePage() {
-  const { jobs, lines } = useStore();
+  const { jobs, lines, completeJob } = useStore();
+  const { can } = useAuth();
+  const canComplete = can("jobs:update-progress") || can("jobs:edit");
   const [editId, setEditId] = useState<string | null>(null);
   const [qcId, setQcId] = usePersistedQcId();
+  const [completeId, setCompleteId] = useState<string | null>(null);
+  const completing = completeId ? jobs.find((j) => j.id === completeId) ?? null : null;
 
   const issuesCount = jobs.filter(
     (j) => j.status === "Delayed" || j.status === "Requires Review",
@@ -164,6 +180,24 @@ function LivePage() {
                           >
                             Manage
                           </Button>
+                          {canComplete && (
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => {
+                                const done = running.palletsCompleted ?? 0;
+                                const planned = running.originalPallets ?? running.pallets ?? 0;
+                                if (planned > 0 && done >= planned) {
+                                  void completeJob(running.id);
+                                  toast.success("Job marked complete");
+                                } else {
+                                  setCompleteId(running.id);
+                                }
+                              }}
+                            >
+                              Complete
+                            </Button>
+                          )}
                         </div>
                       </div>
                     ) : (
@@ -214,6 +248,37 @@ function LivePage() {
       {qcId && (
         <QCDialog jobId={qcId} open={!!qcId} onOpenChange={(v) => !v && setQcId(null)} />
       )}
+      <AlertDialog open={!!completing} onOpenChange={(v) => !v && setCompleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Finish job short?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {completing ? (
+                <>
+                  {(completing.palletsCompleted ?? 0)} of {(completing.originalPallets ?? completing.pallets ?? 0)} pallets done
+                  {" "}({(completing.bottlesCompleted ?? 0).toLocaleString()} of {(completing.quantity ?? 0).toLocaleString()} bottles).
+                  This will close the job as <strong>Complete</strong> and remove it from the Live Board.
+                  QC records and counts are kept as-is. Continue?
+                </>
+              ) : null}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (completeId) {
+                  void completeJob(completeId);
+                  toast.success("Job marked complete");
+                }
+                setCompleteId(null);
+              }}
+            >
+              Finish short
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppShell>
   );
 }

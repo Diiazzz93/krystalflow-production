@@ -145,16 +145,18 @@ interface Props {
 }
 
 export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine }: Props) {
-  const { jobs, lines, addJob, updateJob, deleteJob } = useStore();
+  const { jobs, lines, addJob, updateJob, completeJob, deleteJob } = useStore();
   const { can } = useAuth();
   const canDelete = can("jobs:delete");
   const canEdit = can("jobs:create") || can("jobs:edit");
+  const canComplete = can("jobs:update-progress") || can("jobs:edit");
   const existing = useMemo(() => jobs.find((j) => j.id === jobId) ?? null, [jobs, jobId]);
   const [form, setForm] = useState<Job>(() => existing ?? emptyJob());
   const { presets } = useLineSetups();
   const [setupOpen, setSetupOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteText, setDeleteText] = useState("");
+  const [confirmComplete, setConfirmComplete] = useState(false);
   const matchedSetup = useMemo(
     () => findSetupForJob(presets, form.product, form.bottleSize),
     [presets, form.product, form.bottleSize],
@@ -601,6 +603,24 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             {canEdit ? "Cancel" : "Close"}
           </Button>
+          {isEdit && canComplete && form.status !== "Complete" && (
+            <Button
+              variant="secondary"
+              onClick={() => {
+                const done = form.palletsCompleted ?? 0;
+                const planned = form.originalPallets ?? form.pallets ?? 0;
+                if (planned > 0 && done >= planned) {
+                  void completeJob(form.id);
+                  toast.success("Job marked complete");
+                  onOpenChange(false);
+                } else {
+                  setConfirmComplete(true);
+                }
+              }}
+            >
+              Mark complete
+            </Button>
+          )}
           {canEdit && (
             <Button onClick={save}>{isEdit ? "Save changes" : "Create job"}</Button>
           )}
@@ -637,6 +657,32 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Delete job
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={confirmComplete} onOpenChange={setConfirmComplete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Finish job short?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {(form.palletsCompleted ?? 0)} of {(form.originalPallets ?? form.pallets ?? 0)} pallets done
+              {" "}({(form.bottlesCompleted ?? 0).toLocaleString()} of {(form.quantity ?? 0).toLocaleString()} bottles).
+              This will close the job as <strong>Complete</strong> and stop it appearing on the Live Board.
+              QC records and completed counts are kept as-is. Continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                void completeJob(form.id);
+                setConfirmComplete(false);
+                toast.success("Job marked complete");
+                onOpenChange(false);
+              }}
+            >
+              Finish short
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
