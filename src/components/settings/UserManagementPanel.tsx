@@ -18,8 +18,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { ROLE_LABELS, useAuth, type Role } from "@/lib/auth";
 import { deleteUser, inviteUser } from "@/lib/users.functions";
 
-const ROLE_PRIORITY: Role[] = ["admin", "manager", "operator", "viewer"];
-const ALL_ROLES: Role[] = ["admin", "manager", "operator", "viewer"];
+const ROLE_PRIORITY: Role[] = ["admin", "manager", "operator", "viewer", "pending"];
+const ALL_ROLES: Role[] = ["admin", "manager", "operator", "viewer", "pending"];
 
 interface UserRow {
   id: string;
@@ -96,7 +96,7 @@ export function UserManagementPanel() {
 
       const rows: UserRow[] = (profiles ?? []).map((p) => {
         const userRoles = rolesByUser.get(p.id) ?? [];
-        const role = ROLE_PRIORITY.find((r) => userRoles.includes(r)) ?? "viewer";
+        const role = ROLE_PRIORITY.find((r) => userRoles.includes(r)) ?? "pending";
         return { id: p.id, email: p.email, name: p.name || p.email.split("@")[0], role };
       });
       rows.sort((a, b) => a.email.localeCompare(b.email));

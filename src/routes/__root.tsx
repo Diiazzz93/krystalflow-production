@@ -167,7 +167,7 @@ function RootComponent() {
 }
 
 function AuthGate({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, loading, signOut } = useAuth();
   if (loading) {
     return (
       <div className="min-h-screen grid place-items-center bg-background text-muted-foreground text-sm">
@@ -176,5 +176,25 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     );
   }
   if (!user) return <LoginScreen />;
+  if (user.role === "pending") {
+    return (
+      <div className="min-h-screen grid place-items-center bg-background px-4">
+        <div className="max-w-md w-full text-center space-y-4 rounded-lg border border-border bg-card p-8 shadow-sm">
+          <h1 className="text-2xl font-semibold text-foreground">Awaiting approval</h1>
+          <p className="text-sm text-muted-foreground">
+            Your account ({user.email}) is pending approval. Please contact your administrator
+            to be granted access.
+          </p>
+          <button
+            type="button"
+            onClick={() => { void signOut(); }}
+            className="inline-flex items-center justify-center rounded-md border border-border bg-background px-4 py-2 text-sm font-medium hover:bg-muted"
+          >
+            Sign out
+          </button>
+        </div>
+      </div>
+    );
+  }
   return <>{children}</>;
 }

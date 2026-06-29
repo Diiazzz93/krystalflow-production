@@ -17,7 +17,7 @@ import {
 } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-export type Role = "admin" | "manager" | "operator" | "viewer";
+export type Role = "admin" | "manager" | "operator" | "viewer" | "pending";
 
 export interface AuthUser {
   id: string;
@@ -84,6 +84,7 @@ const PERMISSIONS: Record<Role, Permission[]> = {
     "page:qc", "page:stock", "page:shipping", "page:line-setup", "page:customer-specs",
     "page:manufacturing",
   ],
+  pending: [],
 };
 
 export const ROLE_LABELS: Record<Role, string> = {
@@ -91,6 +92,7 @@ export const ROLE_LABELS: Record<Role, string> = {
   manager: "Manager",
   operator: "Operator",
   viewer: "Viewer",
+  pending: "Pending approval",
 };
 
 interface AuthContextValue {
@@ -110,7 +112,7 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 // Highest-privilege role wins if a user has multiple (e.g. admin + manager).
-const ROLE_PRIORITY: Role[] = ["admin", "manager", "operator", "viewer"];
+const ROLE_PRIORITY: Role[] = ["admin", "manager", "operator", "viewer", "pending"];
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -125,7 +127,7 @@ async function loadAuthUser(userId: string, email: string): Promise<AuthUser | n
 
     if (!rolesError) {
       const roleList = (roles ?? []).map((r) => r.role as Role);
-      const role: Role = ROLE_PRIORITY.find((r) => roleList.includes(r)) ?? "viewer";
+      const role: Role = ROLE_PRIORITY.find((r) => roleList.includes(r)) ?? "pending";
 
       return {
         id: userId,
