@@ -417,7 +417,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         status: isComplete ? "Complete" : j.status === "Scheduled" ? "Filling" : j.status,
       });
     },
-    [jobs, updateJob],
+    [jobs, updateJob, user?.id],
   );
 
   const updateQC = useCallback<StoreContextValue["updateQC"]>(
