@@ -33,7 +33,7 @@ import {
   fmtTime,
   progressPct,
 } from "@/lib/utils-domain";
-import { Plus, Search, ShieldCheck, LayoutList, Building2, Eye, CheckCircle2 } from "lucide-react";
+import { Plus, Search, ShieldCheck, LayoutList, Building2, Eye } from "lucide-react";
 
 import { Progress } from "@/components/ui/progress";
 import type { Job } from "@/lib/types";
