@@ -17,6 +17,7 @@ import {
 } from "@/lib/utils-domain";
 import { JobDialog } from "@/components/jobs/JobDialog";
 import { QCDialog } from "@/components/jobs/QCDialog";
+import { usePersistedQcId } from "@/lib/qc-open-state";
 import { AlertTriangle, Clock, ShieldCheck, Timer, User } from "lucide-react";
 
 export const Route = createFileRoute("/live")({
