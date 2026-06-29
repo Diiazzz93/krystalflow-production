@@ -378,7 +378,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // ---- QC (Supabase) ----
   const addQC = useCallback<StoreContextValue["addQC"]>(
     async (entry) => {
-      const row = qcToRow(entry);
+      if (!user?.id) {
+        toast.error("Sign in required to save QC records");
+        return;
+      }
+      const row = { ...qcToRow(entry), created_by: user.id };
       const { data, error } = await supabase
         .from("pallet_qc_records")
         .insert(row as never)
@@ -390,6 +394,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }
       const saved = rowToQC(data as unknown as Record<string, unknown>);
       setQC((s) => [saved, ...s.filter((q) => q.id !== saved.id)]);
+
 
       // Auto-status side effects (Pass/Fail).
       const j = jobs.find((x) => x.id === entry.jobId);
