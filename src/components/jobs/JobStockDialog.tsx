@@ -131,9 +131,10 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
   const { presets } = useLineSetups();
   const { getSpecForJob } = useCustomerSpecs();
   const { items: stockItems } = useStockStore();
-  const { updateJob, lines } = useStore();
+  const { updateJob, lines, completeJob } = useStore();
   const { can } = useAuth();
   const canEdit = can("jobs:edit") || can("jobs:create");
+  const canComplete = can("jobs:edit");
   const refreshAssembly = useServerFn(refreshJobAssemblyComponents);
   const refreshBom = useServerFn(refreshJobBomComponents);
   const [assemblyPatch, setAssemblyPatch] = useState<(Partial<Job> & { jobId: string }) | null>(null);
@@ -241,13 +242,34 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
         <DialogHeader>
           <div className="flex items-start justify-between gap-3">
             <DialogTitle>Stock requirements — {currentJob.id}</DialogTitle>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button size="sm" variant="outline" onClick={handlePrint}>
                 <Printer className="size-4 mr-1" /> Print
               </Button>
               <Button size="sm" onClick={handleDownload}>
                 <FileDown className="size-4 mr-1" /> Generate Job PDF
               </Button>
+              {canComplete && currentJob.status !== "Complete" && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-green-600 border-green-600/40 hover:bg-green-600/10 hover:text-green-700"
+                  onClick={() => {
+                    const done = currentJob.completedPallets ?? currentJob.palletsCompleted ?? 0;
+                    const planned = currentJob.originalPallets ?? currentJob.pallets ?? 0;
+                    const short = planned > 0 && done < planned;
+                    const msg = short
+                      ? `Finish job short? Only ${done} of ${planned} pallets are QC'd. The job will be marked Complete and removed from active runs.`
+                      : "Mark this job as Complete?";
+                    if (window.confirm(msg)) {
+                      void completeJob(currentJob.id);
+                      onOpenChange(false);
+                    }
+                  }}
+                >
+                  <CheckCircle2 className="size-4 mr-1" /> Complete job
+                </Button>
+              )}
             </div>
           </div>
         </DialogHeader>

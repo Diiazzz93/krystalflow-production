@@ -33,7 +33,7 @@ import {
   fmtTime,
   progressPct,
 } from "@/lib/utils-domain";
-import { Plus, Search, ShieldCheck, LayoutList, Building2, Eye, CheckCircle2 } from "lucide-react";
+import { Plus, Search, ShieldCheck, LayoutList, Building2, Eye } from "lucide-react";
 
 import { Progress } from "@/components/ui/progress";
 import type { Job } from "@/lib/types";
@@ -44,10 +44,9 @@ export const Route = createFileRoute("/jobs")({
 });
 
 function JobsPage() {
-  const { jobs, completeJob } = useStore();
+  const { jobs } = useStore();
   const { can } = useAuth();
   const canCreate = can("jobs:create");
-  const canComplete = can("jobs:edit");
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<string>("all");
   const [customer, setCustomer] = useState<string>("all");
@@ -57,17 +56,6 @@ function JobsPage() {
   const [qcId, setQcId] = usePersistedQcId();
   const [stockJobId, setStockJobId] = useState<string | null>(null);
 
-  const handleComplete = (job: Job) => {
-    const done = job.completedPallets ?? job.palletsCompleted ?? 0;
-    const planned = job.originalPallets ?? job.pallets ?? 0;
-    const short = planned > 0 && done < planned;
-    const msg = short
-      ? `Finish job short? Only ${done} of ${planned} pallets are QC'd. The job will be marked Complete and removed from active runs.`
-      : "Mark this job as Complete?";
-    if (window.confirm(msg)) {
-      void completeJob(job.id);
-    }
-  };
 
 
   const customers = useMemo(() => {
@@ -203,10 +191,10 @@ function JobsPage() {
         {view === "list" ? (
           <>
             <div className="hidden md:block rounded-lg border border-border bg-card overflow-x-auto">
-              <JobsTable jobs={filtered} onEdit={openEdit} onQC={setQcId} onViewStock={setStockJobId} onComplete={canComplete ? handleComplete : undefined} />
+              <JobsTable jobs={filtered} onEdit={openEdit} onQC={setQcId} onViewStock={setStockJobId} />
             </div>
             <div className="md:hidden">
-              <JobsCardList jobs={filtered} onEdit={openEdit} onQC={setQcId} onViewStock={setStockJobId} onComplete={canComplete ? handleComplete : undefined} />
+              <JobsCardList jobs={filtered} onEdit={openEdit} onQC={setQcId} onViewStock={setStockJobId} />
             </div>
           </>
         ) : (
@@ -239,10 +227,10 @@ function JobsPage() {
                     {upcoming > 0 && <Badge variant="outline">{upcoming} upcoming</Badge>}
                   </header>
                   <div className="hidden md:block overflow-x-auto">
-                    <JobsTable jobs={g.jobs} onEdit={openEdit} onQC={setQcId} onViewStock={setStockJobId} onComplete={canComplete ? handleComplete : undefined} hideCustomer />
+                    <JobsTable jobs={g.jobs} onEdit={openEdit} onQC={setQcId} onViewStock={setStockJobId} hideCustomer />
                   </div>
                   <div className="md:hidden p-3">
-                    <JobsCardList jobs={g.jobs} onEdit={openEdit} onQC={setQcId} onViewStock={setStockJobId} onComplete={canComplete ? handleComplete : undefined} hideCustomer />
+                    <JobsCardList jobs={g.jobs} onEdit={openEdit} onQC={setQcId} onViewStock={setStockJobId} hideCustomer />
                   </div>
                 </section>
               );
@@ -270,14 +258,12 @@ function JobsTable({
   onEdit,
   onQC,
   onViewStock,
-  onComplete,
   hideCustomer = false,
 }: {
   jobs: Job[];
   onEdit: (id: string) => void;
   onQC: (id: string) => void;
   onViewStock: (id: string) => void;
-  onComplete?: (job: Job) => void;
   hideCustomer?: boolean;
 }) {
   return (
@@ -356,19 +342,7 @@ function JobsTable({
                 >
                   <ShieldCheck className="size-4 mr-1" /> QC
                 </Button>
-                {onComplete && j.status !== "Complete" && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="text-green-600 hover:text-green-700"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onComplete(j);
-                    }}
-                  >
-                    <CheckCircle2 className="size-4 mr-1" /> Complete
-                  </Button>
-                )}
+
               </div>
             </TableCell>
 
@@ -391,14 +365,12 @@ function JobsCardList({
   onEdit,
   onQC,
   onViewStock,
-  onComplete,
   hideCustomer = false,
 }: {
   jobs: Job[];
   onEdit: (id: string) => void;
   onQC: (id: string) => void;
   onViewStock: (id: string) => void;
-  onComplete?: (job: Job) => void;
   hideCustomer?: boolean;
 }) {
   if (jobs.length === 0) {
@@ -477,16 +449,6 @@ function JobsCardList({
           <div className="mt-1.5">
             <JobSheetActions job={j} variant="secondary" className="w-full [&>button]:flex-1 [&>button]:min-h-11" />
           </div>
-          {onComplete && j.status !== "Complete" && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="w-full mt-1.5 min-h-11 text-green-600 border-green-600/40 hover:bg-green-600/10 hover:text-green-700"
-              onClick={() => onComplete(j)}
-            >
-              <CheckCircle2 className="size-4 mr-1" /> Complete job
-            </Button>
-          )}
         </li>
       ))}
     </ul>
