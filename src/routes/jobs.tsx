@@ -47,7 +47,7 @@ function JobsPage() {
   const { jobs, completeJob } = useStore();
   const { can } = useAuth();
   const canCreate = can("jobs:create");
-  const canComplete = can("jobs:complete") || can("jobs:edit");
+  const canComplete = can("jobs:edit");
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<string>("all");
   const [customer, setCustomer] = useState<string>("all");
