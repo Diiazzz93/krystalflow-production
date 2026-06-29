@@ -688,10 +688,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
               <p className="text-xs text-muted-foreground -mt-2">
                 Record who was in charge of each line section so issues can be traced quickly.
               </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <Field label="Fill">
-                  <Input value={fillOperator} onChange={(e) => setFillOperator(e.target.value)} placeholder="Name" />
-                </Field>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <Field label="Bottle / QC">
                   <Input value={bottleQcOperator} onChange={(e) => setBottleQcOperator(e.target.value)} placeholder="Name" />
                 </Field>
