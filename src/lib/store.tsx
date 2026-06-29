@@ -350,6 +350,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setJobs((s) => s.map((j) => (j.id === id ? rowToJob(data) : j)));
   }, [jobs]);
 
+  const completeJob = useCallback<StoreContextValue["completeJob"]>(async (id) => {
+    const current = jobs.find((j) => j.id === id);
+    if (!current) return;
+    await updateJob(id, { status: "Complete", actualEnd: new Date().toISOString() });
+  }, [jobs, updateJob]);
+
   const deleteJob = useCallback<StoreContextValue["deleteJob"]>(async (id) => {
     const { error } = await supabase.from("production_jobs").delete().eq("id", id);
     if (error) {
