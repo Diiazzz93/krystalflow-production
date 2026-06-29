@@ -193,6 +193,7 @@ function ShippingPage() {
                     <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2">
                       {r.ready.map((n) => {
                         const isShipped = r.shippedSet.has(n);
+                        const ptype = palletTypeByJob.get(r.job.id)?.get(n);
                         return (
                           <label
                             key={n}
@@ -213,6 +214,18 @@ function ShippingPage() {
                               }}
                             />
                             <span className="font-medium">P{n}</span>
+                            {ptype && (
+                              <span
+                                className={cn(
+                                  "ml-auto rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                                  ptype === "CHEP" && "bg-blue-500/15 text-blue-600 dark:text-blue-300",
+                                  ptype === "Recochem" && "bg-amber-500/15 text-amber-600 dark:text-amber-300",
+                                  ptype === "Plain" && "bg-muted text-muted-foreground",
+                                )}
+                              >
+                                {ptype}
+                              </span>
+                            )}
                           </label>
                         );
                       })}
