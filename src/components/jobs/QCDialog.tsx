@@ -877,7 +877,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+          <Button variant="outline" onClick={() => { clearDraft(); onOpenChange(false); }}>Close</Button>
         </DialogFooter>
       </DialogContent>
 
