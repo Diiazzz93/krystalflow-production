@@ -203,10 +203,10 @@ function JobsPage() {
         {view === "list" ? (
           <>
             <div className="hidden md:block rounded-lg border border-border bg-card overflow-x-auto">
-              <JobsTable jobs={filtered} onEdit={openEdit} onQC={setQcId} onViewStock={setStockJobId} />
+              <JobsTable jobs={filtered} onEdit={openEdit} onQC={setQcId} onViewStock={setStockJobId} onComplete={canComplete ? handleComplete : undefined} />
             </div>
             <div className="md:hidden">
-              <JobsCardList jobs={filtered} onEdit={openEdit} onQC={setQcId} onViewStock={setStockJobId} />
+              <JobsCardList jobs={filtered} onEdit={openEdit} onQC={setQcId} onViewStock={setStockJobId} onComplete={canComplete ? handleComplete : undefined} />
             </div>
           </>
         ) : (
