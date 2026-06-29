@@ -465,16 +465,6 @@ function JobsCardList({
           <div className="mt-1.5">
             <JobSheetActions job={j} variant="secondary" className="w-full [&>button]:flex-1 [&>button]:min-h-11" />
           </div>
-          {onComplete && j.status !== "Complete" && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="w-full mt-1.5 min-h-11 text-green-600 border-green-600/40 hover:bg-green-600/10 hover:text-green-700"
-              onClick={() => onComplete(j)}
-            >
-              <CheckCircle2 className="size-4 mr-1" /> Complete job
-            </Button>
-          )}
         </li>
       ))}
     </ul>
