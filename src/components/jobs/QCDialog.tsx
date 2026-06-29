@@ -619,29 +619,10 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
                 </Field>
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 <Field label="Pallet #">
                   <Input type="number" value={palletNumber}
                     onChange={(e) => setPalletNumber(Number(e.target.value))} />
-                </Field>
-                <Field label="Pallet type">
-                  <div className="flex gap-1">
-                    {(["CHEP", "Recochem", "Plain"] as const).map((t) => (
-                      <button
-                        type="button"
-                        key={t}
-                        onClick={() => setPalletType(t)}
-                        className={cn(
-                          "flex-1 rounded-md border px-2 py-2 text-xs font-medium transition-colors",
-                          palletType === t
-                            ? "bg-primary text-primary-foreground border-primary"
-                            : "bg-card hover:bg-accent/40",
-                        )}
-                      >
-                        {t}
-                      </button>
-                    ))}
-                  </div>
                 </Field>
                 <Field label="Boxes per pallet">
                   <Input type="number" value={boxesPerPallet}
@@ -652,6 +633,26 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
                     onChange={(e) => setBottleCount(Number(e.target.value))} />
                 </Field>
               </div>
+
+              <Field label="Pallet type">
+                <div className="grid grid-cols-3 gap-2">
+                  {(["CHEP", "Recochem", "Plain"] as const).map((t) => (
+                    <button
+                      type="button"
+                      key={t}
+                      onClick={() => setPalletType(t)}
+                      className={cn(
+                        "rounded-md border px-3 py-2.5 text-sm font-medium transition-colors",
+                        palletType === t
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-card hover:bg-accent/40",
+                      )}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </Field>
 
 
 
@@ -687,10 +688,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
               <p className="text-xs text-muted-foreground -mt-2">
                 Record who was in charge of each line section so issues can be traced quickly.
               </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <Field label="Fill">
-                  <Input value={fillOperator} onChange={(e) => setFillOperator(e.target.value)} placeholder="Name" />
-                </Field>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <Field label="Bottle / QC">
                   <Input value={bottleQcOperator} onChange={(e) => setBottleQcOperator(e.target.value)} placeholder="Name" />
                 </Field>
