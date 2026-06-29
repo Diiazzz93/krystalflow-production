@@ -214,7 +214,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
       sessionStorage.setItem(
         draftKey,
         JSON.stringify({
-          editingEntryId, palletNumber, checks, bottleCount, palletQuantity,
+          editingEntryId, palletNumber, checks, bottleCount, palletQuantity, palletType,
           operatorName, notes, mNumber, logDate, bottleWeight, capWeight,
           liquidWeightPer100ml, totalWeightGrams, palletRowVolumes, startTime,
           finishTime, minimumVolume, maximumVolume, boxesPerPallet,
@@ -227,7 +227,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
       /* quota — ignore */
     }
   }, [open, draftKey, editingEntryId, palletNumber, checks, bottleCount,
-      palletQuantity, operatorName, notes, mNumber, logDate, bottleWeight,
+      palletQuantity, palletType, operatorName, notes, mNumber, logDate, bottleWeight,
       capWeight, liquidWeightPer100ml, totalWeightGrams, palletRowVolumes,
       startTime, finishTime, minimumVolume, maximumVolume, boxesPerPallet,
       finishedProductFileName, finalProductPhotoName, supervisorName,
