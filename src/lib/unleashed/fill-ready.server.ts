@@ -101,13 +101,10 @@ export async function importFillReadyImpl(supabase: SupabaseLike): Promise<Impor
 
   if (orders.length === 0) return summary;
 
-  // 2) Pre-load existing imported SO ids. Track completed jobs separately —
-  //    a UNIQUE index on unleashed_sales_order_id prevents inserting a second
-  //    row for the same SO, so if the user completed the previous job locally
-  //    and the SO is still Fill Ready in Unleashed, we reopen that row in
-  //    place instead of inserting a duplicate.
+  // 2) Pre-load existing imported SO ids. Completed jobs are ignored so a Sales
+  //    Order that comes back as Fill Ready can be imported as a fresh active run
+  //    while the previous completed run stays in local history.
   const existingIds = new Set<string>();
-  const completedJobBySo = new Map<string, string>(); // so_id -> job id
   {
     const { data, error } = await supabase
       .from("production_jobs")
@@ -116,9 +113,7 @@ export async function importFillReadyImpl(supabase: SupabaseLike): Promise<Impor
       for (const row of data as Array<{ id: string; unleashed_sales_order_id: string | null; status: string | null }>) {
         if (!row.unleashed_sales_order_id) continue;
         const soId = String(row.unleashed_sales_order_id);
-        if ((row.status ?? "").toLowerCase() === "complete") {
-          completedJobBySo.set(soId, row.id);
-        } else {
+        if ((row.status ?? "").toLowerCase() !== "complete") {
           existingIds.add(soId);
         }
       }
@@ -204,7 +199,6 @@ export async function importFillReadyImpl(supabase: SupabaseLike): Promise<Impor
       const scheduledStart = normaliseUnleashedDate(so.OrderDate) ?? new Date().toISOString();
       const dueDate = normaliseUnleashedDate(so.RequiredDate ?? so.DueDate) ?? scheduledStart;
 
-      const reopenJobId = completedJobBySo.get(so.Guid);
       const importedAt = new Date().toISOString();
       const jobPayload = {
         customer: so.Customer?.CustomerName ?? "Unknown",
@@ -257,29 +251,14 @@ export async function importFillReadyImpl(supabase: SupabaseLike): Promise<Impor
         },
       };
 
-      let jobId: string | undefined;
-      let outcomeMessage = "Job created (Assemblies are created per-pallet on QC approval)";
-
-      if (reopenJobId) {
-        const { data: updRows, error: updError } = await supabase
-          .from("production_jobs")
-          .update(jobPayload)
-          .eq("id", reopenJobId)
-          .select("id")
-          .single();
-        if (updError) throw new Error(`DB update failed: ${updError.message}`);
-        jobId = updRows?.id ?? reopenJobId;
-        outcomeMessage = "Job reopened (previous run was marked Complete locally)";
-        completedJobBySo.delete(so.Guid);
-      } else {
-        const { data: jobRows, error: insertError } = await supabase
-          .from("production_jobs")
-          .insert(jobPayload)
-          .select("id")
-          .single();
-        if (insertError) throw new Error(`DB insert failed: ${insertError.message}`);
-        jobId = jobRows?.id;
-      }
+      const { data: jobRows, error: insertError } = await supabase
+        .from("production_jobs")
+        .insert(jobPayload)
+        .select("id")
+        .single();
+      if (insertError) throw new Error(`DB insert failed: ${insertError.message}`);
+      const jobId = jobRows?.id;
+      const outcomeMessage = "Job created (Assemblies are created per-pallet on QC approval)";
 
       summary.imported++;
       summary.details.push({
