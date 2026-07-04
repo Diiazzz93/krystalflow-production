@@ -102,14 +102,19 @@ export async function importFillReadyImpl(supabase: SupabaseLike): Promise<Impor
   if (orders.length === 0) return summary;
 
   // 2) Pre-load existing imported SO ids to avoid duplicate work.
+  //    Ignore jobs the user has already marked Complete locally — the SO may
+  //    still be Fill Ready in Unleashed (e.g. leftover cartons re-run), and
+  //    we want it to come back into the active jobs list as a fresh job.
   const existingIds = new Set<string>();
   {
     const { data, error } = await supabase
       .from("production_jobs")
-      .select("unleashed_sales_order_id");
+      .select("unleashed_sales_order_id, status");
     if (!error && data) {
-      for (const row of data) {
-        if (row.unleashed_sales_order_id) existingIds.add(String(row.unleashed_sales_order_id));
+      for (const row of data as Array<{ unleashed_sales_order_id: string | null; status: string | null }>) {
+        if (!row.unleashed_sales_order_id) continue;
+        if ((row.status ?? "").toLowerCase() === "complete") continue;
+        existingIds.add(String(row.unleashed_sales_order_id));
       }
     }
   }
