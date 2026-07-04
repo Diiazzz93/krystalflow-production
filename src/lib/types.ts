@@ -111,6 +111,7 @@ export interface Job {
   createdAt: string;
   // Unleashed-linked assembly metadata (present when imported from a Fill Ready SO)
   unleashedSalesOrderNumber?: string;
+  importedFromUnleashedAt?: string;
   unleashedAssemblyNumber?: string;
   assemblyComponents?: AssemblyComponent[];
   assemblyStatus?: string;

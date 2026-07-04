@@ -87,11 +87,18 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
 
   const job = jobs.find((j) => j.id === jobId);
   const history = useMemo(
-    () =>
-      qc
-        .filter((q) => q.jobId === jobId)
-        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()),
-    [qc, jobId],
+    () => {
+      const runStartedAt = Date.parse(job?.importedFromUnleashedAt ?? "");
+      return qc
+        .filter((q) => {
+          if (q.jobId !== jobId) return false;
+          if (!Number.isFinite(runStartedAt)) return true;
+          const timestamp = Date.parse(q.timestamp);
+          return !Number.isFinite(timestamp) || timestamp >= runStartedAt - 1000;
+        })
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    },
+    [qc, jobId, job?.importedFromUnleashedAt],
   );
 
   const nextPallet = (job?.palletsCompleted ?? 0) + 1;
