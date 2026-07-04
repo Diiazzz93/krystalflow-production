@@ -204,76 +204,93 @@ export async function importFillReadyImpl(supabase: SupabaseLike): Promise<Impor
       const scheduledStart = normaliseUnleashedDate(so.OrderDate) ?? new Date().toISOString();
       const dueDate = normaliseUnleashedDate(so.RequiredDate ?? so.DueDate) ?? scheduledStart;
 
-      const { data: jobRows, error: insertError } = await supabase
-        .from("production_jobs")
-        .insert({
+      const reopenJobId = completedJobBySo.get(so.Guid);
+      const jobPayload = {
+        customer: so.Customer?.CustomerName ?? "Unknown",
+        product: productDesc,
+        sku: productCode,
+        status: "Scheduled",
+        operator: "",
+        line: "",
+        scheduled_start: scheduledStart,
+        unleashed_sales_order_id: so.Guid,
+        unleashed_sales_order_number: so.OrderNumber,
+        unleashed_assembly_id: null,
+        unleashed_assembly_number: null,
+        imported_from_unleashed_at: new Date().toISOString(),
+        data: {
           customer: so.Customer?.CustomerName ?? "Unknown",
           product: productDesc,
           sku: productCode,
-          status: "Scheduled",
-          operator: "",
+          bottleSize,
+          quantity: bottleCount,
+          bottlesPerCarton: isBoxedProduct ? bottlesPerCarton : undefined,
+          cartonsOrdered: isBoxedProduct ? qty : undefined,
+          pallets: 1,
+          dueDate: dueDate.slice(0, 10),
+          priority: "Normal",
           line: "",
-          scheduled_start: scheduledStart,
-          unleashed_sales_order_id: so.Guid,
-          unleashed_sales_order_number: so.OrderNumber,
-          unleashed_assembly_id: null,
-          unleashed_assembly_number: null,
-          imported_from_unleashed_at: new Date().toISOString(),
-          data: {
-            customer: so.Customer?.CustomerName ?? "Unknown",
-            product: productDesc,
-            sku: productCode,
-            bottleSize,
-            quantity: bottleCount,
-            bottlesPerCarton: isBoxedProduct ? bottlesPerCarton : undefined,
-            cartonsOrdered: isBoxedProduct ? qty : undefined,
-            pallets: 1,
-            dueDate: dueDate.slice(0, 10),
-            priority: "Normal",
-            line: "",
-            operator: "",
-            bottlesPerHour: 3000,
-            setupMinutes: 30,
-            notes: `Imported from Unleashed Sales Order ${so.OrderNumber} — ${unitLabel}`,
-            rawMaterial: "Pending",
-            labels: "Pending",
-            packaging: "Pending",
-            status: "Scheduled",
-            scheduledStart,
-            bottlesCompleted: 0,
-            palletsCompleted: 0,
-            downtimeMinutes: 0,
-            actualRuntimeMinutes: 0,
-            customerColor: customerColor(so.Customer?.CustomerName ?? "Unknown"),
-            createdAt: new Date().toISOString(),
-            importedFromUnleashed: true,
-            unleashedSalesOrderNumber: so.OrderNumber,
-            assemblyComponents,
-            // Production progress: master totals from the imported Sales Order.
-            originalQuantity: bottleCount,
-            originalPallets: 1,
-            completedQuantity: 0,
-            completedPallets: 0,
-          },
-        })
-        .select("id")
-        .single();
+          operator: "",
+          bottlesPerHour: 3000,
+          setupMinutes: 30,
+          notes: `Imported from Unleashed Sales Order ${so.OrderNumber} — ${unitLabel}`,
+          rawMaterial: "Pending",
+          labels: "Pending",
+          packaging: "Pending",
+          status: "Scheduled",
+          scheduledStart,
+          bottlesCompleted: 0,
+          palletsCompleted: 0,
+          downtimeMinutes: 0,
+          actualRuntimeMinutes: 0,
+          customerColor: customerColor(so.Customer?.CustomerName ?? "Unknown"),
+          createdAt: new Date().toISOString(),
+          importedFromUnleashed: true,
+          unleashedSalesOrderNumber: so.OrderNumber,
+          assemblyComponents,
+          originalQuantity: bottleCount,
+          originalPallets: 1,
+          completedQuantity: 0,
+          completedPallets: 0,
+        },
+      };
 
+      let jobId: string | undefined;
+      let outcomeMessage = "Job created (Assemblies are created per-pallet on QC approval)";
 
-      if (insertError) throw new Error(`DB insert failed: ${insertError.message}`);
+      if (reopenJobId) {
+        const { data: updRows, error: updError } = await supabase
+          .from("production_jobs")
+          .update(jobPayload)
+          .eq("id", reopenJobId)
+          .select("id")
+          .single();
+        if (updError) throw new Error(`DB update failed: ${updError.message}`);
+        jobId = updRows?.id ?? reopenJobId;
+        outcomeMessage = "Job reopened (previous run was marked Complete locally)";
+        completedJobBySo.delete(so.Guid);
+      } else {
+        const { data: jobRows, error: insertError } = await supabase
+          .from("production_jobs")
+          .insert(jobPayload)
+          .select("id")
+          .single();
+        if (insertError) throw new Error(`DB insert failed: ${insertError.message}`);
+        jobId = jobRows?.id;
+      }
 
       summary.imported++;
       summary.details.push({
         salesOrderNumber: so.OrderNumber,
         outcome: "imported",
-        message: "Job created (Assemblies are created per-pallet on QC approval)",
+        message: outcomeMessage,
       });
       await supabase.from("unleashed_sync_log").insert({
         sales_order_id: so.Guid,
         sales_order_number: so.OrderNumber,
         outcome: "imported",
-        message: "Job created (per-pallet assemblies)",
-        job_id: jobRows?.id,
+        message: outcomeMessage,
+        job_id: jobId,
       });
       existingIds.add(so.Guid);
 
