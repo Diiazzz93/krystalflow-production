@@ -205,6 +205,7 @@ export async function importFillReadyImpl(supabase: SupabaseLike): Promise<Impor
       const dueDate = normaliseUnleashedDate(so.RequiredDate ?? so.DueDate) ?? scheduledStart;
 
       const reopenJobId = completedJobBySo.get(so.Guid);
+      const importedAt = new Date().toISOString();
       const jobPayload = {
         customer: so.Customer?.CustomerName ?? "Unknown",
         product: productDesc,
@@ -217,7 +218,7 @@ export async function importFillReadyImpl(supabase: SupabaseLike): Promise<Impor
         unleashed_sales_order_number: so.OrderNumber,
         unleashed_assembly_id: null,
         unleashed_assembly_number: null,
-        imported_from_unleashed_at: new Date().toISOString(),
+        imported_from_unleashed_at: importedAt,
         data: {
           customer: so.Customer?.CustomerName ?? "Unknown",
           product: productDesc,
@@ -246,6 +247,7 @@ export async function importFillReadyImpl(supabase: SupabaseLike): Promise<Impor
           customerColor: customerColor(so.Customer?.CustomerName ?? "Unknown"),
           createdAt: new Date().toISOString(),
           importedFromUnleashed: true,
+          importedFromUnleashedAt: importedAt,
           unleashedSalesOrderNumber: so.OrderNumber,
           assemblyComponents,
           originalQuantity: bottleCount,

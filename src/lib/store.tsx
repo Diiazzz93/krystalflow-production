@@ -161,6 +161,7 @@ function rowToJob(r: Record<string, unknown>): Job {
     customerColor: data.customerColor ?? JOB_COLORS[colorIndex],
     createdAt: data.createdAt ?? String(r.created_at ?? new Date().toISOString()),
     unleashedSalesOrderNumber: data.unleashedSalesOrderNumber ?? (String(r.unleashed_sales_order_number ?? "") || undefined),
+    importedFromUnleashedAt: data.importedFromUnleashedAt ?? (String(r.imported_from_unleashed_at ?? "") || undefined),
     unleashedAssemblyNumber: data.unleashedAssemblyNumber ?? (String(r.unleashed_assembly_number ?? "") || undefined),
     assemblyComponents,
     assemblyStatus: data.assemblyStatus,
@@ -178,6 +179,16 @@ function rowToJob(r: Record<string, unknown>): Job {
     completedQuantity: Number(data.completedQuantity ?? 0),
     completedPallets: Number(data.completedPallets ?? data.palletsCompleted ?? 0),
   };
+}
+
+function getCurrentRunQcEntries(qc: QCEntry[], job: Job) {
+  const entries = qc.filter((q) => q.jobId === job.id);
+  const runStartedAt = Date.parse(job.importedFromUnleashedAt ?? "");
+  if (!Number.isFinite(runStartedAt)) return entries;
+  return entries.filter((q) => {
+    const timestamp = Date.parse(q.timestamp);
+    return !Number.isFinite(timestamp) || timestamp >= runStartedAt - 1000;
+  });
 }
 
 export function StoreProvider({ children }: { children: ReactNode }) {
@@ -315,7 +326,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (loading || !jobs.length) return;
     for (const j of jobs) {
       if (j.status === "Complete") continue;
-      const jobQC = qc.filter((q) => q.jobId === j.id);
+      const jobQC = getCurrentRunQcEntries(qc, j);
       if (jobQC.length === 0) continue;
       const passQC = jobQC.filter((q) => q.result !== "Fail");
       const originalPallets = j.originalPallets ?? j.pallets ?? 0;
@@ -456,8 +467,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       // (including the one we just saved). Use bottleCount when present so the
       // Live Board's "bottles X / Y" matches what the operator logged, instead
       // of falling back to the cartons-based completedQuantity.
-      const passEntries = [saved, ...qc.filter((q) => q.id !== saved.id)].filter(
-        (q) => q.jobId === j.id && q.result !== "Fail",
+      const passEntries = getCurrentRunQcEntries([saved, ...qc.filter((q) => q.id !== saved.id)], j).filter(
+        (q) => q.result !== "Fail",
       );
       const totalBottles = passEntries.reduce((sum, q) => sum + (Number(q.bottleCount) || 0), 0);
       const jobBottleTotal = j.quantity ?? 0;
@@ -508,7 +519,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       // with leftover boxes) flow through to the job totals.
       const j = jobs.find((x) => x.id === saved.jobId);
       if (j) {
-        const jobQC = nextQC.filter((q) => q.jobId === j.id);
+        const jobQC = getCurrentRunQcEntries(nextQC, j);
         const passQC = jobQC.filter((q) => q.result !== "Fail");
         const original = j.originalQuantity ?? j.quantity ?? 0;
         const originalPallets = j.originalPallets ?? j.pallets ?? 0;
@@ -565,7 +576,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (entry) {
       const j = jobs.find((x) => x.id === entry.jobId);
       if (j) {
-        const jobQC = remaining.filter((q) => q.jobId === j.id);
+        const jobQC = getCurrentRunQcEntries(remaining, j);
         const passQC = jobQC.filter((q) => q.result !== "Fail");
         const original = j.originalQuantity ?? j.quantity ?? 0;
         const originalPallets = j.originalPallets ?? j.pallets ?? 0;
