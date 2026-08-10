@@ -693,6 +693,42 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
               </div>
             </section>
 
+            {job.stockSource === "customer" && (
+              <section className="space-y-3">
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                  Customer supplied materials
+                </h3>
+                {(job.customerSuppliedItems ?? []).length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    No customer-supplied items recorded for this job.
+                  </p>
+                ) : (
+                  <div className="rounded-md border border-border bg-muted/30 overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-border text-xs uppercase tracking-wide text-muted-foreground">
+                          <th className="text-left font-medium px-3 py-2">Item</th>
+                          <th className="text-right font-medium px-3 py-2">Qty</th>
+                          <th className="text-left font-medium px-3 py-2">Unit</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {job.customerSuppliedItems!.map((item, i) => (
+                          <tr key={i} className="border-b border-border last:border-0">
+                            <td className="px-3 py-2">
+                              <div className="font-medium">{item.description || item.category}</div>
+                            </td>
+                            <td className="px-3 py-2 text-right tabular-nums">{item.quantity.toLocaleString()}</td>
+                            <td className="px-3 py-2 text-muted-foreground">{item.unit}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </section>
+            )}
+
             {/* Section operators */}
             <section className="space-y-3">
               <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
