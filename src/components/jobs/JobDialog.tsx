@@ -54,7 +54,7 @@ import { Progress } from "@/components/ui/progress";
 import { JobStockCheck } from "@/components/jobs/JobStockCheck";
 import { computeJobStockCheck } from "@/lib/job-stock";
 
-import { SlidersHorizontal, CalendarOff } from "lucide-react";
+import { SlidersHorizontal, CalendarOff, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { findSetupForJob, useLineSetups } from "@/lib/line-setups";
 import { LineSetupViewerDialog } from "@/components/line-setup/LineSetupViewerDialog";
