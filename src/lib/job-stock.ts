@@ -59,7 +59,7 @@ export function findJobsAllocatingSku(
 
 
 
-export type RequirementCategory = "bottle" | "cap" | "label" | "carton" | "liquid" | `assembly-${string}`;
+export type RequirementCategory = "bottle" | "cap" | "label" | "carton" | "liquid" | `assembly-${string}` | `customer-${string}`;
 
 export interface JobRequirement {
   category: RequirementCategory;
