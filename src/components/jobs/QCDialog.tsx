@@ -420,9 +420,15 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
       { description: `Code ${palletCode} — sticker ready to print.` },
     );
 
-    // On Pass, create the per-pallet Assembly in Unleashed. Non-blocking:
-    // failures show a toast but never break the QC flow.
-    if (result === "Pass" && job?.unleashedSalesOrderNumber && effectivePalletQuantity > 0) {
+    // On Pass, create the per-pallet Assembly in Unleashed unless disabled for
+    // this job (e.g. customer-supplied stock). Non-blocking: failures show a
+    // toast but never break the QC flow.
+    if (
+      result === "Pass" &&
+      job?.createUnleashedAssembly !== false &&
+      job?.unleashedSalesOrderNumber &&
+      effectivePalletQuantity > 0
+    ) {
       createAssembly({
         data: {
           jobId,
