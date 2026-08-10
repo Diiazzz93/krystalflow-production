@@ -468,7 +468,19 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
     <Dialog open={open} onOpenChange={(v) => { if (!v) clearDraft(); onOpenChange(v); }}>
       <DialogContent className="max-w-5xl max-h-[92vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Quality Control — {job.product}</DialogTitle>
+          <DialogTitle className="flex items-center gap-2 flex-wrap">
+            Quality Control — {job.product}
+            {job.stockSource === "customer" && (
+              <Badge variant="outline" className="border-emerald-500/40 text-emerald-600 dark:text-emerald-400">
+                Customer supplied
+              </Badge>
+            )}
+            {job.createUnleashedAssembly === false && (
+              <Badge variant="outline" className="text-[10px]">
+                No Unleashed Assembly
+              </Badge>
+            )}
+          </DialogTitle>
           <DialogDescription>
             {job.customer} · SKU {job.sku} · {job.bottleSize}
           </DialogDescription>

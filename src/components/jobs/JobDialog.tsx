@@ -202,10 +202,15 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
             {isEdit && (
               <Badge className={STATUS_COLORS[form.status]}>{form.status}</Badge>
             )}
+            {form.stockSource === "customer" && (
+              <Badge variant="outline" className="border-emerald-500/40 text-emerald-600 dark:text-emerald-400">
+                Customer supplied
+              </Badge>
+            )}
             {(() => {
               const c = computeJobStockCheck(form, stockItems);
 
-              if (!c.hasSelections) return null;
+              if (form.stockSource === "customer" || !c.hasSelections) return null;
 
               if (c.hasShort)
                 return (
