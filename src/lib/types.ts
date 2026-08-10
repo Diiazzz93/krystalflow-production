@@ -17,6 +17,13 @@ export type Priority = "Low" | "Normal" | "High" | "Urgent";
 
 export type ReadyState = "Pending" | "Ready" | "Issue";
 
+export interface CustomerSuppliedItem {
+  category: string;
+  description: string;
+  quantity: number;
+  unit: string;
+}
+
 export interface QCEntry {
   id: string;
   jobId: string;
