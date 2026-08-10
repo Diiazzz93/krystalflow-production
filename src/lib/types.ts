@@ -17,6 +17,13 @@ export type Priority = "Low" | "Normal" | "High" | "Urgent";
 
 export type ReadyState = "Pending" | "Ready" | "Issue";
 
+export interface CustomerSuppliedItem {
+  category: string;
+  description: string;
+  quantity: number;
+  unit: string;
+}
+
 export interface QCEntry {
   id: string;
   jobId: string;
@@ -126,6 +133,19 @@ export interface Job {
   completedQuantity?: number;
   /** Mirrors palletsCompleted as a stable progress field. */
   completedPallets?: number;
+  /**
+   * Where the materials for this job come from.
+   * - "krystal" (default): stock is supplied by Krystal and checked against inventory.
+   * - "customer": stock is supplied by the customer; shortages are not flagged.
+   */
+  stockSource?: "krystal" | "customer";
+  /** Items supplied by the customer when stockSource is "customer". */
+  customerSuppliedItems?: CustomerSuppliedItem[];
+  /**
+   * Whether a per-pallet Unleashed Assembly should be created when QC passes.
+   * Default true. Can be disabled for customer-supplied or non-Unleashed jobs.
+   */
+  createUnleashedAssembly?: boolean;
 }
 
 export interface AssemblyComponent {

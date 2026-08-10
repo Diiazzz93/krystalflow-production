@@ -59,7 +59,7 @@ export function findJobsAllocatingSku(
 
 
 
-export type RequirementCategory = "bottle" | "cap" | "label" | "carton" | "liquid" | `assembly-${string}`;
+export type RequirementCategory = "bottle" | "cap" | "label" | "carton" | "liquid" | `assembly-${string}` | `customer-${string}`;
 
 export interface JobRequirement {
   category: RequirementCategory;
@@ -118,6 +118,31 @@ export function computeJobStockCheck(
   job: Job,
   stock: StockItem[] = [],
 ): JobStockCheck {
+  // Customer-supplied jobs bypass inventory checks. We still surface what the
+  // customer provided so operators can see it, but never flag shortages.
+  if (job.stockSource === "customer") {
+    const items = job.customerSuppliedItems ?? [];
+    const requirements: JobRequirement[] = items.map((item) => ({
+      category: `customer-${item.category}`,
+      description: item.description || item.category,
+      required: item.quantity,
+      unit: item.unit,
+      stock: null,
+      available: item.quantity,
+      missing: 0,
+      status: "ok",
+    }));
+    return {
+      jobId: job.id,
+      requirements,
+      hasSelections: requirements.length > 0,
+      ready: requirements.length > 0,
+      hasLow: false,
+      hasShort: false,
+      shortCount: 0,
+    };
+  }
+
   const assemblyComponents = job.assemblyComponents ?? [];
   // Scale requirements by remaining / original so stock checks track what's
   // still to be produced, not the entire Sales Order.

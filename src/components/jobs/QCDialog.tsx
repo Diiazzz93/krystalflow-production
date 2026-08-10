@@ -420,9 +420,15 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
       { description: `Code ${palletCode} — sticker ready to print.` },
     );
 
-    // On Pass, create the per-pallet Assembly in Unleashed. Non-blocking:
-    // failures show a toast but never break the QC flow.
-    if (result === "Pass" && job?.unleashedSalesOrderNumber && effectivePalletQuantity > 0) {
+    // On Pass, create the per-pallet Assembly in Unleashed unless disabled for
+    // this job (e.g. customer-supplied stock). Non-blocking: failures show a
+    // toast but never break the QC flow.
+    if (
+      result === "Pass" &&
+      job?.createUnleashedAssembly !== false &&
+      job?.unleashedSalesOrderNumber &&
+      effectivePalletQuantity > 0
+    ) {
       createAssembly({
         data: {
           jobId,
@@ -462,7 +468,19 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
     <Dialog open={open} onOpenChange={(v) => { if (!v) clearDraft(); onOpenChange(v); }}>
       <DialogContent className="max-w-5xl max-h-[92vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Quality Control — {job.product}</DialogTitle>
+          <DialogTitle className="flex items-center gap-2 flex-wrap">
+            Quality Control — {job.product}
+            {job.stockSource === "customer" && (
+              <Badge variant="outline" className="border-emerald-500/40 text-emerald-600 dark:text-emerald-400">
+                Customer supplied
+              </Badge>
+            )}
+            {job.createUnleashedAssembly === false && (
+              <Badge variant="outline" className="text-[10px]">
+                No Unleashed Assembly
+              </Badge>
+            )}
+          </DialogTitle>
           <DialogDescription>
             {job.customer} · SKU {job.sku} · {job.bottleSize}
           </DialogDescription>
@@ -686,6 +704,42 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
                   onChange={setFinalProductPhotoName} accept="image/*" />
               </div>
             </section>
+
+            {job.stockSource === "customer" && (
+              <section className="space-y-3">
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                  Customer supplied materials
+                </h3>
+                {(job.customerSuppliedItems ?? []).length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    No customer-supplied items recorded for this job.
+                  </p>
+                ) : (
+                  <div className="rounded-md border border-border bg-muted/30 overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-border text-xs uppercase tracking-wide text-muted-foreground">
+                          <th className="text-left font-medium px-3 py-2">Item</th>
+                          <th className="text-right font-medium px-3 py-2">Qty</th>
+                          <th className="text-left font-medium px-3 py-2">Unit</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {job.customerSuppliedItems!.map((item, i) => (
+                          <tr key={i} className="border-b border-border last:border-0">
+                            <td className="px-3 py-2">
+                              <div className="font-medium">{item.description || item.category}</div>
+                            </td>
+                            <td className="px-3 py-2 text-right tabular-nums">{item.quantity.toLocaleString()}</td>
+                            <td className="px-3 py-2 text-muted-foreground">{item.unit}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </section>
+            )}
 
             {/* Section operators */}
             <section className="space-y-3">
