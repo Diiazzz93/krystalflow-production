@@ -299,6 +299,119 @@ export function JobDialog({ jobId, open, onOpenChange, defaultStart, defaultLine
             />
           </Field>
 
+          <div className="col-span-full rounded-lg border border-border bg-muted/20 p-3 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <span className="text-sm font-medium">Stock source</span>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={form.stockSource !== "customer" ? "default" : "outline"}
+                  onClick={() => set("stockSource", "krystal")}
+                >
+                  Krystal supplied
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={form.stockSource === "customer" ? "default" : "outline"}
+                  onClick={() => set("stockSource", "customer")}
+                >
+                  Customer supplied
+                </Button>
+              </div>
+            </div>
+
+            {form.stockSource === "customer" && (
+              <div className="space-y-3">
+                <p className="text-xs text-muted-foreground">
+                  Record what the customer provided. These items won't be checked against Krystal's inventory.
+                </p>
+                <div className="space-y-2">
+                  {(form.customerSuppliedItems ?? []).map((item, index) => (
+                    <div key={index} className="grid grid-cols-[1fr_1fr_80px_80px_auto] gap-2">
+                      <Input
+                        placeholder="Category"
+                        value={item.category}
+                        onChange={(e) => {
+                          const items = [...(form.customerSuppliedItems ?? [])];
+                          items[index] = { ...item, category: e.target.value };
+                          set("customerSuppliedItems", items);
+                        }}
+                      />
+                      <Input
+                        placeholder="Description"
+                        value={item.description}
+                        onChange={(e) => {
+                          const items = [...(form.customerSuppliedItems ?? [])];
+                          items[index] = { ...item, description: e.target.value };
+                          set("customerSuppliedItems", items);
+                        }}
+                      />
+                      <Input
+                        type="number"
+                        placeholder="Qty"
+                        value={item.quantity}
+                        onChange={(e) => {
+                          const items = [...(form.customerSuppliedItems ?? [])];
+                          items[index] = { ...item, quantity: Number(e.target.value) || 0 };
+                          set("customerSuppliedItems", items);
+                        }}
+                      />
+                      <Input
+                        placeholder="Unit"
+                        value={item.unit}
+                        onChange={(e) => {
+                          const items = [...(form.customerSuppliedItems ?? [])];
+                          items[index] = { ...item, unit: e.target.value };
+                          set("customerSuppliedItems", items);
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          const items = [...(form.customerSuppliedItems ?? [])];
+                          items.splice(index, 1);
+                          set("customerSuppliedItems", items);
+                        }}
+                      >
+                        <Trash2 className="size-4 text-muted-foreground" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      set("customerSuppliedItems", [
+                        ...(form.customerSuppliedItems ?? []),
+                        { category: "", description: "", quantity: 0, unit: "" },
+                      ])
+                    }
+                  >
+                    <Plus className="size-4 mr-1" /> Add item
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center gap-2 pt-1 border-t border-border">
+              <input
+                type="checkbox"
+                id="create-assembly"
+                className="size-4 rounded border-border"
+                checked={form.createUnleashedAssembly !== false}
+                onChange={(e) => set("createUnleashedAssembly", e.target.checked)}
+              />
+              <Label htmlFor="create-assembly" className="text-sm font-normal cursor-pointer">
+                Create Unleashed Assembly on QC pass
+              </Label>
+            </div>
+          </div>
+
           {(() => {
             const cartonMode = isCartonOrder(form);
             const bpc = form.bottlesPerCarton && form.bottlesPerCarton > 0 ? form.bottlesPerCarton : 1;
