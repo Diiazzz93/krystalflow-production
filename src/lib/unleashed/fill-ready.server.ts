@@ -165,14 +165,13 @@ export async function importFillReadyImpl(supabase: SupabaseLike): Promise<Impor
         ? `${qty} box${qty === 1 ? "" : "es"} of ${bottlesPerCarton}${bottleSize ? ` × ${bottleSize}` : ""} = ${bottleCount} bottles`
         : `${bottleCount} bottles`;
 
-      // 3) Fetch BOM for the product. Fail import if none.
+      // 3) Fetch BOM for the product. If none exists, import the job anyway
+      // so it can be flagged as customer-supplied inside the app.
       const bom = await fetchBom(productGuid);
       const bomLines = bom?.BillOfMaterialsLines ?? bom?.BillOfMaterialLines ?? [];
-      if (!bom || bomLines.length === 0) {
-        throw new Error(`No Bill of Materials found for product ${productCode}`);
-      }
+      const hasBom = bom && bomLines.length > 0;
 
-      // 4) Build component blueprint from the BOM.
+      // 4) Build component blueprint from the BOM when available.
       //    KrystalFlow no longer creates an Assembly at import time — Assemblies
       //    are created per-pallet only after QC approval. This preserves the
       //    master Sales Order in Unleashed as the source reference.
@@ -182,14 +181,16 @@ export async function importFillReadyImpl(supabase: SupabaseLike): Promise<Impor
         name: string;
         quantity: number;
         unit?: string;
-      }> = bomLines
-        .map((line: UnleashedBomLine) => ({
-          productCode: line.Product?.ProductCode ?? "",
-          productGuid: line.Product?.Guid,
-          name: line.Product?.ProductCode ?? "",
-          quantity: Number(line.Quantity ?? 0) * qty,
-        }))
-        .filter((c: { productCode: string }) => c.productCode);
+      }> = hasBom
+        ? bomLines
+            .map((line: UnleashedBomLine) => ({
+              productCode: line.Product?.ProductCode ?? "",
+              productGuid: line.Product?.Guid,
+              name: line.Product?.ProductCode ?? "",
+              quantity: Number(line.Quantity ?? 0) * qty,
+            }))
+            .filter((c: { productCode: string }) => c.productCode)
+        : [];
 
 
 
@@ -228,7 +229,7 @@ export async function importFillReadyImpl(supabase: SupabaseLike): Promise<Impor
           operator: "",
           bottlesPerHour: 3000,
           setupMinutes: 30,
-          notes: `Imported from Unleashed Sales Order ${so.OrderNumber} — ${unitLabel}`,
+          notes: `Imported from Unleashed Sales Order ${so.OrderNumber} — ${unitLabel}${hasBom ? "" : " (no BOM found — flag as customer-supplied if materials are provided by customer)"}`,
           rawMaterial: "Pending",
           labels: "Pending",
           packaging: "Pending",
