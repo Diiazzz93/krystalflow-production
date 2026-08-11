@@ -52,64 +52,10 @@ export function JobStockCheck({ job, className }: Props) {
       job.liquidSku,
       job.sku,
       job.product,
-      job.stockSource,
-      job.customerSuppliedItems,
     ],
   );
 
-  if (job.stockSource === "customer") {
-    return (
-      <div className={cn("rounded-lg border border-emerald-500/40 bg-emerald-500/5 p-3 space-y-3", className)}>
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <PackageCheck className="size-4 text-emerald-600 dark:text-emerald-400" />
-            <span className="font-medium text-sm">Customer supplied materials</span>
-          </div>
-          <Badge variant="outline" className="border-emerald-500/40 text-emerald-600 dark:text-emerald-400">
-            No stock check
-          </Badge>
-        </div>
-        {check.requirements.length === 0 ? (
-          <div className="text-xs text-muted-foreground">
-            No customer-supplied items recorded yet. Add them in the job edit dialog.
-          </div>
-        ) : (
-          <div className="rounded-md border border-border bg-background overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border text-xs uppercase tracking-wide text-muted-foreground">
-                  <th className="text-left font-medium px-3 py-2">Item</th>
-                  <th className="text-right font-medium px-3 py-2">Quantity</th>
-                  <th className="text-left font-medium px-3 py-2">Unit</th>
-                  <th className="text-left font-medium px-3 py-2">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {check.requirements.map((r) => (
-                  <tr key={r.category} className="border-b border-border last:border-0">
-                    <td className="px-3 py-2">
-                      <div className="font-medium">{r.description}</div>
-                    </td>
-                    <td className="px-3 py-2 text-right tabular-nums">{r.required.toLocaleString()}</td>
-                    <td className="px-3 py-2 text-muted-foreground">{r.unit}</td>
-                    <td className="px-3 py-2">
-                      <Badge variant="outline" className="font-medium gap-1.5 text-emerald-600 dark:text-emerald-400">
-                        <span className="size-1.5 rounded-full bg-emerald-500" />
-                        Provided
-                      </Badge>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-        <div className="text-xs text-emerald-600 dark:text-emerald-400">
-          ✓ Materials supplied by customer. This job is not checked against Krystal inventory.
-        </div>
-      </div>
-    );
-  }
+
 
   if (!check.hasSelections) {
     return (

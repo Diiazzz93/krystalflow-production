@@ -127,11 +127,6 @@ function LivePage() {
                             <Badge className={STATUS_COLORS[running.status]}>
                               {running.status}
                             </Badge>
-                            {running.stockSource === "customer" && (
-                              <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-600 dark:text-emerald-400">
-                                Customer supplied
-                              </Badge>
-                            )}
                           </div>
                           <p className="text-sm text-muted-foreground truncate mt-0.5">
                             {running.product} · {running.bottleSize}
@@ -233,16 +228,9 @@ function LivePage() {
                             </div>
                             <div className="flex items-center justify-between gap-2">
                               <p className="text-xs text-muted-foreground truncate">{nx.product}</p>
-                              <div className="flex items-center gap-1 shrink-0">
-                                {nx.stockSource === "customer" && (
-                                  <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-600 dark:text-emerald-400">
-                                    Customer supplied
-                                  </Badge>
-                                )}
-                                <Badge variant="outline" className="text-[10px] shrink-0">
-                                  {nx.status}
-                                </Badge>
-                              </div>
+                              <Badge variant="outline" className="text-[10px] shrink-0">
+                                {nx.status}
+                              </Badge>
                             </div>
                           </button>
                         ))}

@@ -299,11 +299,6 @@ function JobsTable({
                   <div className={hideCustomer ? "font-medium" : "text-xs text-muted-foreground"}>
                     {j.product} · {j.sku} · {j.bottleSize}
                   </div>
-                  {j.stockSource === "customer" && (
-                    <Badge variant="outline" className="mt-1 text-[10px] border-emerald-500/40 text-emerald-600 dark:text-emerald-400">
-                      Customer supplied
-                    </Badge>
-                  )}
                 </div>
               </div>
             </TableCell>
@@ -424,11 +419,6 @@ function JobsCardList({
             <Badge variant="outline" className={PRIORITY_COLOR[j.priority]}>
               {j.priority}
             </Badge>
-            {j.stockSource === "customer" && (
-              <Badge variant="outline" className="border-emerald-500/40 text-emerald-600 dark:text-emerald-400">
-                Customer supplied
-              </Badge>
-            )}
             <span className="text-muted-foreground ml-auto whitespace-nowrap">
               Due {fmtDate(j.dueDate)}
             </span>

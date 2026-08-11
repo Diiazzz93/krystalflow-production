@@ -241,15 +241,8 @@ export function JobStockDialog({ job, open, onOpenChange }: Props) {
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-start justify-between gap-3">
-          <DialogTitle className="flex items-center gap-2 flex-wrap">
-            Stock requirements — {currentJob.id}
-            {currentJob.stockSource === "customer" && (
-              <Badge variant="outline" className="border-emerald-500/40 text-emerald-600 dark:text-emerald-400">
-                Customer supplied
-              </Badge>
-            )}
-          </DialogTitle>
-          <div className="flex flex-wrap gap-2">
+            <DialogTitle>Stock requirements — {currentJob.id}</DialogTitle>
+            <div className="flex flex-wrap gap-2">
               <Button size="sm" variant="outline" onClick={handlePrint}>
                 <Printer className="size-4 mr-1" /> Print
               </Button>
