@@ -59,11 +59,31 @@ export const createPalletAssembly = createServerFn({ method: "POST" })
       soNumber ? `Sales Order ${soNumber}` : null,
     ].filter(Boolean);
 
-    const created = await ulPost<UlAssembly>("/Assemblies", {
-      Quantity: data.palletQuantity,
-      Product: { Guid: productGuid },
-      Comments: commentParts.join(" — "),
-    });
+    let created: UlAssembly | undefined;
+    try {
+      created = await ulPost<UlAssembly>("/Assemblies", {
+        Quantity: data.palletQuantity,
+        Product: { Guid: productGuid },
+        Comments: commentParts.join(" — "),
+      });
+    } catch (e) {
+      // Record the failure so it shows up on the Unleashed sync history page
+      // instead of vanishing with a dismissed toast.
+      const msg = e instanceof Error ? e.message : String(e);
+      await supabase.from("unleashed_sync_log").insert({
+        sales_order_id: null,
+        sales_order_number: soNumber || null,
+        outcome: "error",
+        message: `Assembly not created for pallet ${data.palletCode ?? "?"} (qty ${data.palletQuantity}): ${msg}`,
+        job_id: data.jobId,
+      });
+      throw new Error(
+        /Assembled Product/i.test(msg)
+          ? `Unleashed rejected the assembly: product ${productCode} is not set up as an assembled product (no Bill of Materials). Add a BOM in Unleashed, then retry.`
+          : msg,
+      );
+    }
+
 
     let assemblyStatus = created?.AssemblyStatus ?? null;
 
