@@ -108,7 +108,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
   const defaultPalletQuantity = useMemo(() => {
     if (!job) return 0;
     const original = job.originalQuantity ?? job.quantity ?? 0;
-    const pallets = job.originalPallets ?? job.pallets ?? 0;
+    const pallets = Math.max(job.originalPallets ?? 0, job.pallets ?? 0);
     if (!pallets) return 0;
     return Math.round(original / pallets);
   }, [job]);
