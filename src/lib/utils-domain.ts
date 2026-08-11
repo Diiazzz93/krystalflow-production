@@ -129,7 +129,9 @@ export function originalQuantity(job: Job): number {
 }
 
 export function originalPallets(job: Job): number {
-  return Math.max(0, job.originalPallets ?? job.pallets ?? 0);
+  // Imported jobs land with originalPallets = 1 until the real pallet count is
+  // worked out on the job, so always take the larger of the two.
+  return Math.max(0, job.originalPallets ?? 0, job.pallets ?? 0);
 }
 
 export function completedQuantity(job: Job): number {
