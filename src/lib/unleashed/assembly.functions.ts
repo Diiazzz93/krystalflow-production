@@ -69,15 +69,24 @@ export const createPalletAssembly = createServerFn({ method: "POST" })
     if (!productGuid) throw new Error(`Unleashed product not found for SKU ${productCode}`);
 
     interface UlAssembly { Guid?: string; AssemblyNumber?: string; AssemblyStatus?: string }
+    // Convert individual bottles produced → finished units (cartons) so
+    // Unleashed scales its own BOM correctly.
+    const unitsPerFinished = data.unitsPerFinished && data.unitsPerFinished > 0 ? data.unitsPerFinished : 1;
+    const assembledQuantity = data.palletQuantity / unitsPerFinished;
+    const qtyNote =
+      unitsPerFinished > 1
+        ? `${data.palletQuantity} bottles ÷ ${unitsPerFinished} per carton = ${assembledQuantity} cartons`
+        : `${assembledQuantity} units`;
     const commentParts = [
       `Auto-created by KrystalFlow from QC pallet${data.palletCode ? ` ${data.palletCode}` : ""}`,
       soNumber ? `Sales Order ${soNumber}` : null,
+      qtyNote,
     ].filter(Boolean);
 
     let created: UlAssembly | undefined;
     try {
       created = await ulPost<UlAssembly>("/Assemblies", {
-        Quantity: data.palletQuantity,
+        Quantity: assembledQuantity,
         Product: { Guid: productGuid },
         Comments: commentParts.join(" — "),
       });
@@ -89,7 +98,7 @@ export const createPalletAssembly = createServerFn({ method: "POST" })
         sales_order_id: null,
         sales_order_number: soNumber || null,
         outcome: "error",
-        message: `Assembly not created for pallet ${data.palletCode ?? "?"} (qty ${data.palletQuantity}): ${msg}`,
+        message: `Assembly not created for pallet ${data.palletCode ?? "?"} (${qtyNote}): ${msg}`,
         job_id: data.jobId,
       });
       throw new Error(
@@ -121,7 +130,7 @@ export const createPalletAssembly = createServerFn({ method: "POST" })
       sales_order_id: null,
       sales_order_number: soNumber || null,
       outcome: "imported",
-      message: `Per-pallet Assembly ${created?.AssemblyNumber ?? created?.Guid ?? "created"} (qty ${data.palletQuantity})`,
+      message: `Per-pallet Assembly ${created?.AssemblyNumber ?? created?.Guid ?? "created"} (${qtyNote})`,
       job_id: data.jobId,
     });
 
@@ -129,5 +138,7 @@ export const createPalletAssembly = createServerFn({ method: "POST" })
       assemblyId: created?.Guid ?? null,
       assemblyNumber: created?.AssemblyNumber ?? null,
       assemblyStatus,
+      assembledQuantity,
+
     };
   });
