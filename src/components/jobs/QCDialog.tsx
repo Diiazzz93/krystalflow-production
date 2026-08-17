@@ -665,7 +665,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
 
               {/* Production progress: how many boxes/units this pallet adds to Completed. */}
               <div className="rounded-md border border-dashed border-border bg-muted/20 p-3">
-                <Field label={`Units produced on this pallet (defaults to ${defaultPalletQuantity.toLocaleString()})`}>
+                <Field label={`Units produced on this pallet (${packConfig.individualUnit.toLowerCase()}s, defaults to ${defaultPalletQuantity.toLocaleString()})`}>
                   <Input
                     type="number"
                     value={palletQuantity}
@@ -673,10 +673,31 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
                     onChange={(e) => setPalletQuantity(e.target.value === "" ? "" : Number(e.target.value))}
                   />
                 </Field>
+                {packConfig.unitsPerFinished > 1 && (
+                  <div className="mt-2 space-y-0.5 text-[11px]">
+                    <div className="text-muted-foreground">
+                      Individual bottles produced: <strong className="text-foreground">{previewQty.unitsProduced.toLocaleString()}</strong>
+                    </div>
+                    <div className="text-muted-foreground">
+                      Pack size: <strong className="text-foreground">{packConfig.unitsPerFinished} bottles per carton</strong>
+                    </div>
+                    {previewQty.exact ? (
+                      <div className="text-muted-foreground">
+                        Finished quantity to send to Unleashed:{" "}
+                        <strong className="text-foreground">{previewQty.finishedQuantity.toLocaleString()} cartons</strong>
+                      </div>
+                    ) : (
+                      <div className="text-amber-600 dark:text-amber-400">
+                        Quantity does not match the finished product pack configuration.
+                      </div>
+                    )}
+                  </div>
+                )}
                 <p className="mt-1 text-[11px] text-muted-foreground">
-                  Pass + supervisor signature increments the job's Completed total and creates an Unleashed Assembly for this pallet only.
+                  Pass + supervisor signature increments the job's Completed total and asks you to confirm an Unleashed Assembly for this pallet only.
                 </p>
               </div>
+
 
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
