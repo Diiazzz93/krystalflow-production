@@ -41,6 +41,8 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useServerFn } from "@tanstack/react-start";
 import { createPalletAssembly } from "@/lib/unleashed/assembly.functions";
+import { getPackConfig, computeAssemblyQuantity } from "@/lib/pack-config";
+
 
 
 
@@ -104,6 +106,21 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
   const nextPallet = (job?.palletsCompleted ?? 0) + 1;
   const createAssembly = useServerFn(createPalletAssembly);
 
+  const packConfig = useMemo(
+    () =>
+      getPackConfig(
+        job ?? { sku: "", product: "", bottleSize: "", bottlesPerCarton: undefined },
+      ),
+    [job],
+  );
+
+  /** Pending Unleashed assembly awaiting operator confirmation. */
+  const [pendingAssembly, setPendingAssembly] = useState<{
+    palletCode: string;
+    unitsProduced: number;
+  } | null>(null);
+  const [assemblyBusy, setAssemblyBusy] = useState(false);
+
   // Default pallet quantity: original boxes/bottles ÷ original pallets.
   const defaultPalletQuantity = useMemo(() => {
     if (!job) return 0;
@@ -112,6 +129,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
     if (!pallets) return 0;
     return Math.round(original / pallets);
   }, [job]);
+
 
 
   const [presets, setPresets] = useState<QCPreset[]>(() => getAllPresets());
@@ -132,6 +150,17 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
   });
   const [bottleCount, setBottleCount] = useState(1200);
   const [palletQuantity, setPalletQuantity] = useState<number | "">("");
+  const previewQty = useMemo(
+    () =>
+      computeAssemblyQuantity(
+        palletQuantity !== "" && Number(palletQuantity) > 0
+          ? Number(palletQuantity)
+          : defaultPalletQuantity,
+        packConfig.unitsPerFinished,
+      ),
+    [palletQuantity, defaultPalletQuantity, packConfig.unitsPerFinished],
+  );
+
   const [palletType, setPalletType] = useState<"CHEP" | "Recochem" | "Plain">("CHEP");
   const [operatorName, setOperatorName] = useState(job?.operator ?? "");
   const [notes, setNotes] = useState("");
@@ -420,29 +449,10 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
       { description: `Code ${palletCode} — sticker ready to print.` },
     );
 
-    // On Pass, create the per-pallet Assembly in Unleashed. Non-blocking:
-    // failures show a toast but never break the QC flow.
+    // On Pass, ask for confirmation before creating the per-pallet Assembly in
+    // Unleashed — the operator reviews the bottle → carton conversion first.
     if (result === "Pass" && job?.unleashedSalesOrderNumber && effectivePalletQuantity > 0) {
-      createAssembly({
-        data: {
-          jobId,
-          palletQuantity: effectivePalletQuantity,
-          palletCode,
-          autoComplete: false,
-        },
-      })
-        .then((res) => {
-          if (res.assemblyNumber) {
-            toast.success(`Unleashed Assembly ${res.assemblyNumber} created`, {
-              description: `Pallet ${palletCode} · ${effectivePalletQuantity} units`,
-            });
-          }
-        })
-        .catch((e: unknown) => {
-          toast.error("Unleashed Assembly not created", {
-            description: e instanceof Error ? e.message : String(e),
-          });
-        });
+      setPendingAssembly({ palletCode, unitsProduced: effectivePalletQuantity });
     }
 
     // Scroll history to top so the new entry is visible
@@ -454,6 +464,38 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
     clearDraft();
     resetForNew();
   }
+
+  async function confirmAssembly() {
+    if (!pendingAssembly) return;
+    const calc = computeAssemblyQuantity(pendingAssembly.unitsProduced, packConfig.unitsPerFinished);
+    if (!calc.exact) return;
+    setAssemblyBusy(true);
+    try {
+      const res = await createAssembly({
+        data: {
+          jobId,
+          palletQuantity: pendingAssembly.unitsProduced,
+          unitsPerFinished: packConfig.unitsPerFinished,
+          palletCode: pendingAssembly.palletCode,
+          autoComplete: false,
+        },
+      });
+      toast.success(
+        res.assemblyNumber ? `Unleashed Assembly ${res.assemblyNumber} created` : "Unleashed Assembly created",
+        {
+          description: `Pallet ${pendingAssembly.palletCode} · ${calc.finishedQuantity.toLocaleString()} ${packConfig.finishedUnit.toLowerCase()}s`,
+        },
+      );
+      setPendingAssembly(null);
+    } catch (e) {
+      toast.error("Unleashed Assembly not created", {
+        description: e instanceof Error ? e.message : String(e),
+      });
+    } finally {
+      setAssemblyBusy(false);
+    }
+  }
+
 
 
 
@@ -665,7 +707,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
 
               {/* Production progress: how many boxes/units this pallet adds to Completed. */}
               <div className="rounded-md border border-dashed border-border bg-muted/20 p-3">
-                <Field label={`Units produced on this pallet (defaults to ${defaultPalletQuantity.toLocaleString()})`}>
+                <Field label={`Units produced on this pallet (${packConfig.individualUnit.toLowerCase()}s, defaults to ${defaultPalletQuantity.toLocaleString()})`}>
                   <Input
                     type="number"
                     value={palletQuantity}
@@ -673,10 +715,31 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
                     onChange={(e) => setPalletQuantity(e.target.value === "" ? "" : Number(e.target.value))}
                   />
                 </Field>
+                {packConfig.unitsPerFinished > 1 && (
+                  <div className="mt-2 space-y-0.5 text-[11px]">
+                    <div className="text-muted-foreground">
+                      Individual bottles produced: <strong className="text-foreground">{previewQty.unitsProduced.toLocaleString()}</strong>
+                    </div>
+                    <div className="text-muted-foreground">
+                      Pack size: <strong className="text-foreground">{packConfig.unitsPerFinished} bottles per carton</strong>
+                    </div>
+                    {previewQty.exact ? (
+                      <div className="text-muted-foreground">
+                        Finished quantity to send to Unleashed:{" "}
+                        <strong className="text-foreground">{previewQty.finishedQuantity.toLocaleString()} cartons</strong>
+                      </div>
+                    ) : (
+                      <div className="text-amber-600 dark:text-amber-400">
+                        Quantity does not match the finished product pack configuration.
+                      </div>
+                    )}
+                  </div>
+                )}
                 <p className="mt-1 text-[11px] text-muted-foreground">
-                  Pass + supervisor signature increments the job's Completed total and creates an Unleashed Assembly for this pallet only.
+                  Pass + supervisor signature increments the job's Completed total and asks you to confirm an Unleashed Assembly for this pallet only.
                 </p>
               </div>
+
 
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -936,6 +999,77 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Safety check before any Unleashed assembly is created. */}
+      <AlertDialog
+        open={!!pendingAssembly}
+        onOpenChange={(v) => { if (!v && !assemblyBusy) setPendingAssembly(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Create Unleashed Assembly?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Review the finished quantity before it is sent to Unleashed. Unleashed scales its own
+              Bill of Materials from this quantity.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {pendingAssembly && (() => {
+            const calc = computeAssemblyQuantity(pendingAssembly.unitsProduced, packConfig.unitsPerFinished);
+            return (
+              <div className="space-y-2 rounded-md border border-border bg-muted/20 p-3 text-sm">
+                <Row label="Finished SKU" value={packConfig.finishedSku || "—"} />
+                <Row label="Pack configuration" value={packConfig.packLabel} />
+                <Row label={`${packConfig.individualUnit}s produced`} value={calc.unitsProduced.toLocaleString()} />
+                <Row label={`Units per ${packConfig.finishedUnit.toLowerCase()}`} value={String(calc.unitsPerFinished)} />
+                <Row
+                  label="Calculated finished quantity"
+                  value={`${calc.exact ? calc.finishedQuantity.toLocaleString() : calc.finishedQuantity.toFixed(2)} ${packConfig.finishedUnit.toLowerCase()}s`}
+                />
+                <Row
+                  label="Assembly quantity sent to Unleashed"
+                  value={calc.exact ? calc.finishedQuantity.toLocaleString() : "—"}
+                />
+                <div className="pt-1 text-xs text-muted-foreground">
+                  BOM used: Unleashed Bill of Materials for {packConfig.finishedSku || "this product"}
+                  {job.assemblyComponents?.length
+                    ? ` — ${job.assemblyComponents
+                        .map((c) => `${c.quantity} × ${c.productCode}`)
+                        .join(", ")} per finished unit`
+                    : ""}
+                </div>
+                {!calc.exact && (
+                  <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-700 dark:text-amber-300">
+                    Quantity does not match the finished product pack configuration.{" "}
+                    {calc.unitsProduced.toLocaleString()} ÷ {calc.unitsPerFinished} is not a whole
+                    number of {packConfig.finishedUnit.toLowerCase()}s. Fix the units produced on the
+                    pallet, then create the assembly manually.
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={assemblyBusy} onClick={() => setPendingAssembly(null)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={
+                assemblyBusy ||
+                !pendingAssembly ||
+                !computeAssemblyQuantity(pendingAssembly.unitsProduced, packConfig.unitsPerFinished).exact
+              }
+              onClick={(e) => {
+                e.preventDefault();
+                void confirmAssembly();
+              }}
+            >
+              {assemblyBusy ? "Creating…" : "Create assembly"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+
+
       {stickerEntry && (
         <PalletStickerDialog
           open={!!stickerEntry}
@@ -987,6 +1121,15 @@ function FileField({
           }}
         />
       </label>
+    </div>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className="font-medium tabular-nums">{value}</span>
     </div>
   );
 }
