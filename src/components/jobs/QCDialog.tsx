@@ -449,29 +449,10 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
       { description: `Code ${palletCode} — sticker ready to print.` },
     );
 
-    // On Pass, create the per-pallet Assembly in Unleashed. Non-blocking:
-    // failures show a toast but never break the QC flow.
+    // On Pass, ask for confirmation before creating the per-pallet Assembly in
+    // Unleashed — the operator reviews the bottle → carton conversion first.
     if (result === "Pass" && job?.unleashedSalesOrderNumber && effectivePalletQuantity > 0) {
-      createAssembly({
-        data: {
-          jobId,
-          palletQuantity: effectivePalletQuantity,
-          palletCode,
-          autoComplete: false,
-        },
-      })
-        .then((res) => {
-          if (res.assemblyNumber) {
-            toast.success(`Unleashed Assembly ${res.assemblyNumber} created`, {
-              description: `Pallet ${palletCode} · ${effectivePalletQuantity} units`,
-            });
-          }
-        })
-        .catch((e: unknown) => {
-          toast.error("Unleashed Assembly not created", {
-            description: e instanceof Error ? e.message : String(e),
-          });
-        });
+      setPendingAssembly({ palletCode, unitsProduced: effectivePalletQuantity });
     }
 
     // Scroll history to top so the new entry is visible
@@ -483,6 +464,38 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
     clearDraft();
     resetForNew();
   }
+
+  async function confirmAssembly() {
+    if (!pendingAssembly) return;
+    const calc = computeAssemblyQuantity(pendingAssembly.unitsProduced, packConfig.unitsPerFinished);
+    if (!calc.exact) return;
+    setAssemblyBusy(true);
+    try {
+      const res = await createAssembly({
+        data: {
+          jobId,
+          palletQuantity: pendingAssembly.unitsProduced,
+          unitsPerFinished: packConfig.unitsPerFinished,
+          palletCode: pendingAssembly.palletCode,
+          autoComplete: false,
+        },
+      });
+      toast.success(
+        res.assemblyNumber ? `Unleashed Assembly ${res.assemblyNumber} created` : "Unleashed Assembly created",
+        {
+          description: `Pallet ${pendingAssembly.palletCode} · ${calc.finishedQuantity.toLocaleString()} ${packConfig.finishedUnit.toLowerCase()}s`,
+        },
+      );
+      setPendingAssembly(null);
+    } catch (e) {
+      toast.error("Unleashed Assembly not created", {
+        description: e instanceof Error ? e.message : String(e),
+      });
+    } finally {
+      setAssemblyBusy(false);
+    }
+  }
+
 
 
 
