@@ -148,6 +148,17 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
   });
   const [bottleCount, setBottleCount] = useState(1200);
   const [palletQuantity, setPalletQuantity] = useState<number | "">("");
+  const previewQty = useMemo(
+    () =>
+      computeAssemblyQuantity(
+        palletQuantity !== "" && Number(palletQuantity) > 0
+          ? Number(palletQuantity)
+          : defaultPalletQuantity,
+        packConfig.unitsPerFinished,
+      ),
+    [palletQuantity, defaultPalletQuantity, packConfig.unitsPerFinished],
+  );
+
   const [palletType, setPalletType] = useState<"CHEP" | "Recochem" | "Plain">("CHEP");
   const [operatorName, setOperatorName] = useState(job?.operator ?? "");
   const [notes, setNotes] = useState("");
