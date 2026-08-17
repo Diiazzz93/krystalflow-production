@@ -999,6 +999,77 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Safety check before any Unleashed assembly is created. */}
+      <AlertDialog
+        open={!!pendingAssembly}
+        onOpenChange={(v) => { if (!v && !assemblyBusy) setPendingAssembly(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Create Unleashed Assembly?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Review the finished quantity before it is sent to Unleashed. Unleashed scales its own
+              Bill of Materials from this quantity.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {pendingAssembly && (() => {
+            const calc = computeAssemblyQuantity(pendingAssembly.unitsProduced, packConfig.unitsPerFinished);
+            return (
+              <div className="space-y-2 rounded-md border border-border bg-muted/20 p-3 text-sm">
+                <Row label="Finished SKU" value={packConfig.finishedSku || "—"} />
+                <Row label="Pack configuration" value={packConfig.packLabel} />
+                <Row label={`${packConfig.individualUnit}s produced`} value={calc.unitsProduced.toLocaleString()} />
+                <Row label={`Units per ${packConfig.finishedUnit.toLowerCase()}`} value={String(calc.unitsPerFinished)} />
+                <Row
+                  label="Calculated finished quantity"
+                  value={`${calc.exact ? calc.finishedQuantity.toLocaleString() : calc.finishedQuantity.toFixed(2)} ${packConfig.finishedUnit.toLowerCase()}s`}
+                />
+                <Row
+                  label="Assembly quantity sent to Unleashed"
+                  value={calc.exact ? calc.finishedQuantity.toLocaleString() : "—"}
+                />
+                <div className="pt-1 text-xs text-muted-foreground">
+                  BOM used: Unleashed Bill of Materials for {packConfig.finishedSku || "this product"}
+                  {job.assemblyComponents?.length
+                    ? ` — ${job.assemblyComponents
+                        .map((c) => `${c.quantity} × ${c.productCode}`)
+                        .join(", ")} per finished unit`
+                    : ""}
+                </div>
+                {!calc.exact && (
+                  <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-700 dark:text-amber-300">
+                    Quantity does not match the finished product pack configuration.{" "}
+                    {calc.unitsProduced.toLocaleString()} ÷ {calc.unitsPerFinished} is not a whole
+                    number of {packConfig.finishedUnit.toLowerCase()}s. Fix the units produced on the
+                    pallet, then create the assembly manually.
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={assemblyBusy} onClick={() => setPendingAssembly(null)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={
+                assemblyBusy ||
+                !pendingAssembly ||
+                !computeAssemblyQuantity(pendingAssembly.unitsProduced, packConfig.unitsPerFinished).exact
+              }
+              onClick={(e) => {
+                e.preventDefault();
+                void confirmAssembly();
+              }}
+            >
+              {assemblyBusy ? "Creating…" : "Create assembly"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+
+
       {stickerEntry && (
         <PalletStickerDialog
           open={!!stickerEntry}
