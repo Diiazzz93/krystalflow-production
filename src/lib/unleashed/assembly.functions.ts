@@ -10,7 +10,10 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 interface CreatePalletAssemblyInput {
   jobId: string;
+  /** Individual production units (bottles) produced on this pallet. */
   palletQuantity: number;
+  /** Bottles per finished product/carton. Defaults to 1 (finished SKU == bottle). */
+  unitsPerFinished?: number;
   palletCode?: string;
   autoComplete?: boolean;
 }
@@ -19,6 +22,8 @@ interface CreatedAssembly {
   assemblyId: string | null;
   assemblyNumber: string | null;
   assemblyStatus: string | null;
+  /** Quantity of finished units actually sent to Unleashed. */
+  assembledQuantity: number;
 }
 
 export const createPalletAssembly = createServerFn({ method: "POST" })
@@ -28,8 +33,18 @@ export const createPalletAssembly = createServerFn({ method: "POST" })
     if (!Number.isFinite(data.palletQuantity) || data.palletQuantity <= 0) {
       throw new Error("palletQuantity must be a positive number");
     }
+    const per = data.unitsPerFinished ?? 1;
+    if (!Number.isFinite(per) || per <= 0) {
+      throw new Error("unitsPerFinished must be a positive number");
+    }
+    if (!Number.isInteger(data.palletQuantity / per)) {
+      throw new Error(
+        `Quantity does not match the finished product pack configuration: ${data.palletQuantity} ÷ ${per} is not a whole number of finished units.`,
+      );
+    }
     return data;
   })
+
   .handler(async ({ data, context }): Promise<CreatedAssembly> => {
     const { supabase } = context;
 
