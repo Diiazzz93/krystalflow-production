@@ -104,6 +104,21 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
   const nextPallet = (job?.palletsCompleted ?? 0) + 1;
   const createAssembly = useServerFn(createPalletAssembly);
 
+  const packConfig = useMemo(
+    () =>
+      getPackConfig(
+        job ?? { sku: "", product: "", bottleSize: "", bottlesPerCarton: undefined },
+      ),
+    [job],
+  );
+
+  /** Pending Unleashed assembly awaiting operator confirmation. */
+  const [pendingAssembly, setPendingAssembly] = useState<{
+    palletCode: string;
+    unitsProduced: number;
+  } | null>(null);
+  const [assemblyBusy, setAssemblyBusy] = useState(false);
+
   // Default pallet quantity: original boxes/bottles ÷ original pallets.
   const defaultPalletQuantity = useMemo(() => {
     if (!job) return 0;
@@ -112,6 +127,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
     if (!pallets) return 0;
     return Math.round(original / pallets);
   }, [job]);
+
 
 
   const [presets, setPresets] = useState<QCPreset[]>(() => getAllPresets());
