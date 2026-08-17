@@ -41,6 +41,8 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useServerFn } from "@tanstack/react-start";
 import { createPalletAssembly } from "@/lib/unleashed/assembly.functions";
+import { getPackConfig, computeAssemblyQuantity } from "@/lib/pack-config";
+
 
 
 
