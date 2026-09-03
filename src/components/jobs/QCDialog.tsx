@@ -19,6 +19,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -1104,7 +1111,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
                 />
                 <div className="pt-1 text-xs text-muted-foreground">
                   BOM used: Unleashed Bill of Materials for {packConfig.finishedSku || "this product"}
-                  {job.assemblyComponents?.length
+                  {job?.assemblyComponents?.length
                     ? ` — ${job.assemblyComponents
                         .map((c) => `${c.quantity} × ${c.productCode}`)
                         .join(", ")} per finished unit`
