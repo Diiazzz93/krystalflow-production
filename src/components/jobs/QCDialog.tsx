@@ -19,6 +19,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -57,12 +64,17 @@ const CHECKS = [
 
 type CheckKey = (typeof CHECKS)[number][0];
 
+/** Sentinel job id used for QC forms that aren't tied to a production job. */
+export const STANDALONE_QC_JOB_ID = "standalone";
+
 interface Props {
-  jobId: string;
+  jobId?: string;
   open: boolean;
   onOpenChange: (v: boolean) => void;
   /** When provided, pre-fills the form with the data from this QC entry (view/edit existing pallet). */
   prefillEntryId?: string | null;
+  /** Blank QC form not linked to any job. No Unleashed assembly unless explicitly opted in. */
+  standalone?: boolean;
 }
 
 function todayISO() {
@@ -82,25 +94,33 @@ function generatePalletCode() {
   return `KS-${code}`;
 }
 
-export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
+export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone = false }: Props) {
   const { jobs, qc, addQC, updateQC, deleteQC } = useStore();
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
   const [entryToDelete, setEntryToDelete] = useState<string | null>(null);
 
-  const job = jobs.find((j) => j.id === jobId);
+  // Standalone mode: blank form, optional job link, opt-in Unleashed assembly.
+  const [linkedJobId, setLinkedJobId] = useState("");
+  const [title, setTitle] = useState("");
+  const [wantAssembly, setWantAssembly] = useState(false);
+
+  const effectiveJobId = standalone ? linkedJobId : (jobId ?? "");
+  const entryJobId = effectiveJobId || STANDALONE_QC_JOB_ID;
+
+  const job = jobs.find((j) => j.id === effectiveJobId);
   const history = useMemo(
     () => {
       const runStartedAt = Date.parse(job?.importedFromUnleashedAt ?? "");
       return qc
         .filter((q) => {
-          if (q.jobId !== jobId) return false;
+          if (q.jobId !== entryJobId) return false;
           if (!Number.isFinite(runStartedAt)) return true;
           const timestamp = Date.parse(q.timestamp);
           return !Number.isFinite(timestamp) || timestamp >= runStartedAt - 1000;
         })
         .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     },
-    [qc, jobId, job?.importedFromUnleashedAt],
+    [qc, entryJobId, job?.importedFromUnleashedAt],
   );
 
   const nextPallet = (job?.palletsCompleted ?? 0) + 1;
@@ -193,7 +213,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
   const [stickerEntry, setStickerEntry] = useState<QCEntry | null>(null);
   const historyListRef = useRef<HTMLOListElement>(null);
   const hydratedRef = useRef(false);
-  const draftKey = `qc-draft:${jobId}`;
+  const draftKey = `qc-draft:${standalone ? "standalone" : jobId}`;
 
   // Clear highlight after 2.5s
   useEffect(() => {
@@ -278,6 +298,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
 
   const loadFromEntry = (e: QCEntry) => {
     setEditingEntryId(e.id);
+    setTitle(e.title ?? "");
     setPalletNumber(e.palletNumber);
     setChecks({
       fillLevel: e.fillLevel,
@@ -320,6 +341,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
 
   const resetForNew = () => {
     setEditingEntryId(null);
+    if (standalone) setTitle("");
     setPalletNumber(nextPallet);
     setPalletQuantity("");
     setNotes("");
@@ -351,7 +373,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, prefillEntryId, qc]);
 
-  if (!job) return null;
+  if (!job && !standalone) return null;
 
   function toggle(k: CheckKey) {
     setChecks((c) => ({ ...c, [k]: c[k] === "Pass" ? "Fail" : "Pass" }));
@@ -392,7 +414,8 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
         : defaultPalletQuantity;
     const entry: QCEntry = {
       id: entryId,
-      jobId,
+      jobId: entryJobId,
+      title: title || undefined,
       palletNumber,
       ...checks,
       bottleCount,
@@ -450,8 +473,10 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
     );
 
     // On Pass, ask for confirmation before creating the per-pallet Assembly in
-    // Unleashed — the operator reviews the bottle → carton conversion first.
-    if (result === "Pass" && job?.unleashedSalesOrderNumber && effectivePalletQuantity > 0) {
+    // Unleashed. Standalone forms only do this when the operator opted in and
+    // linked the check to a job.
+    const assemblyAllowed = standalone ? wantAssembly && !!effectiveJobId : true;
+    if (assemblyAllowed && result === "Pass" && job?.unleashedSalesOrderNumber && effectivePalletQuantity > 0) {
       setPendingAssembly({ palletCode, unitsProduced: effectivePalletQuantity });
     }
 
@@ -473,7 +498,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
     try {
       const res = await createAssembly({
         data: {
-          jobId,
+          jobId: effectiveJobId,
           palletQuantity: pendingAssembly.unitsProduced,
           unitsPerFinished: packConfig.unitsPerFinished,
           palletCode: pendingAssembly.palletCode,
@@ -504,11 +529,69 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
     <Dialog open={open} onOpenChange={(v) => { if (!v) clearDraft(); onOpenChange(v); }}>
       <DialogContent className="max-w-5xl max-h-[92vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Quality Control — {job.product}</DialogTitle>
+          <DialogTitle>
+            Quality Control — {job ? job.product : title || "New QC check"}
+          </DialogTitle>
           <DialogDescription>
-            {job.customer} · SKU {job.sku} · {job.bottleSize}
+            {job
+              ? `${job.customer} · SKU ${job.sku} · ${job.bottleSize}`
+              : "Blank QC form — not linked to any job."}
           </DialogDescription>
         </DialogHeader>
+
+        {standalone && (
+          <section className="space-y-3 rounded-md border border-border bg-muted/20 p-3">
+            <Field label="What is this QC check for?">
+              <Input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="e.g. Bottle inspection — incoming stock"
+              />
+            </Field>
+            <Field label="Link to a job (optional)">
+              <Select
+                value={linkedJobId || "none"}
+                onValueChange={(v) => {
+                  setLinkedJobId(v === "none" ? "" : v);
+                  if (v === "none") setWantAssembly(false);
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Not linked" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Not linked to a job</SelectItem>
+                  {jobs
+                    .filter((j) => j.status !== "Complete")
+                    .map((j) => (
+                      <SelectItem key={j.id} value={j.id}>
+                        {j.customer} — {j.product}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            <button
+              type="button"
+              disabled={!linkedJobId}
+              onClick={() => setWantAssembly((v) => !v)}
+              className={cn(
+                "w-full rounded-md border px-3 py-2.5 text-sm font-medium transition-colors",
+                wantAssembly
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-card hover:bg-accent/40",
+                !linkedJobId && "opacity-50 cursor-not-allowed",
+              )}
+            >
+              {wantAssembly
+                ? "Will create an Unleashed assembly on pass"
+                : "Do not create an Unleashed assembly"}
+            </button>
+            <p className="text-[11px] text-muted-foreground">
+              Standalone checks never touch Unleashed unless you link a job and switch this on.
+            </p>
+          </section>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-6">
           <div className="space-y-6">
@@ -1030,7 +1113,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
                 />
                 <div className="pt-1 text-xs text-muted-foreground">
                   BOM used: Unleashed Bill of Materials for {packConfig.finishedSku || "this product"}
-                  {job.assemblyComponents?.length
+                  {job?.assemblyComponents?.length
                     ? ` — ${job.assemblyComponents
                         .map((c) => `${c.quantity} × ${c.productCode}`)
                         .join(", ")} per finished unit`

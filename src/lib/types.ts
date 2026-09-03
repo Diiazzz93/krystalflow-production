@@ -20,6 +20,8 @@ export type ReadyState = "Pending" | "Ready" | "Issue";
 export interface QCEntry {
   id: string;
   jobId: string;
+  /** Free-text subject for standalone QC forms not linked to a job. */
+  title?: string;
   palletNumber: number;
   fillLevel: "Pass" | "Fail";
   capTightness: "Pass" | "Fail";
