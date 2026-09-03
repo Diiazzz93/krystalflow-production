@@ -31,6 +31,7 @@ function QCPage() {
   const [jobId, setJobId] = usePersistedQcId();
   const [prefillEntryId, setPrefillEntryId] = useState<string | null>(null);
   const [lookup, setLookup] = useState("");
+  const [standaloneOpen, setStandaloneOpen] = useState(false);
 
   function handleLookup() {
     const q = lookup.trim().toUpperCase();
@@ -226,10 +227,9 @@ function QCPage() {
             <Button
               variant="default"
               onClick={() => {
-                if (!jobId) {
-                  const first = jobs.find((j) => j.status !== "Complete");
-                  if (first) setJobId(first.id);
-                }
+                setJobId(null);
+                setPrefillEntryId(null);
+                setStandaloneOpen(true);
               }}
             >
               <CheckCircle2 className="size-4 mr-1" /> New QC check
@@ -271,7 +271,7 @@ function QCPage() {
                               ) : (
                                 <XCircle className="size-4 text-red-500" />
                               )}
-                              {job?.customer ?? "Unknown"} — Pallet #{e.palletNumber}
+                              {job?.customer ?? e.title ?? "Standalone check"} — Pallet #{e.palletNumber}
                               {e.palletCode && (
                                 <code className="text-[10px] font-mono text-muted-foreground">{e.palletCode}</code>
                               )}
@@ -300,6 +300,12 @@ function QCPage() {
           </CardContent>
         </Card>
       </div>
+
+      <QCDialog
+        standalone
+        open={standaloneOpen}
+        onOpenChange={setStandaloneOpen}
+      />
 
       {jobId && (
         <QCDialog
