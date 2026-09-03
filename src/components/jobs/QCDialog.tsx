@@ -520,11 +520,69 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
     <Dialog open={open} onOpenChange={(v) => { if (!v) clearDraft(); onOpenChange(v); }}>
       <DialogContent className="max-w-5xl max-h-[92vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Quality Control — {job.product}</DialogTitle>
+          <DialogTitle>
+            Quality Control — {job ? job.product : title || "New QC check"}
+          </DialogTitle>
           <DialogDescription>
-            {job.customer} · SKU {job.sku} · {job.bottleSize}
+            {job
+              ? `${job.customer} · SKU ${job.sku} · ${job.bottleSize}`
+              : "Blank QC form — not linked to any job."}
           </DialogDescription>
         </DialogHeader>
+
+        {standalone && (
+          <section className="space-y-3 rounded-md border border-border bg-muted/20 p-3">
+            <Field label="What is this QC check for?">
+              <Input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="e.g. Bottle inspection — incoming stock"
+              />
+            </Field>
+            <Field label="Link to a job (optional)">
+              <Select
+                value={linkedJobId || "none"}
+                onValueChange={(v) => {
+                  setLinkedJobId(v === "none" ? "" : v);
+                  if (v === "none") setWantAssembly(false);
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Not linked" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Not linked to a job</SelectItem>
+                  {jobs
+                    .filter((j) => j.status !== "Complete")
+                    .map((j) => (
+                      <SelectItem key={j.id} value={j.id}>
+                        {j.customer} — {j.product}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            <button
+              type="button"
+              disabled={!linkedJobId}
+              onClick={() => setWantAssembly((v) => !v)}
+              className={cn(
+                "w-full rounded-md border px-3 py-2.5 text-sm font-medium transition-colors",
+                wantAssembly
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-card hover:bg-accent/40",
+                !linkedJobId && "opacity-50 cursor-not-allowed",
+              )}
+            >
+              {wantAssembly
+                ? "Will create an Unleashed assembly on pass"
+                : "Do not create an Unleashed assembly"}
+            </button>
+            <p className="text-[11px] text-muted-foreground">
+              Standalone checks never touch Unleashed unless you link a job and switch this on.
+            </p>
+          </section>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-6">
           <div className="space-y-6">
