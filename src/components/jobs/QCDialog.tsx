@@ -57,12 +57,17 @@ const CHECKS = [
 
 type CheckKey = (typeof CHECKS)[number][0];
 
+/** Sentinel job id used for QC forms that aren't tied to a production job. */
+export const STANDALONE_QC_JOB_ID = "standalone";
+
 interface Props {
-  jobId: string;
+  jobId?: string;
   open: boolean;
   onOpenChange: (v: boolean) => void;
   /** When provided, pre-fills the form with the data from this QC entry (view/edit existing pallet). */
   prefillEntryId?: string | null;
+  /** Blank QC form not linked to any job. No Unleashed assembly unless explicitly opted in. */
+  standalone?: boolean;
 }
 
 function todayISO() {
