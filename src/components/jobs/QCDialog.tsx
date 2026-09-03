@@ -87,25 +87,33 @@ function generatePalletCode() {
   return `KS-${code}`;
 }
 
-export function QCDialog({ jobId, open, onOpenChange, prefillEntryId }: Props) {
+export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone = false }: Props) {
   const { jobs, qc, addQC, updateQC, deleteQC } = useStore();
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
   const [entryToDelete, setEntryToDelete] = useState<string | null>(null);
 
-  const job = jobs.find((j) => j.id === jobId);
+  // Standalone mode: blank form, optional job link, opt-in Unleashed assembly.
+  const [linkedJobId, setLinkedJobId] = useState("");
+  const [title, setTitle] = useState("");
+  const [wantAssembly, setWantAssembly] = useState(false);
+
+  const effectiveJobId = standalone ? linkedJobId : (jobId ?? "");
+  const entryJobId = effectiveJobId || STANDALONE_QC_JOB_ID;
+
+  const job = jobs.find((j) => j.id === effectiveJobId);
   const history = useMemo(
     () => {
       const runStartedAt = Date.parse(job?.importedFromUnleashedAt ?? "");
       return qc
         .filter((q) => {
-          if (q.jobId !== jobId) return false;
+          if (q.jobId !== entryJobId) return false;
           if (!Number.isFinite(runStartedAt)) return true;
           const timestamp = Date.parse(q.timestamp);
           return !Number.isFinite(timestamp) || timestamp >= runStartedAt - 1000;
         })
         .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     },
-    [qc, jobId, job?.importedFromUnleashedAt],
+    [qc, entryJobId, job?.importedFromUnleashedAt],
   );
 
   const nextPallet = (job?.palletsCompleted ?? 0) + 1;
