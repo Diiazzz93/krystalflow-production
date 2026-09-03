@@ -464,8 +464,10 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
     );
 
     // On Pass, ask for confirmation before creating the per-pallet Assembly in
-    // Unleashed — the operator reviews the bottle → carton conversion first.
-    if (result === "Pass" && job?.unleashedSalesOrderNumber && effectivePalletQuantity > 0) {
+    // Unleashed. Standalone forms only do this when the operator opted in and
+    // linked the check to a job.
+    const assemblyAllowed = standalone ? wantAssembly && !!effectiveJobId : true;
+    if (assemblyAllowed && result === "Pass" && job?.unleashedSalesOrderNumber && effectivePalletQuantity > 0) {
       setPendingAssembly({ palletCode, unitsProduced: effectivePalletQuantity });
     }
 
