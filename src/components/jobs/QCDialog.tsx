@@ -298,6 +298,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
 
   const loadFromEntry = (e: QCEntry) => {
     setEditingEntryId(e.id);
+    setTitle(e.title ?? "");
     setPalletNumber(e.palletNumber);
     setChecks({
       fillLevel: e.fillLevel,
@@ -340,6 +341,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
 
   const resetForNew = () => {
     setEditingEntryId(null);
+    if (standalone) setTitle("");
     setPalletNumber(nextPallet);
     setPalletQuantity("");
     setNotes("");
