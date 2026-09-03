@@ -18,7 +18,7 @@ interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   entry: QCEntry;
-  job: Job;
+  job?: Job;
 }
 
 export function PalletStickerDialog({ open, onOpenChange, entry, job }: Props) {
@@ -100,10 +100,10 @@ export function PalletStickerDialog({ open, onOpenChange, entry, job }: Props) {
             </div>
 
             <h2 className="my-1 text-[14pt] font-bold leading-tight">
-              {job.product}
+              {job?.product ?? entry.title ?? "Standalone QC"}
             </h2>
             <div className="meta text-[9px] text-neutral-600">
-              {job.customer} · SKU {job.sku} · {job.bottleSize}
+              {job ? `${job.customer} · SKU ${job.sku} · ${job.bottleSize}` : "Not linked to a job"}
             </div>
 
             <div className="grid mt-2 grid-cols-2 gap-x-3 gap-y-1 text-[10px]">
@@ -139,7 +139,7 @@ export function PalletStickerDialog({ open, onOpenChange, entry, job }: Props) {
                 <span className="block text-[8px] uppercase tracking-wider text-neutral-500">
                   Line
                 </span>
-                {job.line}
+                {job?.line ?? "—"}
               </div>
               <div>
                 <span className="block text-[8px] uppercase tracking-wider text-neutral-500">
