@@ -206,7 +206,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
   const [stickerEntry, setStickerEntry] = useState<QCEntry | null>(null);
   const historyListRef = useRef<HTMLOListElement>(null);
   const hydratedRef = useRef(false);
-  const draftKey = `qc-draft:${jobId}`;
+  const draftKey = `qc-draft:${standalone ? "standalone" : jobId}`;
 
   // Clear highlight after 2.5s
   useEffect(() => {
@@ -364,7 +364,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, prefillEntryId, qc]);
 
-  if (!job) return null;
+  if (!job && !standalone) return null;
 
   function toggle(k: CheckKey) {
     setChecks((c) => ({ ...c, [k]: c[k] === "Pass" ? "Fail" : "Pass" }));
@@ -405,7 +405,8 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
         : defaultPalletQuantity;
     const entry: QCEntry = {
       id: entryId,
-      jobId,
+      jobId: entryJobId,
+      title: title || undefined,
       palletNumber,
       ...checks,
       bottleCount,
@@ -486,7 +487,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
     try {
       const res = await createAssembly({
         data: {
-          jobId,
+          jobId: effectiveJobId,
           palletQuantity: pendingAssembly.unitsProduced,
           unitsPerFinished: packConfig.unitsPerFinished,
           palletCode: pendingAssembly.palletCode,
