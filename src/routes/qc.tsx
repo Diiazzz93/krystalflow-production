@@ -31,7 +31,7 @@ function QCPage() {
   const [jobId, setJobId] = usePersistedQcId();
   const [prefillEntryId, setPrefillEntryId] = useState<string | null>(null);
   const [lookup, setLookup] = useState("");
-  const [standaloneOpen, setStandaloneOpen] = useState(false);
+  
 
   function handleLookup() {
     const q = lookup.trim().toUpperCase();
@@ -227,9 +227,9 @@ function QCPage() {
             <Button
               variant="default"
               onClick={() => {
-                setJobId(null);
                 setPrefillEntryId(null);
-                setStandaloneOpen(true);
+                // Persisted (sessionStorage) so the blank form survives app refreshes.
+                setJobId(STANDALONE_QC_JOB_ID);
               }}
             >
               <CheckCircle2 className="size-4 mr-1" /> New QC check
@@ -300,12 +300,6 @@ function QCPage() {
           </CardContent>
         </Card>
       </div>
-
-      <QCDialog
-        standalone
-        open={standaloneOpen}
-        onOpenChange={setStandaloneOpen}
-      />
 
       {jobId && (
         <QCDialog
