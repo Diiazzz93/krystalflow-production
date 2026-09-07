@@ -14,7 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { useStore } from "@/lib/store";
 import { fmtDateTime } from "@/lib/utils-domain";
-import { QCDialog } from "@/components/jobs/QCDialog";
+import { QCDialog, STANDALONE_QC_JOB_ID } from "@/components/jobs/QCDialog";
 import { usePersistedQcId } from "@/lib/qc-open-state";
 import { CheckCircle2, ShieldAlert, XCircle, Search } from "lucide-react";
 import { toast } from "sonner";
@@ -309,7 +309,8 @@ function QCPage() {
 
       {jobId && (
         <QCDialog
-          jobId={jobId}
+          jobId={jobId === STANDALONE_QC_JOB_ID ? undefined : jobId}
+          standalone={jobId === STANDALONE_QC_JOB_ID}
           open={!!jobId}
           onOpenChange={(v) => {
             if (!v) {
