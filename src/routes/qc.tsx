@@ -301,12 +301,6 @@ function QCPage() {
         </Card>
       </div>
 
-      <QCDialog
-        standalone
-        open={standaloneOpen}
-        onOpenChange={setStandaloneOpen}
-      />
-
       {jobId && (
         <QCDialog
           jobId={jobId === STANDALONE_QC_JOB_ID ? undefined : jobId}
