@@ -9,80 +9,25 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as UnleashedSyncRouteImport } from './routes/unleashed-sync'
-import { Route as StockRouteImport } from './routes/stock'
-import { Route as ShippingRouteImport } from './routes/shipping'
-import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as QcRouteImport } from './routes/qc'
-import { Route as ManufacturingRouteImport } from './routes/manufacturing'
-import { Route as LiveRouteImport } from './routes/live'
-import { Route as LineSetupRouteImport } from './routes/line-setup'
-import { Route as JobsRouteImport } from './routes/jobs'
-import { Route as CustomerSpecsRouteImport } from './routes/customer-specs'
-import { Route as CalendarRouteImport } from './routes/calendar'
-import { Route as AssemblyApprovalsRouteImport } from './routes/assembly-approvals'
-import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AnalyticsRouteImport } from './routes/analytics'
+import { Route as AssemblyApprovalsRouteImport } from './routes/assembly-approvals'
+import { Route as CalendarRouteImport } from './routes/calendar'
+import { Route as CustomerSpecsRouteImport } from './routes/customer-specs'
+import { Route as JobsRouteImport } from './routes/jobs'
+import { Route as LineSetupRouteImport } from './routes/line-setup'
+import { Route as LiveRouteImport } from './routes/live'
+import { Route as ManufacturingRouteImport } from './routes/manufacturing'
+import { Route as QcRouteImport } from './routes/qc'
+import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as ShippingRouteImport } from './routes/shipping'
+import { Route as StockRouteImport } from './routes/stock'
+import { Route as UnleashedSyncRouteImport } from './routes/unleashed-sync'
 import { Route as ApiPublicHooksSyncFillReadyRouteImport } from './routes/api/public/hooks/sync-fill-ready'
 
-const UnleashedSyncRoute = UnleashedSyncRouteImport.update({
-  id: '/unleashed-sync',
-  path: '/unleashed-sync',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const StockRoute = StockRouteImport.update({
-  id: '/stock',
-  path: '/stock',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ShippingRoute = ShippingRouteImport.update({
-  id: '/shipping',
-  path: '/shipping',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SettingsRoute = SettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const QcRoute = QcRouteImport.update({
-  id: '/qc',
-  path: '/qc',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ManufacturingRoute = ManufacturingRouteImport.update({
-  id: '/manufacturing',
-  path: '/manufacturing',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LiveRoute = LiveRouteImport.update({
-  id: '/live',
-  path: '/live',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LineSetupRoute = LineSetupRouteImport.update({
-  id: '/line-setup',
-  path: '/line-setup',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const JobsRoute = JobsRouteImport.update({
-  id: '/jobs',
-  path: '/jobs',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CustomerSpecsRoute = CustomerSpecsRouteImport.update({
-  id: '/customer-specs',
-  path: '/customer-specs',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CalendarRoute = CalendarRouteImport.update({
-  id: '/calendar',
-  path: '/calendar',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AssemblyApprovalsRoute = AssemblyApprovalsRouteImport.update({
-  id: '/assembly-approvals',
-  path: '/assembly-approvals',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AnalyticsRoute = AnalyticsRouteImport.update({
@@ -90,9 +35,64 @@ const AnalyticsRoute = AnalyticsRouteImport.update({
   path: '/analytics',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const AssemblyApprovalsRoute = AssemblyApprovalsRouteImport.update({
+  id: '/assembly-approvals',
+  path: '/assembly-approvals',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CalendarRoute = CalendarRouteImport.update({
+  id: '/calendar',
+  path: '/calendar',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CustomerSpecsRoute = CustomerSpecsRouteImport.update({
+  id: '/customer-specs',
+  path: '/customer-specs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const JobsRoute = JobsRouteImport.update({
+  id: '/jobs',
+  path: '/jobs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LineSetupRoute = LineSetupRouteImport.update({
+  id: '/line-setup',
+  path: '/line-setup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LiveRoute = LiveRouteImport.update({
+  id: '/live',
+  path: '/live',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ManufacturingRoute = ManufacturingRouteImport.update({
+  id: '/manufacturing',
+  path: '/manufacturing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const QcRoute = QcRouteImport.update({
+  id: '/qc',
+  path: '/qc',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ShippingRoute = ShippingRouteImport.update({
+  id: '/shipping',
+  path: '/shipping',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StockRoute = StockRouteImport.update({
+  id: '/stock',
+  path: '/stock',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UnleashedSyncRoute = UnleashedSyncRouteImport.update({
+  id: '/unleashed-sync',
+  path: '/unleashed-sync',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicHooksSyncFillReadyRoute =
@@ -228,88 +228,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/unleashed-sync': {
-      id: '/unleashed-sync'
-      path: '/unleashed-sync'
-      fullPath: '/unleashed-sync'
-      preLoaderRoute: typeof UnleashedSyncRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/stock': {
-      id: '/stock'
-      path: '/stock'
-      fullPath: '/stock'
-      preLoaderRoute: typeof StockRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/shipping': {
-      id: '/shipping'
-      path: '/shipping'
-      fullPath: '/shipping'
-      preLoaderRoute: typeof ShippingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/settings': {
-      id: '/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/qc': {
-      id: '/qc'
-      path: '/qc'
-      fullPath: '/qc'
-      preLoaderRoute: typeof QcRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/manufacturing': {
-      id: '/manufacturing'
-      path: '/manufacturing'
-      fullPath: '/manufacturing'
-      preLoaderRoute: typeof ManufacturingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/live': {
-      id: '/live'
-      path: '/live'
-      fullPath: '/live'
-      preLoaderRoute: typeof LiveRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/line-setup': {
-      id: '/line-setup'
-      path: '/line-setup'
-      fullPath: '/line-setup'
-      preLoaderRoute: typeof LineSetupRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/jobs': {
-      id: '/jobs'
-      path: '/jobs'
-      fullPath: '/jobs'
-      preLoaderRoute: typeof JobsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/customer-specs': {
-      id: '/customer-specs'
-      path: '/customer-specs'
-      fullPath: '/customer-specs'
-      preLoaderRoute: typeof CustomerSpecsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/calendar': {
-      id: '/calendar'
-      path: '/calendar'
-      fullPath: '/calendar'
-      preLoaderRoute: typeof CalendarRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/assembly-approvals': {
-      id: '/assembly-approvals'
-      path: '/assembly-approvals'
-      fullPath: '/assembly-approvals'
-      preLoaderRoute: typeof AssemblyApprovalsRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/analytics': {
@@ -319,11 +242,88 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AnalyticsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/assembly-approvals': {
+      id: '/assembly-approvals'
+      path: '/assembly-approvals'
+      fullPath: '/assembly-approvals'
+      preLoaderRoute: typeof AssemblyApprovalsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/calendar': {
+      id: '/calendar'
+      path: '/calendar'
+      fullPath: '/calendar'
+      preLoaderRoute: typeof CalendarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/customer-specs': {
+      id: '/customer-specs'
+      path: '/customer-specs'
+      fullPath: '/customer-specs'
+      preLoaderRoute: typeof CustomerSpecsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/jobs': {
+      id: '/jobs'
+      path: '/jobs'
+      fullPath: '/jobs'
+      preLoaderRoute: typeof JobsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/line-setup': {
+      id: '/line-setup'
+      path: '/line-setup'
+      fullPath: '/line-setup'
+      preLoaderRoute: typeof LineSetupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/live': {
+      id: '/live'
+      path: '/live'
+      fullPath: '/live'
+      preLoaderRoute: typeof LiveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/manufacturing': {
+      id: '/manufacturing'
+      path: '/manufacturing'
+      fullPath: '/manufacturing'
+      preLoaderRoute: typeof ManufacturingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/qc': {
+      id: '/qc'
+      path: '/qc'
+      fullPath: '/qc'
+      preLoaderRoute: typeof QcRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/shipping': {
+      id: '/shipping'
+      path: '/shipping'
+      fullPath: '/shipping'
+      preLoaderRoute: typeof ShippingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/stock': {
+      id: '/stock'
+      path: '/stock'
+      fullPath: '/stock'
+      preLoaderRoute: typeof StockRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/unleashed-sync': {
+      id: '/unleashed-sync'
+      path: '/unleashed-sync'
+      fullPath: '/unleashed-sync'
+      preLoaderRoute: typeof UnleashedSyncRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/hooks/sync-fill-ready': {
