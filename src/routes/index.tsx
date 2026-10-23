@@ -36,6 +36,14 @@ import { useStockStore } from "@/lib/stock-store";
 
 
 export const Route = createFileRoute("/")({
+  head: () => ({ meta: [
+    { title: "Production Dashboard | KrystalFlow" },
+    { name: "description", content: "Track filling jobs, production progress and stock alerts in KrystalFlow." },
+    { property: "og:title", content: "Production Dashboard | KrystalFlow" },
+    { property: "og:description", content: "Track filling jobs, production progress and stock alerts in KrystalFlow." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   component: Dashboard,
 });
 
