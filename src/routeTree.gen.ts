@@ -23,6 +23,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ShippingRouteImport } from './routes/shipping'
 import { Route as StockRouteImport } from './routes/stock'
 import { Route as UnleashedSyncRouteImport } from './routes/unleashed-sync'
+import { Route as ApiPublicHooksQcFeedRouteImport } from './routes/api/public/hooks/qc-feed'
 import { Route as ApiPublicHooksSyncFillReadyRouteImport } from './routes/api/public/hooks/sync-fill-ready'
 
 const IndexRoute = IndexRouteImport.update({
@@ -95,6 +96,11 @@ const UnleashedSyncRoute = UnleashedSyncRouteImport.update({
   path: '/unleashed-sync',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHooksQcFeedRoute = ApiPublicHooksQcFeedRouteImport.update({
+  id: '/api/public/hooks/qc-feed',
+  path: '/api/public/hooks/qc-feed',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicHooksSyncFillReadyRoute =
   ApiPublicHooksSyncFillReadyRouteImport.update({
     id: '/api/public/hooks/sync-fill-ready',
@@ -117,6 +123,7 @@ export interface FileRoutesByFullPath {
   '/shipping': typeof ShippingRoute
   '/stock': typeof StockRoute
   '/unleashed-sync': typeof UnleashedSyncRoute
+  '/api/public/hooks/qc-feed': typeof ApiPublicHooksQcFeedRoute
   '/api/public/hooks/sync-fill-ready': typeof ApiPublicHooksSyncFillReadyRoute
 }
 export interface FileRoutesByTo {
@@ -134,6 +141,7 @@ export interface FileRoutesByTo {
   '/shipping': typeof ShippingRoute
   '/stock': typeof StockRoute
   '/unleashed-sync': typeof UnleashedSyncRoute
+  '/api/public/hooks/qc-feed': typeof ApiPublicHooksQcFeedRoute
   '/api/public/hooks/sync-fill-ready': typeof ApiPublicHooksSyncFillReadyRoute
 }
 export interface FileRoutesById {
@@ -152,6 +160,7 @@ export interface FileRoutesById {
   '/shipping': typeof ShippingRoute
   '/stock': typeof StockRoute
   '/unleashed-sync': typeof UnleashedSyncRoute
+  '/api/public/hooks/qc-feed': typeof ApiPublicHooksQcFeedRoute
   '/api/public/hooks/sync-fill-ready': typeof ApiPublicHooksSyncFillReadyRoute
 }
 export interface FileRouteTypes {
@@ -171,6 +180,7 @@ export interface FileRouteTypes {
     | '/shipping'
     | '/stock'
     | '/unleashed-sync'
+    | '/api/public/hooks/qc-feed'
     | '/api/public/hooks/sync-fill-ready'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -188,6 +198,7 @@ export interface FileRouteTypes {
     | '/shipping'
     | '/stock'
     | '/unleashed-sync'
+    | '/api/public/hooks/qc-feed'
     | '/api/public/hooks/sync-fill-ready'
   id:
     | '__root__'
@@ -205,6 +216,7 @@ export interface FileRouteTypes {
     | '/shipping'
     | '/stock'
     | '/unleashed-sync'
+    | '/api/public/hooks/qc-feed'
     | '/api/public/hooks/sync-fill-ready'
   fileRoutesById: FileRoutesById
 }
@@ -223,6 +235,7 @@ export interface RootRouteChildren {
   ShippingRoute: typeof ShippingRoute
   StockRoute: typeof StockRoute
   UnleashedSyncRoute: typeof UnleashedSyncRoute
+  ApiPublicHooksQcFeedRoute: typeof ApiPublicHooksQcFeedRoute
   ApiPublicHooksSyncFillReadyRoute: typeof ApiPublicHooksSyncFillReadyRoute
 }
 
@@ -326,6 +339,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof UnleashedSyncRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/qc-feed': {
+      id: '/api/public/hooks/qc-feed'
+      path: '/api/public/hooks/qc-feed'
+      fullPath: '/api/public/hooks/qc-feed'
+      preLoaderRoute: typeof ApiPublicHooksQcFeedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/sync-fill-ready': {
       id: '/api/public/hooks/sync-fill-ready'
       path: '/api/public/hooks/sync-fill-ready'
@@ -351,6 +371,7 @@ const rootRouteChildren: RootRouteChildren = {
   ShippingRoute: ShippingRoute,
   StockRoute: StockRoute,
   UnleashedSyncRoute: UnleashedSyncRoute,
+  ApiPublicHooksQcFeedRoute: ApiPublicHooksQcFeedRoute,
   ApiPublicHooksSyncFillReadyRoute: ApiPublicHooksSyncFillReadyRoute,
 }
 export const routeTree = rootRouteImport
