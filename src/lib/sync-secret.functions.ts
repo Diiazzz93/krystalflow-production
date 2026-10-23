@@ -1,8 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-// Copies SYNC_WEBHOOK_SECRET into the database vault so the scheduled
-// sync-fill-ready job can send it in the x-sync-webhook-secret header.
+// Copies SYNC_WEBHOOK_SECRET into Supabase Vault under the name
+// sync_webhook_secret. The 5-minute job sends that key only if its SQL
+// already reads the vault value into the x-sync-webhook-secret header.
 export const linkSyncWebhookSecret = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -15,11 +16,17 @@ export const linkSyncWebhookSecret = createServerFn({ method: "POST" })
       throw new Error("Only admins can do this");
     }
     const secret = process.env.SYNC_WEBHOOK_SECRET;
-    if (!secret) throw new Error("SYNC_WEBHOOK_SECRET is not set");
+    if (!secret) {
+      throw new Error(
+        "The security key is not on the published app yet. In Lovable, add a secret named SYNC_WEBHOOK_SECRET, publish again, then press the button.",
+      );
+    }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error: rpcErr } = await (supabaseAdmin.rpc as any)("set_sync_webhook_secret", {
+    const { error: rpcErr } = await supabaseAdmin.rpc("set_sync_webhook_secret", {
       p_secret: secret,
     });
-    if (rpcErr) throw new Error(rpcErr.message);
+    if (rpcErr) {
+      throw new Error(`The database could not store the security key. ${rpcErr.message}`);
+    }
     return { ok: true };
   });
