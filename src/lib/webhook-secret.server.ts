@@ -1,4 +1,5 @@
-// Server-only comparison for SYNC_WEBHOOK_SECRET.
+// Server-only comparison for shared secrets such as SYNC_WEBHOOK_SECRET
+// and QC_FEED_SECRET.
 // Hash both sides first so timingSafeEqual always sees equal-length digests.
 
 export async function secretsMatch(provided: string, expected: string): Promise<boolean> {
