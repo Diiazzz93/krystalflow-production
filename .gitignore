@@ -10,12 +10,7 @@ lerna-debug.log*
 node_modules
 dist
 
-# Environment files. Public Supabase names live in .env.example.
-# .env is local-only so secrets are not committed. Vite still loads .env
-# when it is present; copy .env.example to .env for a local build.
-.env
-.env.*
-!.env.example
+# .env holds only public, publishable settings and must stay in the build.
 dist-ssr
 .output
 .vinxi
