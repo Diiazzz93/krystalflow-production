@@ -21,6 +21,14 @@ import { CheckCircle2, ShieldAlert, XCircle, Search } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/qc")({
+  head: () => ({ meta: [
+    { title: "Quality Control | KrystalFlow" },
+    { name: "description", content: "Pallet inspections, filling records and supervisor sign-off in KrystalFlow." },
+    { property: "og:title", content: "Quality Control | KrystalFlow" },
+    { property: "og:description", content: "Pallet inspections, filling records and supervisor sign-off in KrystalFlow." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   component: QCPage,
 });
 

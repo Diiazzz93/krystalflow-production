@@ -32,22 +32,29 @@ export function SignaturePad({ value, onChange }: Props) {
   }, [value]);
 
   function pos(e: React.PointerEvent) {
-    const rect = canvasRef.current!.getBoundingClientRect();
+    const rect = e.currentTarget.getBoundingClientRect();
     return { x: e.clientX - rect.left, y: e.clientY - rect.top };
   }
 
   function down(e: React.PointerEvent) {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
     drawing.current = true;
     setEmpty(false);
-    const ctx = canvasRef.current!.getContext("2d")!;
+    canvas.setPointerCapture(e.pointerId);
+    ctx.strokeStyle = getComputedStyle(canvas).color;
     const { x, y } = pos(e);
     ctx.beginPath();
     ctx.moveTo(x, y);
+    ctx.lineTo(x + 0.1, y + 0.1);
+    ctx.stroke();
   }
 
   function move(e: React.PointerEvent) {
     if (!drawing.current) return;
-    const ctx = canvasRef.current!.getContext("2d")!;
+    const ctx = canvasRef.current?.getContext("2d");
+    if (!ctx) return;
     const { x, y } = pos(e);
     ctx.lineTo(x, y);
     ctx.stroke();
@@ -56,12 +63,14 @@ export function SignaturePad({ value, onChange }: Props) {
   function up() {
     if (!drawing.current) return;
     drawing.current = false;
-    onChange(canvasRef.current!.toDataURL("image/png"));
+    const canvas = canvasRef.current;
+    if (canvas) onChange(canvas.toDataURL("image/png"));
   }
 
   function clear() {
-    const canvas = canvasRef.current!;
-    const ctx = canvas.getContext("2d")!;
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     setEmpty(true);
     onChange(undefined);
@@ -72,11 +81,12 @@ export function SignaturePad({ value, onChange }: Props) {
       <div className="relative rounded-md border border-input bg-background">
         <canvas
           ref={canvasRef}
+          aria-label="Supervisor signature"
           className="block w-full h-28 touch-none text-foreground cursor-crosshair"
           onPointerDown={down}
           onPointerMove={move}
           onPointerUp={up}
-          onPointerLeave={up}
+          onPointerCancel={up}
         />
         {empty && (
           <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-xs text-muted-foreground">
