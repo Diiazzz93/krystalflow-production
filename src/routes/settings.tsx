@@ -23,6 +23,7 @@ import { BrandingPanel } from "@/components/settings/BrandingPanel";
 import { LinesPanel } from "@/components/settings/LinesPanel";
 import { StockAlertsPanel } from "@/components/settings/StockAlertsPanel";
 import { useAuth } from "@/lib/auth";
+import { linkSyncWebhookSecret } from "@/lib/sync-secret.functions";
 
 export const Route = createFileRoute("/settings")({
   component: SettingsPage,
@@ -128,6 +129,31 @@ function SettingsPage() {
         </div>
 
         {isAdmin && <UserManagementPanel />}
+
+        {isAdmin && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Automatic Fill Ready sync</CardTitle>
+              <CardDescription>
+                Connects the 5-minute sync to its security key. Press once after publishing.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                onClick={async () => {
+                  try {
+                    await linkSyncWebhookSecret();
+                    toast.success("Automatic sync connected");
+                  } catch (e) {
+                    toast.error(e instanceof Error ? e.message : String(e));
+                  }
+                }}
+              >
+                Connect automatic sync
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         <BrandingPanel />
 
