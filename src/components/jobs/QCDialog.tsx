@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useId, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -50,6 +50,7 @@ import { cn } from "@/lib/utils";
 import { useServerFn } from "@tanstack/react-start";
 import { createPalletAssembly } from "@/lib/unleashed/assembly.functions";
 import { getPackConfig, computeAssemblyQuantity } from "@/lib/pack-config";
+import { EMPTY_QC_CHECKS, isDiggersProduct, validateQCForm } from "@/lib/qc-validation";
 
 
 
@@ -64,6 +65,7 @@ const CHECKS = [
 ] as const;
 
 type CheckKey = (typeof CHECKS)[number][0];
+const ValidationContext = createContext<Record<string, string>>({});
 
 /** Sentinel job id used for QC forms that aren't tied to a production job. */
 export const STANDALONE_QC_JOB_ID = "standalone";
@@ -106,11 +108,14 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
   const [linkedJobId, setLinkedJobId] = useState("");
   const [title, setTitle] = useState("");
   const [wantAssembly, setWantAssembly] = useState(false);
+  const [standaloneDiggers, setStandaloneDiggers] = useState("");
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
   const effectiveJobId = standalone ? linkedJobId : (jobId ?? "");
   const entryJobId = effectiveJobId || STANDALONE_QC_JOB_ID;
 
   const job = jobs.find((j) => j.id === effectiveJobId);
+  const diggers = job ? isDiggersProduct(job) : standaloneDiggers === "yes";
   const history = useMemo(
     () => {
       const runStartedAt = Date.parse(job?.importedFromUnleashedAt ?? "");
@@ -163,15 +168,8 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
   }, [open]);
 
   const [palletNumber, setPalletNumber] = useState(nextPallet);
-  const [checks, setChecks] = useState<Record<CheckKey, "Pass" | "Fail">>({
-    fillLevel: "Pass",
-    capTightness: "Pass",
-    labelAlignment: "Pass",
-    batchCode: "Pass",
-    leakCheck: "Pass",
-    bottleCondition: "Pass",
-  });
-  const [bottleCount, setBottleCount] = useState(1200);
+  const [checks, setChecks] = useState({ ...EMPTY_QC_CHECKS });
+  const [bottleCount, setBottleCount] = useState<number | "">("");
   const [palletQuantity, setPalletQuantity] = useState<number | "">("");
   const previewQty = useMemo(
     () =>
@@ -184,7 +182,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
     [palletQuantity, defaultPalletQuantity, packConfig.unitsPerFinished],
   );
 
-  const [palletType, setPalletType] = useState<"CHEP" | "Recochem" | "Plain">("CHEP");
+  const [palletType, setPalletType] = useState<"CHEP" | "Recochem" | "Plain" | "">("");
   const [operatorName, setOperatorName] = useState(job?.operator ?? "");
   const [notes, setNotes] = useState("");
 
@@ -233,6 +231,8 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
       const raw = sessionStorage.getItem(draftKey);
       if (!raw) return;
       const s = JSON.parse(raw);
+      if (s.title != null) setTitle(s.title);
+      if (s.standaloneDiggers != null) setStandaloneDiggers(s.standaloneDiggers);
       if (s.editingEntryId) setEditingEntryId(s.editingEntryId);
       if (s.palletNumber != null) setPalletNumber(s.palletNumber);
       if (s.checks) setChecks(s.checks);
@@ -274,7 +274,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
       sessionStorage.setItem(
         draftKey,
         JSON.stringify({
-          editingEntryId, palletNumber, checks, bottleCount, palletQuantity, palletType,
+          title, standaloneDiggers, editingEntryId, palletNumber, checks, bottleCount, palletQuantity, palletType,
           operatorName, notes, mNumber, logDate, bottleWeight, capWeight,
           liquidWeightPer100ml, totalWeightGrams, palletRowVolumes, startTime,
           finishTime, minimumVolume, maximumVolume, boxesPerPallet,
@@ -286,7 +286,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
     } catch {
       /* quota — ignore */
     }
-  }, [open, draftKey, editingEntryId, palletNumber, checks, bottleCount,
+  }, [open, draftKey, title, standaloneDiggers, editingEntryId, palletNumber, checks, bottleCount,
       palletQuantity, palletType, operatorName, notes, mNumber, logDate, bottleWeight,
       capWeight, liquidWeightPer100ml, totalWeightGrams, palletRowVolumes,
       startTime, finishTime, minimumVolume, maximumVolume, boxesPerPallet,
@@ -300,6 +300,8 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
 
 
   const loadFromEntry = (e: QCEntry) => {
+    setValidationErrors({});
+    setStandaloneDiggers(e.mNumber ? "yes" : "no");
     setEditingEntryId(e.id);
     setTitle(e.title ?? "");
     setPalletNumber(e.palletNumber);
@@ -354,14 +356,25 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
     setBottleQcOperator("");
     setCapperOperator("");
     setPackagingOperator("");
-    setChecks({
-      fillLevel: "Pass",
-      capTightness: "Pass",
-      labelAlignment: "Pass",
-      batchCode: "Pass",
-      leakCheck: "Pass",
-      bottleCondition: "Pass",
-    });
+    setChecks({ ...EMPTY_QC_CHECKS });
+    setBottleCount("");
+    setPalletType("");
+    setOperatorName(job?.operator ?? "");
+    setMNumber("");
+    setLogDate(todayISO());
+    setBottleWeight("");
+    setCapWeight("");
+    setLiquidWeightPer100ml("");
+    setTotalWeightGrams("");
+    setStartTime(nowHHMM());
+    setFinishTime("");
+    setMinimumVolume("");
+    setMaximumVolume("");
+    setBoxesPerPallet("");
+    setSupervisorName("");
+    setFinishedProductFileName("");
+    setFinalProductPhotoName("");
+    setValidationErrors({});
   };
 
   // Prefill form from an existing entry (look-up by pallet code flow)
@@ -378,9 +391,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
 
   if (!job && !standalone) return null;
 
-  function toggle(k: CheckKey) {
-    setChecks((c) => ({ ...c, [k]: c[k] === "Pass" ? "Fail" : "Pass" }));
-  }
+
 
   function applyPreset(preset: QCPreset) {
     const v = preset.values;
@@ -407,6 +418,20 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
       toast.error("Only admins and managers can save QC records");
       return;
     }
+    const errors = validateQCForm({
+      standalone, title, diggers, mNumber, logDate, operatorName, bottleWeight, capWeight,
+      liquidWeightPer100ml, totalWeightGrams, palletRowVolumes, startTime, finishTime,
+      minimumVolume, maximumVolume, palletNumber, boxesPerPallet, bottleCount,
+      palletQuantity, palletType, bottleQcOperator, capperOperator, packagingOperator,
+      checks, supervisorName, supervisorSignatureDataUrl, notes,
+    });
+    if (!job && standalone && !standaloneDiggers) errors["Diggers product?"] = "Choose whether this is a Diggers product.";
+    setValidationErrors(errors);
+    if (Object.keys(errors).length) {
+      toast.error("QC not saved", { description: "Complete the highlighted details and supervisor signature." });
+      requestAnimationFrame(() => document.querySelector('[data-qc-invalid="true"]')?.scrollIntoView({ behavior: "smooth", block: "center" }));
+      return;
+    }
     const result: "Pass" | "Fail" = Object.values(checks).some((v) => v === "Fail")
       ? "Fail"
       : "Pass";
@@ -424,14 +449,19 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
       jobId: entryJobId,
       title: title || undefined,
       palletNumber,
-      ...checks,
-      bottleCount,
+      fillLevel: checks.fillLevel === "Fail" ? "Fail" : "Pass",
+      capTightness: checks.capTightness === "Fail" ? "Fail" : "Pass",
+      labelAlignment: checks.labelAlignment === "Fail" ? "Fail" : "Pass",
+      batchCode: checks.batchCode === "Fail" ? "Fail" : "Pass",
+      leakCheck: checks.leakCheck === "Fail" ? "Fail" : "Pass",
+      bottleCondition: checks.bottleCondition === "Fail" ? "Fail" : "Pass",
+      bottleCount: Number(bottleCount),
       operatorName,
       supervisorSignoff: supervisorName,
       notes,
       timestamp: existing?.timestamp ?? new Date().toISOString(),
       result,
-      mNumber: mNumber || undefined,
+      mNumber: diggers ? mNumber.trim() : undefined,
       logDate,
       bottleWeight: numOrUndef(bottleWeight),
       capWeight: numOrUndef(capWeight),
@@ -453,7 +483,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
       packagingOperator: packagingOperator || undefined,
       palletCode,
       palletQuantity: effectivePalletQuantity || undefined,
-      palletType,
+      palletType: palletType === "" ? undefined : palletType,
       qcApproved: result === "Pass" && !!supervisorSignatureDataUrl,
     };
 
@@ -535,6 +565,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
 
 
   return (
+    <ValidationContext.Provider value={validationErrors}>
     <Dialog open={open} onOpenChange={(v) => { if (!v) clearDraft(); onOpenChange(v); }}>
       <DialogContent className="max-w-5xl max-h-[92vh] overflow-y-auto">
         <DialogHeader>
@@ -644,9 +675,19 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
               </h3>
 
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                <Field label="M Number">
-                  <Input value={mNumber} onChange={(e) => setMNumber(e.target.value)} placeholder="M-…" />
-                </Field>
+                {!job && standalone && (
+                  <Field label="Diggers product?">
+                    <Select value={standaloneDiggers} onValueChange={setStandaloneDiggers}>
+                      <SelectTrigger aria-label="Diggers product?"><SelectValue placeholder="Choose…" /></SelectTrigger>
+                      <SelectContent><SelectItem value="yes">Yes</SelectItem><SelectItem value="no">No</SelectItem></SelectContent>
+                    </Select>
+                  </Field>
+                )}
+                {diggers && (
+                  <Field label="M Number">
+                    <Input value={mNumber} onChange={(e) => setMNumber(e.target.value)} placeholder="M-…" />
+                  </Field>
+                )}
                 <Field label="Date">
                   <Input type="date" value={logDate} onChange={(e) => setLogDate(e.target.value)} />
                 </Field>
@@ -771,7 +812,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
                 </Field>
                 <Field label="Bottle count">
                   <Input type="number" value={bottleCount}
-                    onChange={(e) => setBottleCount(Number(e.target.value))} />
+                    onChange={(e) => setBottleCount(e.target.value === "" ? "" : Number(e.target.value))} />
                 </Field>
               </div>
 
@@ -799,7 +840,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
 
               {/* Production progress: how many boxes/units this pallet adds to Completed. */}
               <div className="rounded-md border border-dashed border-border bg-muted/20 p-3">
-                <Field label={`Units produced on this pallet (${packConfig.individualUnit.toLowerCase()}s, defaults to ${defaultPalletQuantity.toLocaleString()})`}>
+                <Field label="Units produced on this pallet">
                   <Input
                     type="number"
                     value={palletQuantity}
@@ -835,9 +876,9 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
 
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <FileField label="Finished pallet photo" value={finishedProductFileName}
+                <FileField label="Finished pallet photo (optional)" value={finishedProductFileName}
                   onChange={setFinishedProductFileName} accept="image/*" />
-                <FileField label="Final product photo" value={finalProductPhotoName}
+                <FileField label="Final product photo (optional)" value={finalProductPhotoName}
                   onChange={setFinalProductPhotoName} accept="image/*" />
               </div>
             </section>
@@ -868,31 +909,24 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
               <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
                 Inspection checks
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                {CHECKS.map(([key, label]) => (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => toggle(key)}
-                    className={`flex items-center justify-between rounded-md border px-3 py-2 text-sm transition-colors ${
-                      checks[key] === "Pass"
-                        ? "border-emerald-500/40 bg-emerald-500/10"
-                        : "border-red-500/40 bg-red-500/10"
-                    }`}
-                  >
-                    <span className="font-medium">{label}</span>
-                    {checks[key] === "Pass" ? (
-                      <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
-                        <CheckCircle2 className="size-4" /> Pass
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-1 text-red-600 dark:text-red-400 text-xs font-semibold">
-                        <XCircle className="size-4" /> Fail
-                      </span>
-                    )}
-                  </button>
-                ))}
-              </div>
+              <Field label="Inspection checks">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {CHECKS.map(([key, label]) => (
+                    <div key={key} className="flex flex-wrap items-center justify-between gap-2 border border-border rounded-md px-3 py-2">
+                      <span className="text-sm font-medium">{label}</span>
+                      <div className="flex gap-1" role="group" aria-label={label}>
+                        {(["Pass", "Fail"] as const).map(value => (
+                          <Button key={value} type="button" size="sm" variant={checks[key] === value ? (value === "Fail" ? "destructive" : "default") : "outline"}
+                            aria-pressed={checks[key] === value} aria-label={`${label}: ${value}`}
+                            onClick={() => setChecks(current => ({ ...current, [key]: value }))}>
+                            {value === "Pass" ? <CheckCircle2 className="size-3.5" /> : <XCircle className="size-3.5" />} {value}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Field>
             </section>
 
             {/* Sign off */}
@@ -1178,15 +1212,20 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
         />
       )}
     </Dialog>
+    </ValidationContext.Provider>
   );
 }
 
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  const errors = useContext(ValidationContext);
+  const id = useId();
+  const error = errors[label];
   return (
-    <div className="space-y-1.5">
-      <Label className="text-xs uppercase text-muted-foreground">{label}</Label>
-      {children}
+    <div className={cn("space-y-1.5", error && "rounded-md ring-1 ring-destructive p-2")} data-qc-invalid={error ? "true" : undefined}>
+      <Label id={id} className="text-xs uppercase text-muted-foreground">{label}</Label>
+      <div role="group" aria-labelledby={id}>{children}</div>
+      {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
     </div>
   );
 }
