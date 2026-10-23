@@ -76,8 +76,7 @@ const PERMISSIONS: Record<Role, Permission[]> = {
     "page:dashboard", "page:calendar", "page:jobs", "page:live",
     "page:qc", "page:stock", "page:shipping", "page:line-setup", "page:customer-specs",
     "page:manufacturing",
-    "jobs:update-progress", "qc:complete",
-    "line-setup:manage",
+    "jobs:update-progress",
   ],
   viewer: [
     "page:dashboard", "page:calendar", "page:jobs", "page:live",
@@ -99,11 +98,6 @@ interface AuthContextValue {
   user: AuthUser | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
-  signUp: (
-    email: string,
-    password: string,
-    name: string,
-  ) => Promise<{ error: string | null; needsConfirmation?: boolean }>;
   signOut: () => Promise<void>;
   can: (permission: Permission) => boolean;
   hasRole: (...roles: Role[]) => boolean;
@@ -197,21 +191,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error?.message ?? null };
   }, []);
 
-  const signUp = useCallback(async (email: string, password: string, name: string) => {
-    const { data, error } = await supabase.auth.signUp({
-      email: email.trim(),
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/`,
-        data: { name: name.trim() },
-      },
-    });
-    if (error) return { error: error.message };
-    // If email confirmation is required, there's no session yet.
-    const needsConfirmation = !data.session;
-    return { error: null, needsConfirmation };
-  }, []);
-
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
     setUser(null);
@@ -228,8 +207,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, loading, signIn, signUp, signOut, can, hasRole }),
-    [user, loading, signIn, signUp, signOut, can, hasRole],
+    () => ({ user, loading, signIn, signOut, can, hasRole }),
+    [user, loading, signIn, signOut, can, hasRole],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

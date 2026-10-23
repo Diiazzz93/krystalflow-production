@@ -35,9 +35,9 @@ interface StoreContextValue {
   addLine: (line: Line) => void;
   updateLine: (id: string, patch: Partial<Line>) => void;
   deleteLine: (id: string) => void;
-  addQC: (entry: QCEntry) => Promise<void>;
-  updateQC: (id: string, patch: Partial<QCEntry>) => Promise<void>;
-  deleteQC: (id: string) => Promise<void>;
+  addQC: (entry: QCEntry) => Promise<boolean>;
+  updateQC: (id: string, patch: Partial<QCEntry>) => Promise<boolean>;
+  deleteQC: (id: string) => Promise<boolean>;
 
   reset: () => void;
 }
@@ -435,7 +435,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     async (entry) => {
       if (!user?.id) {
         toast.error("Sign in required to save QC records");
-        return;
+        return false;
       }
       const row = { ...qcToRow(entry), created_by: user.id };
       const { data, error } = await supabase
@@ -445,7 +445,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         .single();
       if (error || !data) {
         toast.error(error?.message ?? "Could not save QC record");
-        return;
+        return false;
       }
       const saved = rowToQC(data as unknown as Record<string, unknown>);
       setQC((s) => [saved, ...s.filter((q) => q.id !== saved.id)]);
@@ -453,10 +453,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
       // Auto-status side effects (Pass/Fail).
       const j = jobs.find((x) => x.id === entry.jobId);
-      if (!j) return;
+      if (!j) return true;
       if (entry.result === "Fail") {
         void updateJob(j.id, { status: "Requires Review" });
-        return;
+        return true;
       }
       const original = j.originalQuantity ?? j.quantity ?? 0;
       const originalPallets = Math.max(j.originalPallets ?? 0, j.pallets ?? 0);
@@ -484,6 +484,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         status: isComplete ? "Complete" : j.status === "Scheduled" ? "Filling" : j.status,
       });
 
+      return true;
     },
     [jobs, updateJob, user?.id],
   );
@@ -491,7 +492,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const updateQC = useCallback<StoreContextValue["updateQC"]>(
     async (id, patch) => {
       const current = qc.find((q) => q.id === id);
-      if (!current) return;
+      if (!current) return false;
       // Preserve immutable identifiers: palletCode never changes once issued.
       const merged: QCEntry = { ...current, ...patch, id, palletCode: current.palletCode };
       const row = qcToRow(merged);
@@ -508,7 +509,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         .single();
       if (error || !data) {
         toast.error(error?.message ?? "Could not update QC record");
-        return;
+        return false;
       }
       const saved = rowToQC(data as unknown as Record<string, unknown>);
       const nextQC = qc.map((q) => (q.id === id ? saved : q));
@@ -555,6 +556,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           status: nextStatus,
         });
       }
+      return true;
     },
     [qc, jobs, updateJob],
   );
@@ -564,7 +566,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.from("pallet_qc_records").delete().eq("id", id);
     if (error) {
       toast.error(error.message);
-      return;
+      return false;
     }
     const remaining = qc.filter((q) => q.id !== id);
     setQC(remaining);
@@ -618,6 +620,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
 
     toast.success("QC record deleted");
+    return true;
   }, [qc, jobs, updateJob]);
 
 

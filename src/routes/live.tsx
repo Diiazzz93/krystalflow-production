@@ -40,6 +40,7 @@ function LivePage() {
   const { jobs, lines, completeJob } = useStore();
   const { can } = useAuth();
   const canComplete = can("jobs:update-progress") || can("jobs:edit");
+  const canWriteQc = can("qc:complete");
   const [editId, setEditId] = useState<string | null>(null);
   const [qcId, setQcId] = usePersistedQcId();
   const [completeId, setCompleteId] = useState<string | null>(null);
@@ -171,7 +172,7 @@ function LivePage() {
                             className="flex-1"
                             onClick={() => setQcId(running.id)}
                           >
-                            <ShieldCheck className="size-4 mr-1" /> Log QC
+                            <ShieldCheck className="size-4 mr-1" /> {canWriteQc ? "Log QC" : "View QC"}
                           </Button>
                           <Button
                             size="sm"

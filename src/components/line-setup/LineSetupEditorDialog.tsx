@@ -76,9 +76,9 @@ export function LineSetupEditorDialog({ presetId, open, onOpenChange }: Props) {
   function save() {
     if (!form.product.trim()) return;
     if (isEdit && existing) {
-      update(existing.id, form);
-    } else {
-      add({ ...form, createdBy: user?.name });
+      if (!update(existing.id, form)) return;
+    } else if (!add({ ...form, createdBy: user?.name })) {
+      return;
     }
     onOpenChange(false);
   }

@@ -4,6 +4,7 @@
 
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { assertApprovedRole } from "@/lib/approved-role";
 
 export interface UnleashedAllocation {
   assemblyNumber: string | null;
@@ -44,7 +45,8 @@ export const fetchUnleashedAllocations = createServerFn({ method: "POST" })
     }
     return { sku: data.sku.trim() };
   })
-  .handler(async ({ data }): Promise<UnleashedAllocation[]> => {
+  .handler(async ({ data, context }): Promise<UnleashedAllocation[]> => {
+    await assertApprovedRole(context.supabase, context.userId);
     const target = data.sku.toUpperCase();
     const { ulFetchAllQueryPages } = await import("./signed-request.server");
 

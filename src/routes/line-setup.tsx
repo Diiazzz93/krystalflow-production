@@ -32,7 +32,7 @@ const ALL = "__all__";
 function LineSetupPage() {
   const { presets, toggleFavourite } = useLineSetups();
   const { hasRole } = useAuth();
-  const canManage = hasRole("admin", "manager", "operator");
+  const canManage = hasRole("admin", "manager");
 
   const [search, setSearch] = useState("");
   const [productFilter, setProductFilter] = useState<string>(ALL);
@@ -165,7 +165,7 @@ function LineSetupPage() {
                 canEdit={canManage}
                 onView={() => setViewerId(p.id)}
                 onEdit={() => openEdit(p.id)}
-                onToggleFav={() => toggleFavourite(p.id)}
+                onToggleFav={canManage ? () => toggleFavourite(p.id) : undefined}
               />
             ))}
           </div>
@@ -198,7 +198,7 @@ function PresetCard({
   canEdit: boolean;
   onView: () => void;
   onEdit: () => void;
-  onToggleFav: () => void;
+  onToggleFav?: () => void;
 }) {
   return (
     <article className="rounded-lg border border-border bg-card p-4 flex flex-col gap-3 hover:border-primary/50 transition-colors">
@@ -213,16 +213,18 @@ function PresetCard({
             </Badge>
           </div>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onToggleFav}
-          aria-label={preset.favourite ? "Unfavourite" : "Favourite"}
-        >
-          <Star
-            className={`size-5 ${preset.favourite ? "fill-amber-400 text-amber-400" : "text-muted-foreground"}`}
-          />
-        </Button>
+        {onToggleFav && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onToggleFav}
+            aria-label={preset.favourite ? "Unfavourite" : "Favourite"}
+          >
+            <Star
+              className={`size-5 ${preset.favourite ? "fill-amber-400 text-amber-400" : "text-muted-foreground"}`}
+            />
+          </Button>
+        )}
       </div>
 
       <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
