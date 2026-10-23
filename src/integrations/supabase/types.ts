@@ -400,7 +400,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      set_sync_webhook_secret: {
+        Args: { p_secret: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "manager" | "operator" | "viewer" | "pending"
