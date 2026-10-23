@@ -1,6 +1,6 @@
 # QC feed
 
-A read-only web address an outside assistant can call to collect finished quality-control forms. It does not create, change, or delete anything.
+A read-only web address an outside assistant can call to collect submitted quality-control forms. It does not create, change, or delete anything.
 
 ## Address
 
@@ -12,12 +12,22 @@ Use the address of the published KrystalFlow site (the one staff open in the bro
 
 `since` is required. The feed returns forms created after that moment. `until` is optional. When you send it, the feed also stops at that moment.
 
-Each call returns at most 500 forms, oldest first. Only two kinds of form are included:
+Each call returns at most 500 forms, oldest first. Every submitted form is included, whether it passed or failed. A form is submitted when someone presses **Submit QC log**. That is the same list as the QC timeline. An unsaved draft on the tablet is not included, because it is not saved yet.
 
-- Approved forms (the supervisor signed off a pass).
-- Failed forms.
+Signatures and photos are never included.
 
-Forms that are still in progress are left out. Signatures and photos are never included.
+## What `approved` and `flagged` mean
+
+`flagged` is true only when the result is Fail.
+
+`approved` means a supervisor sign-off was recorded. It is true when any of these is present:
+
+- A supervisor name (`supervisorName`, or the older `supervisorSignoff` text when the name field is blank). The QC history shows this as "Sign-off: …".
+- The stored `qcApproved` flag is true.
+
+`approved` is not the same as "this form was submitted". A passed form with no supervisor name is still included. Its `approved` value is false.
+
+`qcApproved` is a poor signal on its own, which is why passed forms that are visible on the timeline were missing from the first version of this feed. The form sets that flag to true only when the result is Pass **and** someone drew on the signature pad. The Submit button does not require a drawing or a name. A passed form with no drawing is still saved, still appears on the timeline, and is stored with `qcApproved` false. Forms saved before that flag existed do not have the field at all. The timeline does not look at `qcApproved`. It lists every saved form and uses the Pass or Fail result. Nothing else in the app reads the flag either. The feed therefore does not use it to decide which forms to return. When the flag is true, it still counts as sign-off, because that is how the current form records "a signature was drawn on a pass". The signature picture itself is never sent.
 
 ## Header
 
@@ -69,7 +79,7 @@ The server compares it with the secret named `QC_FEED_SECRET`. If the header is 
 }
 ```
 
-A failed pallet has `"result": "Fail"` and `"flagged": true`. A form that is not tied to a production job has `"job": null` and uses `"title"` for the name typed on that form.
+A failed pallet has `"result": "Fail"` and `"flagged": true`. It can also have `"approved": true` when a supervisor name was entered. A form that is not tied to a production job has `"job": null` and uses `"title"` for the name typed on that form. `supervisor_name` is the name from the form, using the older sign-off text when the newer name field is blank.
 
 `count` is how many forms are in this answer. `next_since` is the time of the last form, or the same `since` you sent when there are none. To fetch the next batch, call again with `since` set to the previous `next_since`. If `count` is 500, call again — there may be more.
 

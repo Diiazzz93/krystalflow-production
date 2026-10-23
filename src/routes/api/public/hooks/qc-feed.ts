@@ -1,4 +1,6 @@
-// Read-only feed of completed QC forms for an external assistant.
+// Read-only feed of submitted QC forms for an external assistant.
+// Every saved pallet QC row is returned. approved is supervisor sign-off,
+// not "this form was submitted". See docs/qc-feed.md.
 //
 // GET /api/public/hooks/qc-feed?since=<ISO timestamp>&until=<optional ISO>
 // Header: x-qc-feed-secret: <QC_FEED_SECRET>
