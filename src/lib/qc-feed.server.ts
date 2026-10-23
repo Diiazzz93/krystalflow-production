@@ -1,5 +1,7 @@
 // Read-only shaping and loading for GET /api/public/hooks/qc-feed.
 // Callers must already have checked QC_FEED_SECRET. This module only selects.
+// Every saved pallet_qc_records row in the time window is returned. A row
+// exists only after Submit QC log; unsaved drafts never reach this table.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
@@ -28,6 +30,7 @@ const QC_SELECT = [
   "updated_at",
   "qc_approved:data->>qcApproved",
   "supervisor_name:data->>supervisorName",
+  "supervisor_signoff:data->>supervisorSignoff",
   "m_number:data->>mNumber",
   "pallet_quantity:data->>palletQuantity",
   "pallet_type:data->>palletType",
@@ -127,7 +130,6 @@ export async function loadCompletedQcFeed(
     .from("pallet_qc_records")
     .select(QC_SELECT)
     .gt("created_at", window.since)
-    .or("result.eq.Fail,data->>qcApproved.eq.true")
     .order("created_at", { ascending: true })
     .limit(QC_FEED_LIMIT);
 
@@ -144,13 +146,7 @@ export async function loadCompletedQcFeed(
   const jobIds = uniqueJobIds(rows);
   const jobsById = await loadJobs(supabase, jobIds);
 
-  const items: QcFeedItem[] = [];
-  for (const row of rows) {
-    const item = shapeQcFeedItem(row, jobsById);
-    if (!item.approved && !item.flagged) continue;
-    items.push(item);
-  }
-  return items;
+  return rows.map((row) => shapeQcFeedItem(row, jobsById));
 }
 
 function uniqueJobIds(rows: Record<string, unknown>[]): string[] {
@@ -205,7 +201,19 @@ export function shapeQcFeedItem(
   const result = typeof row.result === "string" ? row.result : "";
   const jobId = typeof row.job_id === "string" ? row.job_id.trim() : "";
   const job = UUID_TEXT.test(jobId) ? (jobsById.get(jobId.toLowerCase()) ?? null) : null;
-  const approved = readApproved(pickJson(row, "qc_approved", "qcApproved"));
+  const supervisorName = readText(pickJson(row, "supervisor_name", "supervisorName"), "blank-null");
+  const supervisorSignoff = readText(
+    pickJson(row, "supervisor_signoff", "supervisorSignoff"),
+    "blank-null",
+  );
+  // Sign-off the QC history actually shows is the supervisor's name.
+  // qcApproved is only true when a Pass also has a signature drawing, and
+  // Submit does not require that drawing, so a false or missing flag does
+  // not mean the form was left unfinished.
+  const approved =
+    readApproved(pickJson(row, "qc_approved", "qcApproved")) ||
+    supervisorName != null ||
+    supervisorSignoff != null;
   const flagged = result === "Fail";
   const palletCode = readText(row.pallet_code, "keep");
 
@@ -217,7 +225,7 @@ export function shapeQcFeedItem(
     approved,
     flagged,
     operator_name: readText(row.operator_name, "blank-null"),
-    supervisor_name: readText(pickJson(row, "supervisor_name", "supervisorName"), "blank-null"),
+    supervisor_name: supervisorName ?? supervisorSignoff,
     m_number: readText(pickJson(row, "m_number", "mNumber"), "blank-null"),
     pallet_quantity: readQuantity(pickJson(row, "pallet_quantity", "palletQuantity")),
     pallet_type: readText(pickJson(row, "pallet_type", "palletType"), "blank-null"),
