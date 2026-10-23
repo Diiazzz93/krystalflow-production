@@ -11,7 +11,6 @@ export function isDiggersProduct(identity: { customer?: string; product?: string
 export interface QCFormValues {
   standalone: boolean;
   title: string;
-  diggers: boolean;
   mNumber: string;
   logDate: string;
   operatorName: string;
@@ -49,7 +48,7 @@ export function validateQCForm(v: QCFormValues): Record<string, string> {
     }
   };
   if (v.standalone) text("What is this QC check for?", v.title);
-  if (v.diggers) text("M Number", v.mNumber);
+  text("M Number", v.mNumber);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(v.logDate) || !Number.isFinite(Date.parse(v.logDate))) errors.Date = "Enter the date.";
   text("Operator", v.operatorName);
   positive("Bottle weight (g)", v.bottleWeight);

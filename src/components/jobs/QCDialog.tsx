@@ -50,7 +50,7 @@ import { cn } from "@/lib/utils";
 import { useServerFn } from "@tanstack/react-start";
 import { createPalletAssembly } from "@/lib/unleashed/assembly.functions";
 import { getPackConfig, computeAssemblyQuantity } from "@/lib/pack-config";
-import { EMPTY_QC_CHECKS, isDiggersProduct, validateQCForm } from "@/lib/qc-validation";
+import { EMPTY_QC_CHECKS, validateQCForm } from "@/lib/qc-validation";
 
 
 
@@ -108,14 +108,13 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
   const [linkedJobId, setLinkedJobId] = useState("");
   const [title, setTitle] = useState("");
   const [wantAssembly, setWantAssembly] = useState(false);
-  const [standaloneDiggers, setStandaloneDiggers] = useState("");
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [missingDetailsOpen, setMissingDetailsOpen] = useState(false);
 
   const effectiveJobId = standalone ? linkedJobId : (jobId ?? "");
   const entryJobId = effectiveJobId || STANDALONE_QC_JOB_ID;
 
   const job = jobs.find((j) => j.id === effectiveJobId);
-  const diggers = job ? isDiggersProduct(job) : standaloneDiggers === "yes";
   const history = useMemo(
     () => {
       const runStartedAt = Date.parse(job?.importedFromUnleashedAt ?? "");
@@ -232,7 +231,6 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
       if (!raw) return;
       const s = JSON.parse(raw);
       if (s.title != null) setTitle(s.title);
-      if (s.standaloneDiggers != null) setStandaloneDiggers(s.standaloneDiggers);
       if (s.editingEntryId) setEditingEntryId(s.editingEntryId);
       if (s.palletNumber != null) setPalletNumber(s.palletNumber);
       if (s.checks) setChecks(s.checks);
@@ -274,7 +272,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
       sessionStorage.setItem(
         draftKey,
         JSON.stringify({
-          title, standaloneDiggers, editingEntryId, palletNumber, checks, bottleCount, palletQuantity, palletType,
+          title, editingEntryId, palletNumber, checks, bottleCount, palletQuantity, palletType,
           operatorName, notes, mNumber, logDate, bottleWeight, capWeight,
           liquidWeightPer100ml, totalWeightGrams, palletRowVolumes, startTime,
           finishTime, minimumVolume, maximumVolume, boxesPerPallet,
@@ -286,7 +284,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
     } catch {
       /* quota — ignore */
     }
-  }, [open, draftKey, title, standaloneDiggers, editingEntryId, palletNumber, checks, bottleCount,
+  }, [open, draftKey, title, editingEntryId, palletNumber, checks, bottleCount,
       palletQuantity, palletType, operatorName, notes, mNumber, logDate, bottleWeight,
       capWeight, liquidWeightPer100ml, totalWeightGrams, palletRowVolumes,
       startTime, finishTime, minimumVolume, maximumVolume, boxesPerPallet,
@@ -301,7 +299,6 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
 
   const loadFromEntry = (e: QCEntry) => {
     setValidationErrors({});
-    setStandaloneDiggers(e.mNumber ? "yes" : "no");
     setEditingEntryId(e.id);
     setTitle(e.title ?? "");
     setPalletNumber(e.palletNumber);
@@ -419,17 +416,15 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
       return;
     }
     const errors = validateQCForm({
-      standalone, title, diggers, mNumber, logDate, operatorName, bottleWeight, capWeight,
+      standalone, title, mNumber, logDate, operatorName, bottleWeight, capWeight,
       liquidWeightPer100ml, totalWeightGrams, palletRowVolumes, startTime, finishTime,
       minimumVolume, maximumVolume, palletNumber, boxesPerPallet, bottleCount,
       palletQuantity, palletType, bottleQcOperator, capperOperator, packagingOperator,
       checks, supervisorName, supervisorSignatureDataUrl, notes,
     });
-    if (!job && standalone && !standaloneDiggers) errors["Diggers product?"] = "Choose whether this is a Diggers product.";
     setValidationErrors(errors);
     if (Object.keys(errors).length) {
-      toast.error("QC not saved", { description: "Complete the highlighted details and supervisor signature." });
-      requestAnimationFrame(() => document.querySelector('[data-qc-invalid="true"]')?.scrollIntoView({ behavior: "smooth", block: "center" }));
+      setMissingDetailsOpen(true);
       return;
     }
     const result: "Pass" | "Fail" = Object.values(checks).some((v) => v === "Fail")
@@ -461,7 +456,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
       notes,
       timestamp: existing?.timestamp ?? new Date().toISOString(),
       result,
-      mNumber: diggers ? mNumber.trim() : undefined,
+      mNumber: mNumber.trim(),
       logDate,
       bottleWeight: numOrUndef(bottleWeight),
       capWeight: numOrUndef(capWeight),
@@ -675,19 +670,9 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
               </h3>
 
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {!job && standalone && (
-                  <Field label="Diggers product?">
-                    <Select value={standaloneDiggers} onValueChange={setStandaloneDiggers}>
-                      <SelectTrigger aria-label="Diggers product?"><SelectValue placeholder="Choose…" /></SelectTrigger>
-                      <SelectContent><SelectItem value="yes">Yes</SelectItem><SelectItem value="no">No</SelectItem></SelectContent>
-                    </Select>
-                  </Field>
-                )}
-                {diggers && (
-                  <Field label="M Number">
-                    <Input value={mNumber} onChange={(e) => setMNumber(e.target.value)} placeholder="M-…" />
-                  </Field>
-                )}
+                <Field label="M Number">
+                  <Input value={mNumber} onChange={(e) => setMNumber(e.target.value)} placeholder="M number or . if not applicable" />
+                </Field>
                 <Field label="Date">
                   <Input type="date" value={logDate} onChange={(e) => setLogDate(e.target.value)} />
                 </Field>
@@ -1101,6 +1086,28 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
           <Button variant="outline" onClick={() => { clearDraft(); onOpenChange(false); }}>Close</Button>
         </DialogFooter>
       </DialogContent>
+
+      <AlertDialog open={missingDetailsOpen} onOpenChange={setMissingDetailsOpen}>
+        <AlertDialogContent className="max-h-[85vh] overflow-y-auto">
+          <AlertDialogHeader>
+            <AlertDialogTitle>QC not saved — missing information</AlertDialogTitle>
+            <AlertDialogDescription>
+              Complete or correct the details below before saving. Photos are optional. Enter a full stop (.) if an M number is not applicable.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <ul className="list-disc space-y-2 pl-5 text-sm">
+            {Object.entries(validationErrors).map(([label, error]) => (
+              <li key={label}><span className="font-semibold">{label}</span>: {error}</li>
+            ))}
+          </ul>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => {
+              setMissingDetailsOpen(false);
+              requestAnimationFrame(() => document.querySelector('[data-qc-invalid="true"]')?.scrollIntoView({ behavior: "smooth", block: "center" }));
+            }}>Return to form</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog
         open={!!entryToDelete}

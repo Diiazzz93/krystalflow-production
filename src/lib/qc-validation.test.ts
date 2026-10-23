@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { isDiggersProduct, validateQCForm, type QCFormValues, QC_CHECK_KEYS } from "./qc-validation";
 
 const complete = (): QCFormValues => ({
-  standalone: false, title: "", diggers: false, mNumber: "", logDate: "2026-10-23", operatorName: "Operator",
+  standalone: false, title: "", mNumber: ".", logDate: "2026-10-23", operatorName: "Operator",
   bottleWeight: 30, capWeight: 2, liquidWeightPer100ml: 80, totalWeightGrams: 432,
   palletRowVolumes: [{ row: "1", pump1: "500", pump2: "500" }], startTime: "09:00", finishTime: "10:00",
   minimumVolume: 495, maximumVolume: 505, palletNumber: 1, boxesPerPallet: 100, bottleCount: 600,
@@ -12,7 +12,7 @@ const complete = (): QCFormValues => ({
 });
 
 describe("QC completion requirements", () => {
-  it("allows a complete non-Diggers form without an M number or photos", () => {
+  it("allows a complete form with a full stop for M Number and no photos", () => {
     expect(validateQCForm(complete())).toEqual({});
   });
   const required = ["operatorName", "bottleWeight", "capWeight", "liquidWeightPer100ml", "totalWeightGrams", "startTime", "finishTime", "minimumVolume", "maximumVolume", "boxesPerPallet", "bottleCount", "palletQuantity", "palletType", "bottleQcOperator", "capperOperator", "packagingOperator", "supervisorName", "notes", "logDate"] as const;
@@ -22,9 +22,10 @@ describe("QC completion requirements", () => {
   it("requires a drawn supervisor signature", () => {
     expect(validateQCForm({ ...complete(), supervisorSignatureDataUrl: undefined }).Signature).toBeDefined();
   });
-  it("requires M numbers for Diggers only", () => {
-    expect(validateQCForm({ ...complete(), diggers: true })["M Number"]).toBeDefined();
-    expect(validateQCForm({ ...complete(), diggers: true, mNumber: "M-123" })).toEqual({});
+  it("requires an M Number entry on every form", () => {
+    expect(validateQCForm({ ...complete(), mNumber: "" })["M Number"]).toBeDefined();
+    expect(validateQCForm({ ...complete(), standalone: true, title: "Inspection", mNumber: " " })["M Number"]).toBeDefined();
+    expect(validateQCForm({ ...complete(), mNumber: "M-123" })).toEqual({});
   });
   it("detects the Diggers brand in job identity", () => {
     expect(isDiggersProduct({ product: "Diggers product" })).toBe(true);
