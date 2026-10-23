@@ -19,6 +19,7 @@ import { ManufacturingProvider } from "@/lib/manufacturing";
 import { StockStoreProvider } from "@/lib/stock-store";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { LoginScreen } from "@/components/auth/LoginScreen";
+import { Toaster } from "@/components/ui/sonner";
 
 function NotFoundComponent() {
   return (
@@ -162,6 +163,7 @@ function RootComponent() {
             </StoreProvider>
           </AuthProvider>
         </BrandingProvider>
+        <Toaster />
       </ThemeProvider>
     </QueryClientProvider>
   );

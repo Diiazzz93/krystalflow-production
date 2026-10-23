@@ -24,6 +24,7 @@ import { LinesPanel } from "@/components/settings/LinesPanel";
 import { StockAlertsPanel } from "@/components/settings/StockAlertsPanel";
 import { useAuth } from "@/lib/auth";
 import { linkSyncWebhookSecret } from "@/lib/sync-secret.functions";
+import { useServerFn } from "@tanstack/react-start";
 
 export const Route = createFileRoute("/settings")({
   component: SettingsPage,
@@ -52,11 +53,20 @@ function emptyPreset(): QCPreset {
   };
 }
 
+function explainSyncError(error: unknown): string {
+  const raw = error instanceof Error ? error.message : String(error);
+  if (raw.includes("Only admins")) return "Only an administrator can connect the automatic sync.";
+  return raw || "Could not connect the automatic sync.";
+}
+
 function SettingsPage() {
   const { hasRole } = useAuth();
   const isAdmin = hasRole("admin");
+  const linkSecret = useServerFn(linkSyncWebhookSecret);
   const [custom, setCustom] = useState<QCPreset[]>(() => getCustomPresets());
   const [editing, setEditing] = useState<QCPreset | null>(null);
+  const [connectingSync, setConnectingSync] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
   useEffect(() => subscribeToPresets(() => setCustom(getCustomPresets())), []);
 
@@ -116,14 +126,20 @@ function SettingsPage() {
   return (
     <AppShell>
       <div className="space-y-6 max-w-5xl">
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
             <p className="text-sm text-muted-foreground">
               Configure presets and defaults used across the production app.
             </p>
           </div>
-          <Button variant="outline" onClick={forceResync} title="Clear this device's cache and pull the latest from the backend">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={forceResync}
+            title="Clear this device's cache and pull the latest from the backend"
+            className="min-h-11 w-full whitespace-normal sm:w-auto"
+          >
             <RefreshCw className="size-4" /> Force resync from backend
           </Button>
         </div>
@@ -135,22 +151,49 @@ function SettingsPage() {
             <CardHeader>
               <CardTitle>Automatic Fill Ready sync</CardTitle>
               <CardDescription>
-                Connects the 5-minute sync to its security key. Press once after publishing.
+                Saves the security key for the 5-minute sync. Press once after publishing. The
+                result shows under the button.
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-3">
               <Button
+                type="button"
+                disabled={connectingSync}
+                className="min-h-11 w-full touch-manipulation sm:w-auto"
                 onClick={async () => {
+                  setSyncMessage(null);
+                  setConnectingSync(true);
                   try {
-                    await linkSyncWebhookSecret();
-                    toast.success("Automatic sync connected");
+                    await linkSecret();
+                    const text = "Security key saved.";
+                    setSyncMessage({ ok: true, text });
+                    toast.success(text);
                   } catch (e) {
-                    toast.error(e instanceof Error ? e.message : String(e));
+                    const text = explainSyncError(e);
+                    setSyncMessage({ ok: false, text });
+                    toast.error(text);
+                  } finally {
+                    setConnectingSync(false);
                   }
                 }}
               >
-                Connect automatic sync
+                {connectingSync ? "Connecting…" : "Connect automatic sync"}
               </Button>
+              {syncMessage && (
+                <p
+                  className={
+                    syncMessage.ok
+                      ? "text-sm text-emerald-600 dark:text-emerald-400"
+                      : "text-sm text-red-500"
+                  }
+                >
+                  {syncMessage.text}
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Press once after you publish. The result appears under this button. Saving the key
+                does not change who can sign in.
+              </p>
             </CardContent>
           </Card>
         )}
