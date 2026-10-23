@@ -26,6 +26,7 @@ import {
 import { Save, Plus, Trash2, Upload, ClipboardList, Package2, UserPlus, Mail, Phone, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { useStore } from "@/lib/store";
+import { useAuth } from "@/lib/auth";
 import {
   useCustomerSpecs,
   type CustomerSpec,
@@ -55,6 +56,8 @@ interface CustomerInfoDraft {
 
 function CustomerSpecsPage() {
   const { jobs } = useStore();
+  const { hasRole } = useAuth();
+  const canEdit = hasRole("admin", "manager");
   const {
     specs,
     upsertSpec,
@@ -123,13 +126,13 @@ function CustomerSpecsPage() {
   function save() {
     if (edit.kind === "customer") {
       if (!edit.draft.customer.trim()) return toast.error("Customer name is required");
-      upsertSpec(edit.draft);
+      if (!upsertSpec(edit.draft)) return;
       setSelected(edit.draft.customer);
       toast.success(`Saved customer defaults for ${edit.draft.customer}`);
       setEdit({ kind: "none" });
     } else if (edit.kind === "product") {
       if (!edit.draft.productName.trim()) return toast.error("Product name is required");
-      upsertProduct(edit.customerId, edit.draft);
+      if (!upsertProduct(edit.customerId, edit.draft)) return;
       toast.success(`Saved product specs for ${edit.draft.productName}`);
       setEdit({ kind: "none" });
     }
@@ -185,7 +188,7 @@ function CustomerSpecsPage() {
       address: customerInfoDraft.address.trim() || undefined,
       notes: customerInfoDraft.notes.trim() || undefined,
     };
-    upsertSpec(spec);
+    if (!upsertSpec(spec)) return;
     setSelected(name);
     setCustomerInfoDraft(null);
     toast.success(base ? `Updated ${name}` : `Added ${name}`);
@@ -194,7 +197,7 @@ function CustomerSpecsPage() {
   function removeSelected() {
     if (!existing) return;
     if (!confirm(`Delete all specs for ${existing.customer}?`)) return;
-    deleteSpec(existing.id);
+    if (!deleteSpec(existing.id)) return;
     setSelected(specs.find((s) => s.id !== existing.id)?.customer ?? "");
     setEdit({ kind: "none" });
     setViewingProductId(null);
@@ -203,7 +206,7 @@ function CustomerSpecsPage() {
   function removeProduct(p: ProductSpec) {
     if (!existing) return;
     if (!confirm(`Delete product specs for ${p.productName}?`)) return;
-    deleteProduct(existing.id, p.id);
+    if (!deleteProduct(existing.id, p.id)) return;
     if (viewingProductId === p.id) setViewingProductId(null);
   }
 
@@ -220,9 +223,11 @@ function CustomerSpecsPage() {
               Customer defaults and per-product overrides that flow automatically into every job.
             </p>
           </div>
-          <Button onClick={openAddCustomerDialog}>
-            <UserPlus className="size-4 mr-1" /> Add customer
-          </Button>
+          {canEdit && (
+            <Button onClick={openAddCustomerDialog}>
+              <UserPlus className="size-4 mr-1" /> Add customer
+            </Button>
+          )}
         </div>
 
         <div className="grid lg:grid-cols-[260px_1fr] gap-4">
@@ -279,9 +284,11 @@ function CustomerSpecsPage() {
                 <p className="text-sm text-muted-foreground">
                   No specs saved for <strong>{selected}</strong> yet.
                 </p>
-                <Button onClick={openAddCustomerDialog}>
-                  <UserPlus className="size-4 mr-1" /> Add customer details
-                </Button>
+                {canEdit && (
+                  <Button onClick={openAddCustomerDialog}>
+                    <UserPlus className="size-4 mr-1" /> Add customer details
+                  </Button>
+                )}
               </CardContent></Card>
             ) : edit.kind === "customer" ? (
               <SpecEditor
@@ -341,13 +348,15 @@ function CustomerSpecsPage() {
                       <p className="text-xs text-muted-foreground italic max-w-2xl">{existing.notes}</p>
                     )}
                   </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" onClick={removeSelected}>
-                      <Trash2 className="size-4 mr-1" /> Delete customer
-                    </Button>
-                    <Button variant="outline" onClick={openEditCustomerDialog}>Edit details</Button>
-                    <Button variant="ghost" onClick={startEditCustomer}>Edit fallback specs</Button>
-                  </div>
+                  {canEdit && (
+                    <div className="flex gap-2">
+                      <Button variant="outline" onClick={removeSelected}>
+                        <Trash2 className="size-4 mr-1" /> Delete customer
+                      </Button>
+                      <Button variant="outline" onClick={openEditCustomerDialog}>Edit details</Button>
+                      <Button variant="ghost" onClick={startEditCustomer}>Edit fallback specs</Button>
+                    </div>
+                  )}
                 </div>
 
                 <Card>
@@ -361,19 +370,21 @@ function CustomerSpecsPage() {
                         Click a product to view its specs below. Per-product overrides are used automatically when a job matches.
                       </CardDescription>
                     </div>
-                    <div className="flex gap-2">
-                      <Input
-                        ref={newProductInputRef}
-                        placeholder="New product name"
-                        value={newProductName}
-                        onChange={(e) => setNewProductName(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === "Enter") startNewProduct(); }}
-                        className="w-64"
-                      />
-                      <Button onClick={startNewProduct}>
-                        <Plus className="size-4 mr-1" /> Add product
-                      </Button>
-                    </div>
+                    {canEdit && (
+                      <div className="flex gap-2">
+                        <Input
+                          ref={newProductInputRef}
+                          placeholder="New product name"
+                          value={newProductName}
+                          onChange={(e) => setNewProductName(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === "Enter") startNewProduct(); }}
+                          className="w-64"
+                        />
+                        <Button onClick={startNewProduct}>
+                          <Plus className="size-4 mr-1" /> Add product
+                        </Button>
+                      </div>
+                    )}
                   </CardHeader>
                   <CardContent>
                     {existing.products.length === 0 ? (
@@ -433,10 +444,14 @@ function CustomerSpecsPage() {
                         <Button variant="ghost" size="sm" onClick={() => setViewingProductId(null)}>
                           Show customer defaults
                         </Button>
-                        <Button variant="outline" size="sm" onClick={() => removeProduct(viewingProduct)}>
-                          <Trash2 className="size-4 mr-1" /> Delete
-                        </Button>
-                        <Button size="sm" onClick={() => startEditProduct(viewingProduct)}>Edit product</Button>
+                        {canEdit && (
+                          <Button variant="outline" size="sm" onClick={() => removeProduct(viewingProduct)}>
+                            <Trash2 className="size-4 mr-1" /> Delete
+                          </Button>
+                        )}
+                        {canEdit && (
+                          <Button size="sm" onClick={() => startEditProduct(viewingProduct)}>Edit product</Button>
+                        )}
                       </div>
                     </div>
                     <CustomerSpecsView spec={viewingProduct} />

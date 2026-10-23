@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { useStore } from "@/lib/store";
+import { useAuth } from "@/lib/auth";
 import { fmtDateTime } from "@/lib/utils-domain";
 import { QCDialog, STANDALONE_QC_JOB_ID } from "@/components/jobs/QCDialog";
 import { usePersistedQcId } from "@/lib/qc-open-state";
@@ -25,6 +26,8 @@ export const Route = createFileRoute("/qc")({
 
 function QCPage() {
   const { jobs, qc } = useStore();
+  const { can } = useAuth();
+  const canWriteQc = can("qc:complete");
   const [filter, setFilter] = useState<"all" | "Pass" | "Fail">("all");
   const [customerFilter, setCustomerFilter] = useState<string>("all");
   const [productFilter, setProductFilter] = useState<string>("all");
@@ -224,16 +227,18 @@ function QCPage() {
                   ))}
               </SelectContent>
             </Select>
-            <Button
-              variant="default"
-              onClick={() => {
-                setPrefillEntryId(null);
-                // Persisted (sessionStorage) so the blank form survives app refreshes.
-                setJobId(STANDALONE_QC_JOB_ID);
-              }}
-            >
-              <CheckCircle2 className="size-4 mr-1" /> New QC check
-            </Button>
+            {canWriteQc && (
+              <Button
+                variant="default"
+                onClick={() => {
+                  setPrefillEntryId(null);
+                  // Persisted (sessionStorage) so the blank form survives app refreshes.
+                  setJobId(STANDALONE_QC_JOB_ID);
+                }}
+              >
+                <CheckCircle2 className="size-4 mr-1" /> New QC check
+              </Button>
+            )}
           </div>
         </div>
 

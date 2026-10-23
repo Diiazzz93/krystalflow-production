@@ -22,6 +22,8 @@ import {
 } from "react";
 import { type StockItem } from "@/lib/stock";
 import { useStockStore } from "@/lib/stock-store";
+import { toast } from "sonner";
+import { useAuth } from "@/lib/auth";
 import { loadSetting, saveSetting } from "@/lib/app-settings-kv";
 
 const SETTING_KEY = "manufacturing";
@@ -405,12 +407,12 @@ function load(): PersistShape {
 
 interface ManufacturingValue extends PersistShape {
   stock: StockItem[];
-  upsertBulk: (bom: BulkFormulaBOM) => void;
-  deleteBulk: (id: string) => void;
-  upsertFinished: (bom: FinishedProductBOM) => void;
-  deleteFinished: (id: string) => void;
-  upsertAssembly: (a: ProductionAssembly) => void;
-  deleteAssembly: (id: string) => void;
+  upsertBulk: (bom: BulkFormulaBOM) => boolean;
+  deleteBulk: (id: string) => boolean;
+  upsertFinished: (bom: FinishedProductBOM) => boolean;
+  deleteFinished: (id: string) => boolean;
+  upsertAssembly: (a: ProductionAssembly) => boolean;
+  deleteAssembly: (id: string) => boolean;
   newBulk: () => BulkFormulaBOM;
   newFinished: () => FinishedProductBOM;
   newAssembly: () => ProductionAssembly;
@@ -423,6 +425,8 @@ function uid(prefix: string) {
 }
 
 export function ManufacturingProvider({ children }: { children: ReactNode }) {
+  const { hasRole } = useAuth();
+  const canWrite = hasRole("admin", "manager");
   const [data, setData] = useState<PersistShape>(() => load());
   const hydrated = useRef(false);
 
@@ -458,40 +462,58 @@ export function ManufacturingProvider({ children }: { children: ReactNode }) {
 
 
 
+  const refuseWrite = useCallback(() => {
+    if (canWrite) return false;
+    toast.error("Only admins and managers can change manufacturing records");
+    return true;
+  }, [canWrite]);
+
   const upsertBulk = useCallback((bom: BulkFormulaBOM) => {
+    if (refuseWrite()) return false;
     setData((d) => {
       const next = { ...bom, updatedAt: new Date().toISOString() };
       const idx = d.bulkBOMs.findIndex((b) => b.id === bom.id);
       const list = idx >= 0 ? d.bulkBOMs.map((b, i) => (i === idx ? next : b)) : [...d.bulkBOMs, next];
       return { ...d, bulkBOMs: list };
     });
-  }, []);
+    return true;
+  }, [refuseWrite]);
   const deleteBulk = useCallback((id: string) => {
+    if (refuseWrite()) return false;
     setData((d) => ({ ...d, bulkBOMs: d.bulkBOMs.filter((b) => b.id !== id) }));
-  }, []);
+    return true;
+  }, [refuseWrite]);
 
   const upsertFinished = useCallback((bom: FinishedProductBOM) => {
+    if (refuseWrite()) return false;
     setData((d) => {
       const next = { ...bom, updatedAt: new Date().toISOString() };
       const idx = d.finishedBOMs.findIndex((b) => b.id === bom.id);
       const list = idx >= 0 ? d.finishedBOMs.map((b, i) => (i === idx ? next : b)) : [...d.finishedBOMs, next];
       return { ...d, finishedBOMs: list };
     });
-  }, []);
+    return true;
+  }, [refuseWrite]);
   const deleteFinished = useCallback((id: string) => {
+    if (refuseWrite()) return false;
     setData((d) => ({ ...d, finishedBOMs: d.finishedBOMs.filter((b) => b.id !== id) }));
-  }, []);
+    return true;
+  }, [refuseWrite]);
 
   const upsertAssembly = useCallback((a: ProductionAssembly) => {
+    if (refuseWrite()) return false;
     setData((d) => {
       const idx = d.assemblies.findIndex((x) => x.id === a.id);
       const list = idx >= 0 ? d.assemblies.map((x, i) => (i === idx ? a : x)) : [...d.assemblies, a];
       return { ...d, assemblies: list };
     });
-  }, []);
+    return true;
+  }, [refuseWrite]);
   const deleteAssembly = useCallback((id: string) => {
+    if (refuseWrite()) return false;
     setData((d) => ({ ...d, assemblies: d.assemblies.filter((x) => x.id !== id) }));
-  }, []);
+    return true;
+  }, [refuseWrite]);
 
   const newBulk = useCallback<ManufacturingValue["newBulk"]>(
     () => ({

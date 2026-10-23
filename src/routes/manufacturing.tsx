@@ -37,6 +37,7 @@ import {
   Wrench,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/lib/auth";
 import {
   ALLOCATING_STATUSES,
   ASSEMBLY_STATUSES,
@@ -68,6 +69,8 @@ export const Route = createFileRoute("/manufacturing")({
 function ManufacturingPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
+  const { hasRole } = useAuth();
+  const canEdit = hasRole("admin", "manager");
   const tab: MfgTab = search.tab ?? "assemblies";
 
   return (
@@ -81,6 +84,11 @@ function ManufacturingPage() {
           <p className="text-sm text-muted-foreground">
             Bulk formulas, finished product BOMs, production assemblies, and stock checks.
           </p>
+          {!canEdit && (
+            <p className="text-sm text-muted-foreground mt-1">
+              You can view these records. Only admins and managers can change them.
+            </p>
+          )}
         </div>
 
         <Tabs
@@ -160,7 +168,7 @@ function BulkBOMsTab() {
       toast.error("Product name and formula SKU are required");
       return;
     }
-    upsertBulk(editing);
+    if (!upsertBulk(editing)) return;
     toast.success(`Saved ${editing.productName}`);
     setEditing(null);
   }
@@ -417,7 +425,7 @@ function FinishedBOMsTab() {
       toast.error("Product name and linked bulk formula are required");
       return;
     }
-    upsertFinished(editing);
+    if (!upsertFinished(editing)) return;
     toast.success(`Saved ${editing.productName}`);
     setEditing(null);
   }
@@ -681,7 +689,7 @@ function AssembliesTab() {
       toast.error("Select a finished product and quantity greater than zero");
       return;
     }
-    upsertAssembly(editing);
+    if (!upsertAssembly(editing)) return;
     toast.success(`Saved ${editing.reference}`);
     setEditing(null);
   }

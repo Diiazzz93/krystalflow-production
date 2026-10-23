@@ -23,6 +23,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { toast } from "sonner";
+import { useAuth } from "@/lib/auth";
 import { loadSetting, saveSetting } from "./app-settings-kv";
 
 const SETTING_KEY = "customer_specs";
@@ -463,18 +465,20 @@ interface CustomerSpecsValue {
   specs: CustomerSpec[];
   getSpecForCustomer: (customer: string) => CustomerSpec | undefined;
   getSpecForJob: (customer: string, product?: string) => ResolvedSpec | undefined;
-  upsertSpec: (spec: CustomerSpec) => void;
-  deleteSpec: (id: string) => void;
-  upsertProduct: (customerId: string, product: ProductSpec) => void;
-  deleteProduct: (customerId: string, productId: string) => void;
+  upsertSpec: (spec: CustomerSpec) => boolean;
+  deleteSpec: (id: string) => boolean;
+  upsertProduct: (customerId: string, product: ProductSpec) => boolean;
+  deleteProduct: (customerId: string, productId: string) => boolean;
   createEmpty: (customer: string) => CustomerSpec;
   createEmptyProduct: (productName: string) => ProductSpec;
-  resetToSeed: () => void;
+  resetToSeed: () => boolean;
 }
 
 const Ctx = createContext<CustomerSpecsValue | null>(null);
 
 export function CustomerSpecsProvider({ children }: { children: ReactNode }) {
+  const { hasRole } = useAuth();
+  const canWrite = hasRole("admin", "manager");
   const [specs, setSpecs] = useState<CustomerSpec[]>(() => load());
   const hydrated = useRef(false);
 
@@ -513,7 +517,14 @@ export function CustomerSpecsProvider({ children }: { children: ReactNode }) {
     [specs],
   );
 
+  const refuseWrite = useCallback(() => {
+    if (canWrite) return false;
+    toast.error("Only admins and managers can change customer specs");
+    return true;
+  }, [canWrite]);
+
   const upsertSpec = useCallback((spec: CustomerSpec) => {
+    if (refuseWrite()) return false;
     setSpecs((curr) => {
       const next: CustomerSpec = {
         ...spec,
@@ -526,13 +537,17 @@ export function CustomerSpecsProvider({ children }: { children: ReactNode }) {
       copy[idx] = next;
       return copy;
     });
-  }, []);
+    return true;
+  }, [refuseWrite]);
 
   const deleteSpec = useCallback((id: string) => {
+    if (refuseWrite()) return false;
     setSpecs((curr) => curr.filter((s) => s.id !== id));
-  }, []);
+    return true;
+  }, [refuseWrite]);
 
   const upsertProduct = useCallback((customerId: string, product: ProductSpec) => {
+    if (refuseWrite()) return false;
     setSpecs((curr) =>
       curr.map((c) => {
         if (c.id !== customerId) return c;
@@ -544,9 +559,11 @@ export function CustomerSpecsProvider({ children }: { children: ReactNode }) {
         return { ...c, products, updatedAt: new Date().toISOString() };
       }),
     );
-  }, []);
+    return true;
+  }, [refuseWrite]);
 
   const deleteProduct = useCallback((customerId: string, productId: string) => {
+    if (refuseWrite()) return false;
     setSpecs((curr) =>
       curr.map((c) =>
         c.id === customerId
@@ -554,7 +571,8 @@ export function CustomerSpecsProvider({ children }: { children: ReactNode }) {
           : c,
       ),
     );
-  }, []);
+    return true;
+  }, [refuseWrite]);
 
   const value = useMemo<CustomerSpecsValue>(
     () => ({
@@ -567,9 +585,13 @@ export function CustomerSpecsProvider({ children }: { children: ReactNode }) {
       deleteProduct,
       createEmpty: emptyCustomerSpec,
       createEmptyProduct: emptyProductSpec,
-      resetToSeed: () => setSpecs(seedSpecs()),
+      resetToSeed: () => {
+        if (refuseWrite()) return false;
+        setSpecs(seedSpecs());
+        return true;
+      },
     }),
-    [specs, getSpecForCustomer, getSpecForJob, upsertSpec, deleteSpec, upsertProduct, deleteProduct],
+    [specs, getSpecForCustomer, getSpecForJob, upsertSpec, deleteSpec, upsertProduct, deleteProduct, refuseWrite],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

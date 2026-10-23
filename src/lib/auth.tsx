@@ -76,8 +76,7 @@ const PERMISSIONS: Record<Role, Permission[]> = {
     "page:dashboard", "page:calendar", "page:jobs", "page:live",
     "page:qc", "page:stock", "page:shipping", "page:line-setup", "page:customer-specs",
     "page:manufacturing",
-    "jobs:update-progress", "qc:complete",
-    "line-setup:manage",
+    "jobs:update-progress",
   ],
   viewer: [
     "page:dashboard", "page:calendar", "page:jobs", "page:live",

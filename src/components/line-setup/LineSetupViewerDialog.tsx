@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Star } from "lucide-react";
 import type { LineSetupPreset } from "@/lib/line-setups";
 import { useLineSetups } from "@/lib/line-setups";
+import { useAuth } from "@/lib/auth";
 
 interface Props {
   preset: LineSetupPreset | null;
@@ -22,6 +23,8 @@ interface Props {
 
 export function LineSetupViewerDialog({ preset, open, onOpenChange, onApply }: Props) {
   const { toggleFavourite, markUsed } = useLineSetups();
+  const { hasRole } = useAuth();
+  const canWrite = hasRole("admin", "manager");
 
   if (!preset) {
     return (
@@ -139,16 +142,18 @@ export function LineSetupViewerDialog({ preset, open, onOpenChange, onApply }: P
         )}
 
         <DialogFooter className="gap-2 sm:gap-2">
-          <Button
-            variant="outline"
-            onClick={() => toggleFavourite(preset.id)}
-            className="mr-auto"
-          >
-            <Star className={`size-4 ${preset.favourite ? "fill-amber-400 text-amber-400" : ""}`} />
-            {preset.favourite ? "Unfavourite" : "Favourite"}
-          </Button>
+          {canWrite && (
+            <Button
+              variant="outline"
+              onClick={() => toggleFavourite(preset.id)}
+              className="mr-auto"
+            >
+              <Star className={`size-4 ${preset.favourite ? "fill-amber-400 text-amber-400" : ""}`} />
+              {preset.favourite ? "Unfavourite" : "Favourite"}
+            </Button>
+          )}
           <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
-          {onApply && (
+          {onApply && canWrite && (
             <Button
               onClick={() => {
                 markUsed(preset.id);

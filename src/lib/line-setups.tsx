@@ -13,6 +13,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { toast } from "sonner";
+import { useAuth } from "@/lib/auth";
 import { loadSetting, saveSetting } from "./app-settings-kv";
 
 const SETTING_KEY = "line_setup_presets";
@@ -150,8 +152,8 @@ function load(): LineSetupPreset[] {
 
 interface Ctx {
   presets: LineSetupPreset[];
-  add: (p: Omit<LineSetupPreset, "id" | "createdAt" | "updatedAt" | "favourite" | "successfulRuns"> & Partial<Pick<LineSetupPreset, "favourite" | "successfulRuns">>) => LineSetupPreset;
-  update: (id: string, patch: Partial<LineSetupPreset>) => void;
+  add: (p: Omit<LineSetupPreset, "id" | "createdAt" | "updatedAt" | "favourite" | "successfulRuns"> & Partial<Pick<LineSetupPreset, "favourite" | "successfulRuns">>) => LineSetupPreset | null;
+  update: (id: string, patch: Partial<LineSetupPreset>) => boolean;
   remove: (id: string) => void;
   toggleFavourite: (id: string) => void;
   markUsed: (id: string) => void;
@@ -160,8 +162,16 @@ interface Ctx {
 const LineSetupContext = createContext<Ctx | null>(null);
 
 export function LineSetupProvider({ children }: { children: ReactNode }) {
+  const { hasRole } = useAuth();
+  const canWrite = hasRole("admin", "manager");
   const [presets, setPresets] = useState<LineSetupPreset[]>(() => load());
   const hydrated = useRef(false);
+
+  const refuseWrite = useCallback(() => {
+    if (canWrite) return false;
+    toast.error("Only admins and managers can change line setups");
+    return true;
+  }, [canWrite]);
 
   // Hydrate from backend on mount.
   useEffect(() => {
@@ -191,6 +201,7 @@ export function LineSetupProvider({ children }: { children: ReactNode }) {
   }, [presets]);
 
   const add: Ctx["add"] = useCallback((p) => {
+    if (refuseWrite()) return null;
     const now = new Date().toISOString();
     const created: LineSetupPreset = {
       ...p,
@@ -202,23 +213,28 @@ export function LineSetupProvider({ children }: { children: ReactNode }) {
     };
     setPresets((s) => [created, ...s]);
     return created;
-  }, []);
+  }, [refuseWrite]);
 
   const update = useCallback((id: string, patch: Partial<LineSetupPreset>) => {
+    if (refuseWrite()) return false;
     setPresets((s) =>
       s.map((p) => (p.id === id ? { ...p, ...patch, updatedAt: new Date().toISOString() } : p)),
     );
-  }, []);
+    return true;
+  }, [refuseWrite]);
 
   const remove = useCallback((id: string) => {
+    if (refuseWrite()) return;
     setPresets((s) => s.filter((p) => p.id !== id));
-  }, []);
+  }, [refuseWrite]);
 
   const toggleFavourite = useCallback((id: string) => {
+    if (refuseWrite()) return;
     setPresets((s) => s.map((p) => (p.id === id ? { ...p, favourite: !p.favourite } : p)));
-  }, []);
+  }, [refuseWrite]);
 
   const markUsed = useCallback((id: string) => {
+    if (refuseWrite()) return;
     setPresets((s) =>
       s.map((p) =>
         p.id === id
@@ -226,7 +242,7 @@ export function LineSetupProvider({ children }: { children: ReactNode }) {
           : p,
       ),
     );
-  }, []);
+  }, [refuseWrite]);
 
   const value = useMemo<Ctx>(
     () => ({ presets, add, update, remove, toggleFavourite, markUsed }),

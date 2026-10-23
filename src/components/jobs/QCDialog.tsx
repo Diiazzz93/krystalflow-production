@@ -30,6 +30,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useStore } from "@/lib/store";
+import { useAuth } from "@/lib/auth";
 import type { QCEntry } from "@/lib/types";
 import { fmtDateTime, uid } from "@/lib/utils-domain";
 import { CheckCircle2, XCircle, Upload, Plus, Trash2, Sparkles, ChevronDown } from "lucide-react";
@@ -96,6 +97,8 @@ function generatePalletCode() {
 
 export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone = false }: Props) {
   const { jobs, qc, addQC, updateQC, deleteQC } = useStore();
+  const { can } = useAuth();
+  const canWriteQc = can("qc:complete");
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
   const [entryToDelete, setEntryToDelete] = useState<string | null>(null);
 
@@ -400,6 +403,10 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
   }
 
   async function submit() {
+    if (!canWriteQc) {
+      toast.error("Only admins and managers can save QC records");
+      return;
+    }
     const result: "Pass" | "Fail" = Object.values(checks).some((v) => v === "Fail")
       ? "Fail"
       : "Pass";
@@ -451,7 +458,8 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
     };
 
     if (isEditing) {
-      await updateQC(entry.id, entry);
+      const updated = await updateQC(entry.id, entry);
+      if (!updated) return;
       setLastSubmittedId(entry.id);
       clearDraft();
       toast.success(`Pallet #${entry.palletNumber} updated · ${entry.result}`, {
@@ -464,7 +472,8 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
     }
 
 
-    await addQC(entry);
+    const saved = await addQC(entry);
+    if (!saved) return;
     setLastSubmittedId(entry.id);
     setStickerEntry(entry);
     toast.success(
@@ -902,7 +911,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
               </Field>
             </section>
 
-            {editingEntryId && (
+            {canWriteQc && editingEntryId && (
               <div className="flex items-center justify-between gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs">
                 <span className="text-amber-700 dark:text-amber-300">
                   Editing saved pallet · code stays the same
@@ -923,9 +932,15 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
               </div>
             )}
 
-            <Button className="w-full" onClick={submit}>
-              {editingEntryId ? "Save changes" : "Submit QC log"}
-            </Button>
+            {canWriteQc ? (
+              <Button className="w-full" onClick={submit}>
+                {editingEntryId ? "Save changes" : "Submit QC log"}
+              </Button>
+            ) : (
+              <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+                You can view quality-control records. Only admins and managers can create, edit, or delete them.
+              </p>
+            )}
           </div>
 
           <section className="space-y-3 lg:sticky lg:top-0 lg:self-start lg:max-h-[80vh] lg:flex lg:flex-col">
@@ -971,7 +986,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
                       tabIndex={0}
                       onClick={() => {
                         loadFromEntry(h);
-                        toast.info(`Loaded pallet #${h.palletNumber}`, {
+                        toast.info(`${canWriteQc ? "Loaded" : "Viewing"} pallet #${h.palletNumber}`, {
                           description: h.palletCode ? `Code ${h.palletCode}` : undefined,
                         });
                       }}
@@ -1070,8 +1085,9 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={async () => {
-                if (!entryToDelete) return;
-                await deleteQC(entryToDelete);
+                if (!entryToDelete || !canWriteQc) return;
+                const removed = await deleteQC(entryToDelete);
+                if (!removed) return;
                 setEntryToDelete(null);
                 resetForNew();
               }}

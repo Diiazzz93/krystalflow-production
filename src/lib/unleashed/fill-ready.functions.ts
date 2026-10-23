@@ -4,18 +4,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { assertApprovedRole } from "@/lib/approved-role";
-
-async function assertAdminOrManager(supabase: any, userId: string) {
-  const { data, error } = await supabase
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userId);
-  if (error) throw new Error(`Permission check failed: ${error.message}`);
-  const roles = new Set((data ?? []).map((r: { role: string }) => r.role));
-  if (!roles.has("admin") && !roles.has("manager")) {
-    throw new Error("Only admins and managers can perform this action");
-  }
-}
+import { assertAdminOrManager, userIsAdminOrManager } from "@/lib/require-role";
 
 export const runFillReadyImport = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -47,8 +36,14 @@ export const refreshJobAssemblyComponents = createServerFn({ method: "POST" })
   })
   .handler(async ({ data, context }) => {
     await assertApprovedRole(context.supabase, context.userId);
+    // Reading an existing assembly stays available to any approved role.
+    // Creating a replacement assembly in Unleashed is a write, so only
+    // admins and managers may take that path.
+    const allowUnleashedWrite = await userIsAdminOrManager(context.supabase, context.userId);
     const { refreshJobAssemblyComponentsImpl } = await import("./fill-ready.server");
-    const result = await refreshJobAssemblyComponentsImpl(context.supabase as any, data.jobId);
+    const result = await refreshJobAssemblyComponentsImpl(context.supabase as any, data.jobId, {
+      allowUnleashedWrite,
+    });
     if (!result.ok) throw new Error(result.error);
     return result;
   });

@@ -698,7 +698,11 @@ async function rebuildAssemblyFromSalesOrder(row: Record<string, unknown>): Prom
   };
 }
 
-export async function refreshJobAssemblyComponentsImpl(supabase: SupabaseLike, jobId: string) {
+export async function refreshJobAssemblyComponentsImpl(
+  supabase: SupabaseLike,
+  jobId: string,
+  options?: { allowUnleashedWrite?: boolean },
+) {
   const { data: row, error } = await supabase
     .from("production_jobs")
     .select("id, sku, product, unleashed_sales_order_id, unleashed_assembly_id, unleashed_assembly_number, unleashed_sales_order_number, data")
@@ -754,10 +758,10 @@ export async function refreshJobAssemblyComponentsImpl(supabase: SupabaseLike, j
   }
 
   // Last resort: rebuild the missing link from the Sales Order itself. This
-  // covers the real-world case where the wrong Assembly was linked, imported,
-  // then deleted before KrystalFlow could pull the component lines.
+  // posts a new Assembly to Unleashed, so only admins and managers may do it.
+  // Everyone else still gets a read of an assembly that already exists.
   let rebuiltJobData: Record<string, unknown> = {};
-  if (!detail) {
+  if (!detail && options?.allowUnleashedWrite) {
     const rebuilt = await rebuildAssemblyFromSalesOrder(row as Record<string, unknown>);
     lookupErrors.push(...rebuilt.errors);
     detail = rebuilt.assembly;
