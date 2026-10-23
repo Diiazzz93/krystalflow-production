@@ -3,6 +3,7 @@
 
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { assertApprovedRole } from "@/lib/approved-role";
 
 async function assertAdminOrManager(supabase: any, userId: string) {
   const { data, error } = await supabase
@@ -45,6 +46,7 @@ export const refreshJobAssemblyComponents = createServerFn({ method: "POST" })
     return input;
   })
   .handler(async ({ data, context }) => {
+    await assertApprovedRole(context.supabase, context.userId);
     const { refreshJobAssemblyComponentsImpl } = await import("./fill-ready.server");
     const result = await refreshJobAssemblyComponentsImpl(context.supabase as any, data.jobId);
     if (!result.ok) throw new Error(result.error);
@@ -58,6 +60,7 @@ export const refreshJobBomComponents = createServerFn({ method: "POST" })
     return input;
   })
   .handler(async ({ data, context }) => {
+    await assertApprovedRole(context.supabase, context.userId);
     const { refreshJobBomComponentsImpl } = await import("./fill-ready.server");
     const result = await refreshJobBomComponentsImpl(context.supabase as any, data.jobId);
     if (!result.ok) throw new Error(result.error);

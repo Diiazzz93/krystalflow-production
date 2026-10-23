@@ -10,6 +10,7 @@
 
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { assertApprovedRole } from "@/lib/approved-role";
 import type {
   UnleashedProduct,
   UnleashedProductGroup,
@@ -118,13 +119,15 @@ async function signedFetchAllPages<T>(
 
 export const unleashedFetchWarehouses = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async () => {
+  .handler(async ({ context }) => {
+    await assertApprovedRole(context.supabase, context.userId);
     return signedFetch<UnleashedWarehouse>("/Warehouses", "");
   });
 
 export const unleashedFetchProductGroups = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async () => {
+  .handler(async ({ context }) => {
+    await assertApprovedRole(context.supabase, context.userId);
     return signedFetch<UnleashedProductGroup>("/ProductGroups", "");
   });
 
@@ -144,7 +147,8 @@ export const unleashedFetchProducts = createServerFn({ method: "GET" })
   .inputValidator(
     (input: { groupNames?: string[]; pageSize?: number } | undefined) => input ?? {},
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    await assertApprovedRole(context.supabase, context.userId);
     const pageSize = Math.min(Math.max(data.pageSize ?? 200, 50), 500);
     const groups = (data.groupNames ?? []).map((g) => g.trim()).filter(Boolean);
 
@@ -179,7 +183,8 @@ export const unleashedFetchProducts = createServerFn({ method: "GET" })
 export const unleashedFetchStockOnHand = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { warehouseCode?: string } | undefined) => input ?? {})
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    await assertApprovedRole(context.supabase, context.userId);
     const entries: Array<[string, string]> = [["pageSize", "200"]];
     if (data.warehouseCode) entries.push(["warehouseCode", data.warehouseCode]);
 
@@ -213,7 +218,8 @@ export const unleashedFetchStockOnHand = createServerFn({ method: "GET" })
 
 export const unleashedPing = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async () => {
+  .handler(async ({ context }) => {
+    await assertApprovedRole(context.supabase, context.userId);
     const apiId = process.env.UNLEASHED_API_ID;
     const apiKey = process.env.UNLEASHED_API_KEY;
     if (!apiId || !apiKey) {

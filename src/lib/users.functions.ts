@@ -34,15 +34,19 @@ export const inviteUser = createServerFn({ method: "POST" })
     const newUserId = invited.user?.id;
     if (!newUserId) throw new Error("Invite did not return a user id");
 
-    // The handle_new_user trigger inserts a default 'viewer' role.
-    // Replace with the requested role if different.
-    if (data.role !== "viewer") {
-      await supabaseAdmin.from("user_roles").delete().eq("user_id", newUserId);
-      const { error: rErr } = await supabaseAdmin
-        .from("user_roles")
-        .insert({ user_id: newUserId, role: data.role });
-      if (rErr) throw new Error(rErr.message);
-    }
+    // handle_new_user assigns 'pending' (or 'admin' for the very first
+    // account). Always replace that with the role the admin selected,
+    // including viewer — otherwise an invited viewer stays pending and
+    // cannot read any factory data.
+    const { error: delErr } = await supabaseAdmin
+      .from("user_roles")
+      .delete()
+      .eq("user_id", newUserId);
+    if (delErr) throw new Error(delErr.message);
+    const { error: rErr } = await supabaseAdmin
+      .from("user_roles")
+      .insert({ user_id: newUserId, role: data.role });
+    if (rErr) throw new Error(rErr.message);
 
     return { ok: true, userId: newUserId, email: data.email };
   });

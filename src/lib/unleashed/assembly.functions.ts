@@ -7,6 +7,7 @@
 
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { assertApprovedRole } from "@/lib/approved-role";
 
 interface CreatePalletAssemblyInput {
   jobId: string;
@@ -46,6 +47,7 @@ export const createPalletAssembly = createServerFn({ method: "POST" })
   })
 
   .handler(async ({ data, context }): Promise<CreatedAssembly> => {
+    await assertApprovedRole(context.supabase, context.userId);
     const { supabase } = context;
 
     // Load the job to find the Unleashed product + source SO.

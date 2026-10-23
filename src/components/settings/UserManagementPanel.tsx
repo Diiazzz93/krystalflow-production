@@ -20,6 +20,7 @@ import { deleteUser, inviteUser } from "@/lib/users.functions";
 
 const ROLE_PRIORITY: Role[] = ["admin", "manager", "operator", "viewer", "pending"];
 const ALL_ROLES: Role[] = ["admin", "manager", "operator", "viewer", "pending"];
+const INVITE_ROLES: Role[] = ["admin", "manager", "operator", "viewer"];
 
 interface UserRow {
   id: string;
@@ -178,7 +179,7 @@ export function UserManagementPanel() {
                 <Select value={inviteRole} onValueChange={(v) => setInviteRole(v as Role)} disabled={inviting}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {ALL_ROLES.map((r) => (
+                    {INVITE_ROLES.map((r) => (
                       <SelectItem key={r} value={r}>{ROLE_LABELS[r]}</SelectItem>
                     ))}
                   </SelectContent>
