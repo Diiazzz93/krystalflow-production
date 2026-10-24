@@ -33,7 +33,7 @@ import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import type { QCEntry } from "@/lib/types";
 import { fmtDateTime, uid } from "@/lib/utils-domain";
-import { CheckCircle2, XCircle, Upload, Plus, Trash2, Sparkles, ChevronDown } from "lucide-react";
+import { CheckCircle2, XCircle, Upload, Plus, Trash2, Sparkles, ChevronDown, Save, Clock } from "lucide-react";
 import { SignaturePad } from "./SignaturePad";
 import { PalletStickerDialog } from "./PalletStickerDialog";
 import {
@@ -51,6 +51,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { createPalletAssembly } from "@/lib/unleashed/assembly.functions";
 import { getPackConfig, computeAssemblyQuantity } from "@/lib/pack-config";
 import { EMPTY_QC_CHECKS, validateQCForm } from "@/lib/qc-validation";
+import { usePartPallets, type PartPallet, type PartPalletValues } from "@/lib/qc-part-pallets";
 
 
 
@@ -76,6 +77,7 @@ interface Props {
   onOpenChange: (v: boolean) => void;
   /** When provided, pre-fills the form with the data from this QC entry (view/edit existing pallet). */
   prefillEntryId?: string | null;
+  partPalletId?: string | null;
   /** Blank QC form not linked to any job. No Unleashed assembly unless explicitly opted in. */
   standalone?: boolean;
 }
@@ -97,10 +99,14 @@ function generatePalletCode() {
   return `KS-${code}`;
 }
 
-export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone = false }: Props) {
+export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, partPalletId, standalone = false }: Props) {
   const { jobs, qc, addQC, updateQC, deleteQC } = useStore();
   const { can } = useAuth();
   const canWriteQc = can("qc:complete");
+  const { partPallets, savePartPallet, refresh: refreshParts } = usePartPallets();
+  const [partPallet, setPartPallet] = useState<PartPallet | null>(null);
+  const [saveBusy, setSaveBusy] = useState(false);
+  const loadedPartRef = useRef<string | null>(null);
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
   const [entryToDelete, setEntryToDelete] = useState<string | null>(null);
 
@@ -224,12 +230,15 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
 
   // Restore unsaved draft (e.g. after iOS WebView reload from camera).
   useEffect(() => {
-    if (!open || hydratedRef.current || prefillEntryId) return;
+    if (!open || hydratedRef.current || prefillEntryId || partPalletId) return;
     hydratedRef.current = true;
     try {
       const raw = sessionStorage.getItem(draftKey);
       if (!raw) return;
       const s = JSON.parse(raw);
+      if (s.partPallet) setPartPallet(s.partPallet);
+      if (s.linkedJobId != null) setLinkedJobId(s.linkedJobId);
+      if (s.wantAssembly != null) setWantAssembly(s.wantAssembly);
       if (s.title != null) setTitle(s.title);
       if (s.editingEntryId) setEditingEntryId(s.editingEntryId);
       if (s.palletNumber != null) setPalletNumber(s.palletNumber);
@@ -263,7 +272,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
     } catch {
       /* ignore */
     }
-  }, [open, prefillEntryId, draftKey]);
+  }, [open, prefillEntryId, partPalletId, draftKey]);
 
   // Persist draft on every change so a WebView reload doesn't lose progress.
   useEffect(() => {
@@ -272,7 +281,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
       sessionStorage.setItem(
         draftKey,
         JSON.stringify({
-          title, editingEntryId, palletNumber, checks, bottleCount, palletQuantity, palletType,
+          partPallet, linkedJobId, wantAssembly, title, editingEntryId, palletNumber, checks, bottleCount, palletQuantity, palletType,
           operatorName, notes, mNumber, logDate, bottleWeight, capWeight,
           liquidWeightPer100ml, totalWeightGrams, palletRowVolumes, startTime,
           finishTime, minimumVolume, maximumVolume, boxesPerPallet,
@@ -284,13 +293,80 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
     } catch {
       /* quota — ignore */
     }
-  }, [open, draftKey, title, editingEntryId, palletNumber, checks, bottleCount,
+  }, [open, draftKey, partPallet, linkedJobId, wantAssembly, title, editingEntryId, palletNumber, checks, bottleCount,
       palletQuantity, palletType, operatorName, notes, mNumber, logDate, bottleWeight,
       capWeight, liquidWeightPer100ml, totalWeightGrams, palletRowVolumes,
       startTime, finishTime, minimumVolume, maximumVolume, boxesPerPallet,
       finishedProductFileName, finalProductPhotoName, supervisorName,
       supervisorSignatureDataUrl, fillOperator, bottleQcOperator,
       capperOperator, packagingOperator]);
+
+  useEffect(() => {
+    if (!open || !partPalletId || loadedPartRef.current === partPalletId) return;
+    const saved = partPallets.find(p => p.id === partPalletId);
+    if (!saved) return;
+    loadedPartRef.current = saved.id;
+    hydratedRef.current = true;
+    setPartPallet(saved);
+    setEditingEntryId(null);
+    const v = saved.values;
+    setTitle(v.title);
+    setPalletNumber(v.palletNumber);
+    setChecks(v.checks);
+    setBottleCount(v.bottleCount);
+    setPalletQuantity(v.palletQuantity);
+    setPalletType(v.palletType);
+    setOperatorName(v.operatorName);
+    setNotes(v.notes);
+    setMNumber(v.mNumber);
+    setLogDate(v.logDate);
+    setBottleWeight(v.bottleWeight);
+    setCapWeight(v.capWeight);
+    setLiquidWeightPer100ml(v.liquidWeightPer100ml);
+    setTotalWeightGrams(v.totalWeightGrams);
+    setPalletRowVolumes(v.palletRowVolumes);
+    setStartTime(v.startTime);
+    setFinishTime(v.finishTime);
+    setMinimumVolume(v.minimumVolume);
+    setMaximumVolume(v.maximumVolume);
+    setBoxesPerPallet(v.boxesPerPallet);
+    setFinishedProductFileName(v.finishedProductFileName);
+    setFinalProductPhotoName(v.finalProductPhotoName);
+    setSupervisorName(v.supervisorName);
+    setSupervisorSignatureDataUrl(v.supervisorSignatureDataUrl);
+    setFillOperator(v.fillOperator);
+    setBottleQcOperator(v.bottleQcOperator);
+    setCapperOperator(v.capperOperator);
+    setPackagingOperator(v.packagingOperator);
+    setLinkedJobId(v.linkedJobId);
+    setWantAssembly(v.wantAssembly);
+    setValidationErrors({});
+  }, [open, partPalletId, partPallets]);
+
+  function currentPartValues(): PartPalletValues {
+    return {
+      standalone, title, mNumber, logDate, operatorName, bottleWeight, capWeight,
+      liquidWeightPer100ml, totalWeightGrams, palletRowVolumes, startTime, finishTime,
+      minimumVolume, maximumVolume, palletNumber, boxesPerPallet, bottleCount,
+      palletQuantity, palletType, bottleQcOperator, capperOperator, packagingOperator,
+      checks, supervisorName, supervisorSignatureDataUrl, notes, fillOperator,
+      finishedProductFileName, finalProductPhotoName,
+      linkedJobId: effectiveJobId, wantAssembly,
+    };
+  }
+
+  async function saveUnfinished() {
+    if (saveBusy || editingEntryId) return;
+    setSaveBusy(true);
+    try {
+      await savePartPallet(currentPartValues(), partPallet);
+      clearDraft();
+      toast.success(`Part pallet #${palletNumber} saved`, { description: "Reopen it from Part pallets when ready to finish." });
+      onOpenChange(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not save part pallet. Keep this form open and retry.");
+    } finally { setSaveBusy(false); }
+  }
 
   const clearDraft = () => {
     try { sessionStorage.removeItem(draftKey); } catch { /* ignore */ }
@@ -299,6 +375,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
 
   const loadFromEntry = (e: QCEntry) => {
     setValidationErrors({});
+    setPartPallet(null);
     setEditingEntryId(e.id);
     setTitle(e.title ?? "");
     setPalletNumber(e.palletNumber);
@@ -343,6 +420,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
 
   const resetForNew = () => {
     setEditingEntryId(null);
+    setPartPallet(null);
     if (standalone) setTitle("");
     setPalletNumber(nextPallet);
     setPalletQuantity("");
@@ -434,7 +512,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
     const isEditing = !!existing;
     // Preserve the original pallet code and id when editing — codes are permanent.
     const palletCode = existing?.palletCode ?? generatePalletCode();
-    const entryId = existing?.id ?? (globalThis.crypto?.randomUUID?.() ?? uid());
+    const entryId = existing?.id ?? partPallet?.id ?? (globalThis.crypto?.randomUUID?.() ?? uid());
     const effectivePalletQuantity =
       palletQuantity !== "" && Number(palletQuantity) > 0
         ? Number(palletQuantity)
@@ -497,8 +575,9 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
     }
 
 
-    const saved = await addQC(entry);
+    const saved = await addQC(entry, partPallet ? { id: partPallet.id, updatedAt: partPallet.updatedAt } : undefined);
     if (!saved) return;
+    if (partPallet) void refreshParts().catch(console.error);
     setLastSubmittedId(entry.id);
     setStickerEntry(entry);
     toast.success(
@@ -574,6 +653,8 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
           </DialogDescription>
         </DialogHeader>
 
+        {partPallet && <Badge variant="outline"><Clock className="size-3 mr-1" />Part pallet #{partPallet.palletNumber}</Badge>}
+
         {standalone && (
           <section className="space-y-3 rounded-md border border-border bg-muted/20 p-3">
             <Field label="What is this QC check for?">
@@ -585,6 +666,7 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
             </Field>
             <Field label="Link to a job (optional)">
               <Select
+                disabled={!!partPallet}
                 value={linkedJobId || "none"}
                 onValueChange={(v) => {
                   setLinkedJobId(v === "none" ? "" : v);
@@ -952,9 +1034,19 @@ export function QCDialog({ jobId, open, onOpenChange, prefillEntryId, standalone
             )}
 
             {canWriteQc ? (
-              <Button className="w-full" onClick={submit}>
-                {editingEntryId ? "Save changes" : "Submit QC log"}
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                {!editingEntryId && <Button variant="outline" disabled={saveBusy || (!!partPalletId && !partPallet)} onClick={saveUnfinished}>
+                  <Save className="size-4" /> {saveBusy ? "Saving…" : "Save part pallet"}
+                </Button>}
+                <Button className="flex-1" disabled={saveBusy || (!!partPalletId && !partPallet)} onClick={async () => {
+                  if (saveBusy) return;
+                  setSaveBusy(true);
+                  try { await submit(); } catch { toast.error("QC could not be saved. Keep this form open and retry."); }
+                  finally { setSaveBusy(false); }
+                }}>
+                  {editingEntryId ? "Save changes" : partPallet ? "Finish pallet & submit QC" : "Submit QC log"}
+                </Button>
+              </div>
             ) : (
               <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
                 You can view quality-control records. Only admins and managers can create, edit, or delete them.
