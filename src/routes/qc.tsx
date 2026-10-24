@@ -11,14 +11,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { fmtDateTime } from "@/lib/utils-domain";
 import { QCDialog, STANDALONE_QC_JOB_ID } from "@/components/jobs/QCDialog";
 import { usePersistedQcId } from "@/lib/qc-open-state";
-import { usePartPallets } from "@/lib/qc-part-pallets";
-import { CheckCircle2, ShieldAlert, XCircle, Search } from "lucide-react";
+import { usePartPallets, type PartPallet } from "@/lib/qc-part-pallets";
+import { CheckCircle2, ShieldAlert, Trash2, XCircle, Search } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/qc")({
