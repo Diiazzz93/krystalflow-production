@@ -66,5 +66,11 @@ export function usePartPallets() {
     await refresh();
     return data.id;
   };
-  return { partPallets, savePartPallet, refresh };
+  const deletePartPallet = async (id: string) => {
+    if (!user || !enabled) throw new Error("Sign in as a QC operator to delete part pallets.");
+    const { error } = await supabase.from("qc_pallet_drafts").delete().eq("id", id);
+    if (error) throw new Error(error.message);
+    await refresh();
+  };
+  return { partPallets, savePartPallet, deletePartPallet, refresh };
 }

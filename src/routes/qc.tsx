@@ -11,14 +11,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { useStore } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { fmtDateTime } from "@/lib/utils-domain";
 import { QCDialog, STANDALONE_QC_JOB_ID } from "@/components/jobs/QCDialog";
 import { usePersistedQcId } from "@/lib/qc-open-state";
-import { usePartPallets } from "@/lib/qc-part-pallets";
-import { CheckCircle2, ShieldAlert, XCircle, Search } from "lucide-react";
+import { usePartPallets, type PartPallet } from "@/lib/qc-part-pallets";
+import { CheckCircle2, ShieldAlert, Trash2, XCircle, Search } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/qc")({
@@ -37,15 +47,39 @@ function QCPage() {
   const { jobs, qc } = useStore();
   const { can } = useAuth();
   const canWriteQc = can("qc:complete");
-  const { partPallets } = usePartPallets();
+  const { partPallets, deletePartPallet } = usePartPallets();
   const [partPalletId, setPartPalletId] = useState<string | null>(null);
   const selectedPart = partPallets.find(p => p.id === partPalletId);
+  const [deleteTarget, setDeleteTarget] = useState<PartPallet | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [filter, setFilter] = useState<"all" | "Pass" | "Fail">("all");
   const [customerFilter, setCustomerFilter] = useState<string>("all");
   const [productFilter, setProductFilter] = useState<string>("all");
   const [jobId, setJobId] = usePersistedQcId();
   const [prefillEntryId, setPrefillEntryId] = useState<string | null>(null);
   const [lookup, setLookup] = useState("");
+
+  async function handleDeletePartPallet() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await deletePartPallet(deleteTarget.id);
+      if (partPalletId === deleteTarget.id) {
+        setPartPalletId(null);
+        setJobId(null);
+      }
+      toast.success("Part pallet deleted", {
+        description: `Pallet #${deleteTarget.palletNumber} draft was removed.`,
+      });
+      setDeleteTarget(null);
+    } catch (err) {
+      toast.error("Could not delete part pallet", {
+        description: err instanceof Error ? err.message : "Please try again.",
+      });
+    } finally {
+      setDeleting(false);
+    }
+  }
   
 
   function handleLookup() {
@@ -268,17 +302,51 @@ function QCPage() {
                       <p className="break-words font-medium">{p.values.title || job?.product || "Untitled QC check"} — Pallet #{p.palletNumber}</p>
                       <p className="text-xs text-muted-foreground">{p.values.operatorName || "Unassigned"} · Saved {fmtDateTime(p.updatedAt)}</p>
                     </div>
-                    <Button variant="outline" onClick={() => {
-                      setPrefillEntryId(null);
-                      setPartPalletId(p.id);
-                      setJobId(p.standalone ? STANDALONE_QC_JOB_ID : p.jobId);
-                    }}>Resume</Button>
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" onClick={() => {
+                        setPrefillEntryId(null);
+                        setPartPalletId(p.id);
+                        setJobId(p.standalone ? STANDALONE_QC_JOB_ID : p.jobId);
+                      }}>Resume</Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Delete part pallet #${p.palletNumber}`}
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => setDeleteTarget(p)}
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    </div>
                   </div>
                 );
               })}
             </div>
           </section>
         )}
+
+        <AlertDialog open={!!deleteTarget} onOpenChange={(v) => { if (!v && !deleting) setDeleteTarget(null); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete part pallet?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {deleteTarget
+                  ? `"${deleteTarget.values.title || jobs.find(j => j.id === deleteTarget.jobId)?.product || "Untitled QC check"} — Pallet #${deleteTarget.palletNumber}" and its saved details will be permanently removed. This cannot be undone.`
+                  : ""}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleting}>Keep it</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => { e.preventDefault(); void handleDeletePartPallet(); }}
+                disabled={deleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {deleting ? "Deleting…" : "Delete part pallet"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         <Card>
           <CardHeader>
