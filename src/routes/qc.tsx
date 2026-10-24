@@ -47,15 +47,39 @@ function QCPage() {
   const { jobs, qc } = useStore();
   const { can } = useAuth();
   const canWriteQc = can("qc:complete");
-  const { partPallets } = usePartPallets();
+  const { partPallets, deletePartPallet } = usePartPallets();
   const [partPalletId, setPartPalletId] = useState<string | null>(null);
   const selectedPart = partPallets.find(p => p.id === partPalletId);
+  const [deleteTarget, setDeleteTarget] = useState<PartPallet | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [filter, setFilter] = useState<"all" | "Pass" | "Fail">("all");
   const [customerFilter, setCustomerFilter] = useState<string>("all");
   const [productFilter, setProductFilter] = useState<string>("all");
   const [jobId, setJobId] = usePersistedQcId();
   const [prefillEntryId, setPrefillEntryId] = useState<string | null>(null);
   const [lookup, setLookup] = useState("");
+
+  async function handleDeletePartPallet() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await deletePartPallet(deleteTarget.id);
+      if (partPalletId === deleteTarget.id) {
+        setPartPalletId(null);
+        setJobId(null);
+      }
+      toast.success("Part pallet deleted", {
+        description: `Pallet #${deleteTarget.palletNumber} draft was removed.`,
+      });
+      setDeleteTarget(null);
+    } catch (err) {
+      toast.error("Could not delete part pallet", {
+        description: err instanceof Error ? err.message : "Please try again.",
+      });
+    } finally {
+      setDeleting(false);
+    }
+  }
   
 
   function handleLookup() {
