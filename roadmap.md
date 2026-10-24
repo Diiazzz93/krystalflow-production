@@ -1,3 +1,3 @@
-- [ ] Save unfinished part pallet QC durably and reopen from Quality control.
-- [ ] Preserve final QC validation and exclude unfinished pallets from progress/assemblies.
-- [ ] Verify save, close, refresh and reopen with tests and signed-in UI.
+- [x] Save unfinished part pallet QC durably and reopen from Quality control.
+- [x] Preserve final QC validation and exclude unfinished pallets from progress/assemblies.
+- [x] Verify save, close, refresh and reopen with tests and signed-in UI.
