@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
-import type { QCFormValues } from "./qc-validation";
+import type { QCFormValues, QCCheckKey } from "./qc-validation";
 
 export type PartPalletValues = QCFormValues & {
+  checks: Record<QCCheckKey, "Pass" | "Fail" | "">;
+  palletType: "" | "CHEP" | "Recochem" | "Plain";
   linkedJobId: string;
   wantAssembly: boolean;
   fillOperator: string;
