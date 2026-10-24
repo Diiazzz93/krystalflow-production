@@ -242,6 +242,36 @@ export type Database = {
         }
         Relationships: []
       }
+      qc_pallet_drafts: {
+        Row: {
+          created_by: string
+          data: Json
+          id: string
+          job_id: string
+          pallet_number: number
+          standalone: boolean
+          updated_at: string
+        }
+        Insert: {
+          created_by: string
+          data?: Json
+          id?: string
+          job_id: string
+          pallet_number?: number
+          standalone?: boolean
+          updated_at?: string
+        }
+        Update: {
+          created_by?: string
+          data?: Json
+          id?: string
+          job_id?: string
+          pallet_number?: number
+          standalone?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       shipped_pallets: {
         Row: {
           created_at: string
@@ -400,6 +430,27 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      finish_part_pallet: {
+        Args: { p_entry: Json; p_id: string; p_updated_at: string }
+        Returns: {
+          created_at: string
+          created_by: string | null
+          data: Json
+          id: string
+          job_id: string
+          operator_name: string | null
+          pallet_code: string
+          pallet_number: number
+          result: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "pallet_qc_records"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       set_sync_webhook_secret: {
         Args: { p_secret: string }
         Returns: undefined
