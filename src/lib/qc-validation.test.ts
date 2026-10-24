@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isDiggersProduct, validateQCForm, type QCFormValues, QC_CHECK_KEYS } from "./qc-validation";
+import { isCompletePalletRow, isDiggersProduct, validateQCForm, type QCFormValues, QC_CHECK_KEYS } from "./qc-validation";
 
 const complete = (): QCFormValues => ({
   standalone: false, title: "", mNumber: ".", logDate: "2026-10-23", operatorName: "Operator",
@@ -41,6 +41,9 @@ describe("QC completion requirements", () => {
     expect(validateQCForm(form)).toEqual({});
   });
   it("requires all added row readings", () => {
+    expect(isCompletePalletRow({ row: "1", pump1: "500", pump2: "500" })).toBe(true);
+    expect(isCompletePalletRow({ row: "1", pump1: "", pump2: "" })).toBe(false);
+    expect(isCompletePalletRow({ row: " ", pump1: "500", pump2: "500" })).toBe(false);
     expect(validateQCForm({ ...complete(), palletRowVolumes: [{ row: "1", pump1: "500", pump2: "" }] })["Pallet row volumes"]).toBeDefined();
     expect(validateQCForm({ ...complete(), palletRowVolumes: [] })["Pallet row volumes"]).toBeDefined();
   });

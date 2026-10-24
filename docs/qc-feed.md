@@ -1,6 +1,6 @@
 # QC feed
 
-A read-only web address an outside assistant can call to collect submitted quality-control forms. It does not create, change, or delete anything.
+A read-only web address an outside assistant can call to collect submitted quality-control forms and saved part pallets. It does not create, change, or delete anything.
 
 ## Address
 
@@ -10,11 +10,13 @@ GET https://<your-published-site>/api/public/hooks/qc-feed?since=<ISO timestamp>
 
 Use the address of the published KrystalFlow site (the one staff open in the browser), then add `/api/public/hooks/qc-feed`.
 
-`since` is required. The feed returns forms created after that moment. `until` is optional. When you send it, the feed also stops at that moment.
+`since` is required. The feed returns forms from after that moment. `until` is optional. When you send it, the feed also stops at that moment.
 
-Each call returns at most 500 forms, oldest first. Every submitted form is included, whether it passed or failed. A form is submitted when someone presses **Submit QC log**. That is the same list as the QC timeline. An unsaved draft on the tablet is not included, because it is not saved yet.
+Each call returns at most 500 forms, oldest first. Every submitted form is included, whether it passed or failed. A form is submitted when someone presses **Submit QC log**, or **Finish pallet & submit QC** when they are finishing a part pallet. Those submitted forms are the same list as the QC timeline.
 
-Signatures and photos are never included.
+A part pallet is included as well. That is a form saved with **Save part pallet** so it can be finished later. It is included even when it is unfinished, has no Pass or Fail result, and has no signature. A form that was only typed on the tablet and never saved is still left out, because it is not stored yet.
+
+Signatures and photos are never included. That includes a signature drawing left on a part pallet.
 
 ## What `approved` and `flagged` mean
 
@@ -26,6 +28,8 @@ Signatures and photos are never included.
 - The stored `qcApproved` flag is true.
 
 `approved` is not the same as "this form was submitted". A passed form with no supervisor name is still included. Its `approved` value is false.
+
+A part pallet uses the same rules. It usually has `approved` false and `flagged` false, and its `result` is an empty string, because Pass or Fail is chosen when the form is submitted. If a supervisor name was already typed, `approved` is true. The part pallet is still included either way.
 
 `qcApproved` is a poor signal on its own, which is why passed forms that are visible on the timeline were missing from the first version of this feed. The form sets that flag to true only when the result is Pass **and** someone drew on the signature pad. The Submit button does not require a drawing or a name. A passed form with no drawing is still saved, still appears on the timeline, and is stored with `qcApproved` false. Forms saved before that flag existed do not have the field at all. The timeline does not look at `qcApproved`. It lists every saved form and uses the Pass or Fail result. Nothing else in the app reads the flag either. The feed therefore does not use it to decide which forms to return. When the flag is true, it still counts as sign-off, because that is how the current form records "a signature was drawn on a pass". The signature picture itself is never sent.
 
@@ -66,6 +70,9 @@ The server compares it with the secret named `QC_FEED_SECRET`. If the header is 
       "created_at": "2026-10-20T04:15:00.000Z",
       "updated_at": "2026-10-20T04:16:00.000Z",
       "title": null,
+      "is_part_pallet": false,
+      "rows_completed": 1,
+      "resumed_from": null,
       "job": {
         "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
         "customer": "Example Customer",
@@ -81,7 +88,17 @@ The server compares it with the secret named `QC_FEED_SECRET`. If the header is 
 
 A failed pallet has `"result": "Fail"` and `"flagged": true`. It can also have `"approved": true` when a supervisor name was entered. A form that is not tied to a production job has `"job": null` and uses `"title"` for the name typed on that form. `supervisor_name` is the name from the form, using the older sign-off text when the newer name field is blank.
 
-`count` is how many forms are in this answer. `next_since` is the time of the last form, or the same `since` you sent when there are none. To fetch the next batch, call again with `since` set to the previous `next_since`. If `count` is 500, call again — there may be more.
+## Part pallets, completed rows, and resume
+
+`is_part_pallet` is true when this item is a part pallet still waiting to be finished. **Save part pallet** stores that form on its own list, separate from submitted QC forms, and the feed reads that list. A submitted form has `is_part_pallet` false. That includes a part pallet which has since been finished: finishing removes it from the part-pallet list and saves a normal QC form under the same id. The finished form does not keep a marker saying it used to be a part pallet.
+
+`rows_completed` is how many pallet rows are filled in. On the form, **Pallet row volumes** is the list of rows. Each row has a row name, Pump 1, and Pump 2. A row counts only when it has a row name and both pump volumes are numbers greater than zero. That is the same standard the form requires before it will submit. A blank row, or a row with only some of that filled in, does not count. The number is `0` when the form has the list but no row is finished. It is `null` when the saved form has no pallet-row list at all, which is the case for forms saved before that list existed.
+
+`resumed_from` would be the id of an earlier part pallet this form continues from. **Resume** opens the same saved part pallet. It does not record a different earlier id. Finishing that part pallet keeps the same id on the QC form. Nothing in the saved form stores a separate link, so this field is `null`. No database change was added to start storing one.
+
+For a part pallet, `created_at` and `updated_at` are both the last time it was saved. The part-pallet list does not keep a separate created time. Saving it again moves that time forward, so the same part pallet can appear in a later call. Use `id` to recognise it. After it is finished, the submitted form appears with a new `created_at` (the time of submit) and `is_part_pallet` false.
+
+`count` is how many forms are in this answer. `next_since` is the time of the last form, or the same `since` you sent when there are none. To fetch the next batch, call again with `since` set to the previous `next_since`. If `count` is 500, call again — there may be more. Submitted forms and part pallets share this batch. A full batch can be a mix of both, still oldest first.
 
 ## Set QC_FEED_SECRET in Lovable Cloud
 

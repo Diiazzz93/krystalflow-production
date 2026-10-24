@@ -37,6 +37,20 @@ export interface QCFormValues {
   notes: string;
 }
 
+/** A pallet-row line counts as complete when it meets the submit rule: a row name and both pump volumes above zero. */
+export function isCompletePalletRow(row: unknown): boolean {
+  if (!row || typeof row !== "object") return false;
+  const record = row as { row?: unknown; pump1?: unknown; pump2?: unknown };
+  return typeof record.row === "string" && record.row.trim().length > 0 && isPositiveVolume(record.pump1) && isPositiveVolume(record.pump2);
+}
+
+function isPositiveVolume(value: unknown): boolean {
+  if (typeof value === "number") return Number.isFinite(value) && value > 0;
+  if (typeof value !== "string" || value.trim().length === 0) return false;
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0;
+}
+
 export function validateQCForm(v: QCFormValues): Record<string, string> {
   const errors: Record<string, string> = {};
   const text = (label: string, value: string) => {
@@ -55,7 +69,7 @@ export function validateQCForm(v: QCFormValues): Record<string, string> {
   positive("Cap weight (g)", v.capWeight);
   positive("Liquid weight", v.liquidWeightPer100ml);
   positive("Total weight (g)", v.totalWeightGrams);
-  if (!v.palletRowVolumes.length || v.palletRowVolumes.some(r => !r.row.trim() || !r.pump1.trim() || !r.pump2.trim() || !Number.isFinite(Number(r.pump1)) || Number(r.pump1) <= 0 || !Number.isFinite(Number(r.pump2)) || Number(r.pump2) <= 0)) {
+  if (!v.palletRowVolumes.length || v.palletRowVolumes.some((r) => !isCompletePalletRow(r))) {
     errors["Pallet row volumes"] = "Complete every row with a row name and positive Pump 1 and Pump 2 volumes.";
   }
   for (const [label, time] of [["Start time", v.startTime], ["Finish time", v.finishTime]]) {
