@@ -35,7 +35,7 @@ interface StoreContextValue {
   addLine: (line: Line) => void;
   updateLine: (id: string, patch: Partial<Line>) => void;
   deleteLine: (id: string) => void;
-  addQC: (entry: QCEntry) => Promise<boolean>;
+  addQC: (entry: QCEntry, partPallet?: { id: string; updatedAt: string }) => Promise<boolean>;
   updateQC: (id: string, patch: Partial<QCEntry>) => Promise<boolean>;
   deleteQC: (id: string) => Promise<boolean>;
 
@@ -432,17 +432,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   // ---- QC (Supabase) ----
   const addQC = useCallback<StoreContextValue["addQC"]>(
-    async (entry) => {
+    async (entry, partPallet) => {
       if (!user?.id) {
         toast.error("Sign in required to save QC records");
         return false;
       }
       const row = { ...qcToRow(entry), created_by: user.id };
-      const { data, error } = await supabase
-        .from("pallet_qc_records")
-        .insert(row as never)
-        .select()
-        .single();
+      const { data, error } = partPallet
+        ? await supabase.rpc("finish_part_pallet", {
+            p_id: partPallet.id, p_updated_at: partPallet.updatedAt,
+            p_entry: JSON.parse(JSON.stringify(entry)),
+          })
+        : await supabase.from("pallet_qc_records").insert(row as never).select().single();
       if (error || !data) {
         toast.error(error?.message ?? "Could not save QC record");
         return false;
@@ -486,7 +487,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
       return true;
     },
-    [jobs, updateJob, user?.id],
+    [jobs, qc, updateJob, user?.id],
   );
 
   const updateQC = useCallback<StoreContextValue["updateQC"]>(
