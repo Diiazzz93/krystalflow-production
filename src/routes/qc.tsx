@@ -17,6 +17,7 @@ import { useAuth } from "@/lib/auth";
 import { fmtDateTime } from "@/lib/utils-domain";
 import { QCDialog, STANDALONE_QC_JOB_ID } from "@/components/jobs/QCDialog";
 import { usePersistedQcId } from "@/lib/qc-open-state";
+import { usePartPallets } from "@/lib/qc-part-pallets";
 import { CheckCircle2, ShieldAlert, XCircle, Search } from "lucide-react";
 import { toast } from "sonner";
 
@@ -36,6 +37,9 @@ function QCPage() {
   const { jobs, qc } = useStore();
   const { can } = useAuth();
   const canWriteQc = can("qc:complete");
+  const { partPallets } = usePartPallets();
+  const [partPalletId, setPartPalletId] = useState<string | null>(null);
+  const selectedPart = partPallets.find(p => p.id === partPalletId);
   const [filter, setFilter] = useState<"all" | "Pass" | "Fail">("all");
   const [customerFilter, setCustomerFilter] = useState<string>("all");
   const [productFilter, setProductFilter] = useState<string>("all");
@@ -55,6 +59,7 @@ function QCPage() {
       return;
     }
     setPrefillEntryId(match.id);
+    setPartPalletId(null);
     setJobId(match.jobId);
     toast.success(`Found pallet #${match.palletNumber}`, {
       description: `${jobs.find((j) => j.id === match.jobId)?.customer ?? ""} — opening filled form.`,
@@ -240,6 +245,7 @@ function QCPage() {
                 variant="default"
                 onClick={() => {
                   setPrefillEntryId(null);
+                  setPartPalletId(null);
                   // Persisted (sessionStorage) so the blank form survives app refreshes.
                   setJobId(STANDALONE_QC_JOB_ID);
                 }}
@@ -249,6 +255,30 @@ function QCPage() {
             )}
           </div>
         </div>
+
+        {canWriteQc && partPallets.length > 0 && (
+          <section className="space-y-3 border-t border-border pt-4">
+            <h2 className="text-lg font-semibold">Part pallets <span className="text-muted-foreground">({partPallets.length})</span></h2>
+            <div className="grid gap-3 md:grid-cols-2">
+              {partPallets.map(p => {
+                const job = jobs.find(j => j.id === p.jobId);
+                return (
+                  <div key={p.id} className="flex items-center justify-between gap-3 rounded-md border border-border p-3">
+                    <div className="min-w-0">
+                      <p className="break-words font-medium">{p.values.title || job?.product || "Untitled QC check"} — Pallet #{p.palletNumber}</p>
+                      <p className="text-xs text-muted-foreground">{p.values.operatorName || "Unassigned"} · Saved {fmtDateTime(p.updatedAt)}</p>
+                    </div>
+                    <Button variant="outline" onClick={() => {
+                      setPrefillEntryId(null);
+                      setPartPalletId(p.id);
+                      setJobId(p.standalone ? STANDALONE_QC_JOB_ID : p.jobId);
+                    }}>Resume</Button>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         <Card>
           <CardHeader>
@@ -272,6 +302,7 @@ function QCPage() {
                         type="button"
                         onClick={() => {
                           setPrefillEntryId(e.id);
+                          setPartPalletId(null);
                           setJobId(e.jobId);
                         }}
                         className="block w-full text-left rounded-md px-2 py-1 -mx-2 hover:bg-accent/40 focus:outline-none focus:ring-1 focus:ring-ring"
@@ -316,16 +347,19 @@ function QCPage() {
 
       {jobId && (
         <QCDialog
+          key={partPalletId ?? prefillEntryId ?? jobId}
           jobId={jobId === STANDALONE_QC_JOB_ID ? undefined : jobId}
-          standalone={jobId === STANDALONE_QC_JOB_ID}
+          standalone={selectedPart?.standalone ?? jobId === STANDALONE_QC_JOB_ID}
           open={!!jobId}
           onOpenChange={(v) => {
             if (!v) {
               setJobId(null);
               setPrefillEntryId(null);
+              setPartPalletId(null);
             }
           }}
           prefillEntryId={prefillEntryId}
+          partPalletId={partPalletId}
         />
       )}
     </AppShell>
