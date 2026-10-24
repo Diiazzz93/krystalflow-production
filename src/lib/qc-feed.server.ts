@@ -1,10 +1,16 @@
 // Read-only shaping and loading for GET /api/public/hooks/qc-feed.
 // Callers must already have checked QC_FEED_SECRET. This module only selects.
-// Every saved pallet_qc_records row in the time window is returned. A row
-// exists only after Submit QC log; unsaved drafts never reach this table.
+// Every saved pallet_qc_records row in the time window is returned, plus every
+// qc_pallet_drafts row (a form saved with "Save part pallet"). A form that
+// only exists in the tablet session is not in either table.
+//
+// resumed_from is taken from data.resumedFrom when that text is present.
+// Resume reopens the same part-pallet row and finish keeps that same id,
+// so nothing writes a different earlier form id today and the field is null.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
+import { isCompletePalletRow } from "@/lib/qc-validation";
 
 export const QC_FEED_LIMIT = 500;
 
@@ -19,15 +25,7 @@ const IMAGE_PAYLOAD = /data:image|;base64,|data:application\/octet-stream/i;
  * Columns plus named JSON keys. Aliases keep supervisorSignatureDataUrl and
  * every other data field off the wire.
  */
-const QC_SELECT = [
-  "id",
-  "job_id",
-  "pallet_code",
-  "pallet_number",
-  "result",
-  "operator_name",
-  "created_at",
-  "updated_at",
+const QC_JSON_FIELDS = [
   "qc_approved:data->>qcApproved",
   "supervisor_name:data->>supervisorName",
   "supervisor_signoff:data->>supervisorSignoff",
@@ -37,6 +35,33 @@ const QC_SELECT = [
   "notes:data->>notes",
   "log_date:data->>logDate",
   "title:data->>title",
+  // JSON, not text, so the row list stays an array. The signature drawing is not selected.
+  "pallet_row_volumes:data->palletRowVolumes",
+  "resumed_from:data->>resumedFrom",
+  "is_part_pallet:data->>isPartPallet",
+].join(",");
+
+const QC_SELECT = [
+  "id",
+  "job_id",
+  "pallet_code",
+  "pallet_number",
+  "result",
+  "operator_name",
+  "created_at",
+  "updated_at",
+  QC_JSON_FIELDS,
+].join(",");
+
+// Part pallets have no created_at, result, or pallet code column. The operator
+// name lives in the saved form values. updated_at is the last save time.
+const DRAFT_SELECT = [
+  "id",
+  "job_id",
+  "pallet_number",
+  "updated_at",
+  "operator_name:data->>operatorName",
+  QC_JSON_FIELDS,
 ].join(",");
 
 const JOB_SELECT = "id, customer, product, sku, line, unleashed_sales_order_number";
@@ -67,6 +92,9 @@ export type QcFeedItem = {
   created_at: string;
   updated_at: string;
   title: string | null;
+  is_part_pallet: boolean;
+  rows_completed: number | null;
+  resumed_from: string | null;
   job: QcFeedJob | null;
 };
 
@@ -142,11 +170,93 @@ export async function loadCompletedQcFeed(
     throw new QcFeedQueryError(error.message);
   }
 
-  const rows = (data ?? []) as unknown as Record<string, unknown>[];
+  const records = (data ?? []) as unknown as Record<string, unknown>[];
+  const drafts = (await loadPartPalletRows(supabase, window)).map(asPartPalletFeedRow);
+  const rows = takeQcFeedPage(records, drafts);
   const jobIds = uniqueJobIds(rows);
   const jobsById = await loadJobs(supabase, jobIds);
 
   return rows.map((row) => shapeQcFeedItem(row, jobsById));
+}
+
+async function loadPartPalletRows(
+  supabase: SupabaseClient<Database>,
+  window: { since: string; until: string | null },
+): Promise<Record<string, unknown>[]> {
+  let query = supabase
+    .from("qc_pallet_drafts")
+    .select(DRAFT_SELECT)
+    .gt("updated_at", window.since)
+    .order("updated_at", { ascending: true })
+    .limit(QC_FEED_LIMIT);
+
+  if (window.until) {
+    query = query.lte("updated_at", window.until);
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    throw new QcFeedQueryError(error.message);
+  }
+  return (data ?? []) as unknown as Record<string, unknown>[];
+}
+
+function asPartPalletFeedRow(row: Record<string, unknown>): Record<string, unknown> {
+  const savedAt = row.updated_at;
+  return {
+    ...row,
+    // The draft table is the saved state of "Save part pallet".
+    is_part_pallet: true,
+    created_at: savedAt,
+    updated_at: savedAt,
+    pallet_code: typeof row.pallet_code === "string" ? row.pallet_code : "",
+    result: typeof row.result === "string" ? row.result : "",
+  };
+}
+
+/**
+ * Oldest 500 across submitted forms and part pallets.
+ * With no part pallets, the submitted page is returned unchanged.
+ * When a source hits the 500 cap, items after that source's last
+ * timestamp wait for the next page so an earlier form is not skipped.
+ */
+export function takeQcFeedPage(
+  records: Record<string, unknown>[],
+  drafts: Record<string, unknown>[],
+): Record<string, unknown>[] {
+  const recordIds = new Set(records.map((row) => String(row.id)));
+  const extraDrafts = drafts.filter((row) => !recordIds.has(String(row.id)));
+  if (extraDrafts.length === 0) return records;
+
+  const tagged = [
+    ...records.map((row, index) => ({ row, index })),
+    ...extraDrafts.map((row, index) => ({ row, index: records.length + index })),
+  ];
+  tagged.sort((a, b) => {
+    const diff = feedTime(a.row) - feedTime(b.row);
+    if (Number.isFinite(diff) && diff !== 0) return diff;
+    return a.index - b.index;
+  });
+
+  const horizon = pageHorizon(records, drafts);
+  const pool = tagged.filter((item) => feedTime(item.row) <= horizon).map((item) => item.row);
+  return pool.slice(0, QC_FEED_LIMIT);
+}
+
+function pageHorizon(
+  records: Record<string, unknown>[],
+  drafts: Record<string, unknown>[],
+): number {
+  const times: number[] = [];
+  if (records.length >= QC_FEED_LIMIT) times.push(feedTime(records[records.length - 1]));
+  if (drafts.length >= QC_FEED_LIMIT) times.push(feedTime(drafts[drafts.length - 1]));
+  const finite = times.filter((time) => Number.isFinite(time));
+  if (finite.length === 0) return Number.POSITIVE_INFINITY;
+  return Math.min(...finite);
+}
+
+function feedTime(row: Record<string, unknown>): number {
+  return typeof row.created_at === "string" ? Date.parse(row.created_at) : Number.NaN;
 }
 
 function uniqueJobIds(rows: Record<string, unknown>[]): string[] {
@@ -234,6 +344,9 @@ export function shapeQcFeedItem(
     created_at: row.created_at,
     updated_at: row.updated_at,
     title: job ? null : readText(pickJson(row, "title", "title"), "blank-null"),
+    is_part_pallet: readPartPallet(row),
+    rows_completed: countCompletedRows(pickJson(row, "pallet_row_volumes", "palletRowVolumes")),
+    resumed_from: readResumedFrom(row),
     job,
   };
 
@@ -263,6 +376,34 @@ function pickJson(row: Record<string, unknown>, alias: string, dataKey: string):
     return (data as Record<string, unknown>)[dataKey];
   }
   return null;
+}
+
+function readPartPallet(row: Record<string, unknown>): boolean {
+  if (row.is_part_pallet === true) return true;
+  return readApproved(pickJson(row, "is_part_pallet", "isPartPallet"));
+}
+
+function countCompletedRows(value: unknown): number | null {
+  const rows = coerceRowList(value);
+  if (!rows) return null;
+  return rows.filter((row) => isCompletePalletRow(row)).length;
+}
+
+function coerceRowList(value: unknown): unknown[] | null {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== "string" || value.trim().length === 0) return null;
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function readResumedFrom(row: Record<string, unknown>): string | null {
+  const text = readText(pickJson(row, "resumed_from", "resumedFrom"), "blank-null");
+  if (!text || text === row.id) return null;
+  return text;
 }
 
 function readApproved(value: unknown): boolean {
